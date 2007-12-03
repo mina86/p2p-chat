@@ -1,6 +1,6 @@
-/**
+/** \file
  * A queue implementation for vector as underlying container.
- * $Id: vector-queue.hpp,v 1.1 2007/12/03 14:46:33 mina86 Exp $
+ * $Id: vector-queue.hpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
  */
 #ifndef H_VECTOR_QUEUE_HPP
 #define H_VECTOR_QUEUE_HPP

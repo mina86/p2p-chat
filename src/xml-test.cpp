@@ -1,6 +1,6 @@
-/**
+/** \file
  * XML parser tester.
- * $Id: xml-test.cpp,v 1.1 2007/12/03 14:46:33 mina86 Exp $
+ * $Id: xml-test.cpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
  */
 
 #include <stdio.h>

@@ -1,6 +1,6 @@
-/**
+/** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.1 2007/12/03 14:46:33 mina86 Exp $
+ * $Id: application.hpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -22,7 +22,13 @@ struct Module;
 
 
 
-
+/**
+ * Signals are the main way of inter Module communication.  Signal may
+ * be addressed to single module (when ppc::Module::reciever does not
+ * end with a slash) or to group of modules (when it ends with
+ * a slash; signal will be delivered to all modules that
+ * ppc::Module::reciever is prefix of names of).
+ */
 struct Signal {
 	/**
 	 * Data associated with a signal.  It is an abstract class for
@@ -118,14 +124,6 @@ struct Signal {
 	const Data *getData() const { return  data; }
 
 
-	/**
-	 * Tests whether module matches reciever pattern.
-	 * \param m module to check name.
-	 * \return \c true iff module's name matches pattern.
-	 */
-	inline bool matchReciever(const Module &m) const;
-
-
 private:
 	/** Signal's type. */
 	std::string type;
@@ -196,12 +194,14 @@ struct Module {
 	 * contain file descriptors module is not interested in.  Method
 	 * must return number of operations it took care of.
 	 *
-	 * \param rd file descriptors ready for reading.
-	 * \param wr file descriptors ready for writtitg.
-	 * \param ex file descriptors where exception occured.
+	 * \param nfds number of bits set.
+	 * \param rd   file descriptors ready for reading.
+	 * \param wr   file descriptors ready for writtitg.
+	 * \param ex   file descriptors where exception occured.
 	 * \return number of operations it took care of.
 	 */
-	virtual int doFDs(const fd_set *rd, const fd_set *wr, const fd_set *ex)=0;
+	virtual int doFDs(int nfds, const fd_set *rd, const fd_set *wr,
+	                  const fd_set *ex) = 0;
 
 
 	/**
@@ -209,24 +209,6 @@ struct Module {
 	 * \param sig delivered signal.
 	 */
 	virtual void recievedSignal(const Signal &sig) = 0;
-
-
-	/**
-	 * Tests whether module's name matches \a pattern.  If \a pattern
-	 * ends with <tt>"/\*"</tt> name matches iff \a pattern with
-	 * asterix stripped off is name's prefix, otherwise it matches iff
-	 * name and \a pattern are equal.
-	 *
-	 * \param pattern pattern to match name against.
-	 * \return whether name matches \a pattern.
-	 */
-	bool matchName(const std::string &pattern) const {
-		const std::string::size_type len = pattern.length();
-		return len > 1 && len <= moduleName.length() &&
-			(pattern[len-1] == '*' && pattern[len-2] == '/'
-			 ? !memcmp(pattern.data(), moduleName.data(), len-1)
-			 : (pattern == moduleName));
-	}
 
 
 protected:
@@ -271,7 +253,8 @@ struct Core : protected Module {
 	 * \param main main module.
 	 */
 	Core(Config &cfg, Module &main)
-		: Module(*this, "/core"), mainModule(&main), config(cfg) {
+		: Module(*this, "/core"), mainModule(&main), config(cfg), 
+		  running(true) {
 		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
 		modules.insert(std::make_pair(main.moduleName, &main));
 	}
@@ -283,7 +266,8 @@ struct Core : protected Module {
 
 protected:
 	virtual int setFDSets(fd_set *rd, fd_set *wr, fd_set *ex);
-	virtual int doFDs(const fd_set *rd, const fd_set *wr, const fd_set *ex);
+	virtual int doFDs(int nfds, const fd_set *rd, const fd_set *wr,
+	                  const fd_set *ex);
 	virtual void recievedSignal(const Signal &sig);
 
 	void sendSignal(const std::string &type, const std::string &reciever,
@@ -310,16 +294,15 @@ private:
 	/** Application configuration. */
 	Config &config;
 
+	/** Whether application should still run. */
+	bool running;
+
 
 	friend struct Module;
 };
 
 
 
-
-bool Signal::matchReciever(const Module &m) const {
-	return m.matchName(reciever);
-}
 
 
 void Module::sendSignal(const std::string &type, const std::string &reciever,

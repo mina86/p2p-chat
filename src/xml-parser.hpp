@@ -1,6 +1,6 @@
-/**
+/** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.1 2007/12/03 14:46:33 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
