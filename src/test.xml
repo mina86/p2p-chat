@@ -1,0 +1,12 @@
+<comment>XML parser test file.</comment>
+<id>$Id: test.xml,v 1.1 2007/12/03 14:46:33 mina86 Exp $</id>
+<ppcp n="mina86">
+  <st st="on">I'm online</st>
+  <rq />
+</ppcp>
+<test>
+  &lt;ppcp n=&#x22;mina86&#34;&gt;
+    &lt;st st="on"&gt;I'm online&lt;/st&gt;
+    &lt;rq /&gt;
+  &lt;/ppcp&gt;
+</test>
