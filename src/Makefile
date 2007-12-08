@@ -1,11 +1,10 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.1 2007/12/03 14:46:33 mina86 Exp $
+## $Id: Makefile,v 1.2 2007/12/08 18:02:11 mina86 Exp $
 ##
 
 HPP_FILES	:= $(wildcard *.hpp)
-CPP_FILES	:= $(wildcard *.cpp)
-OBJ_FILES	:= $(addsuffix .o,$(basename $(CPP_FILES)))
+OBJ_FILES	:= $(addsuffix .o,$(basename $(wildcard *.cpp)))
 
 all: $(OBJ_FILES)
 
@@ -16,10 +15,11 @@ doc:
 	rm -rf -- doc/html
 	doxygen
 
-xml-test: xml-test.o xml-parser.o
-	$(CXX) $(LDFLAGS) -o $@ $^
+tests:
+	cd tests && exec $(MAKE)
 
 clean:
-	rm -rf -- *.o xml-test
+	exec rm -rf -- *.o xml-test
+	cd tests && exec $(MAKE) clean
 
-.PHONY: all doc clean
+.PHONY: all doc tests clean
