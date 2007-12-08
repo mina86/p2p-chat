@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
+ * $Id: application.hpp,v 1.3 2007/12/08 18:00:58 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -11,6 +11,7 @@
 #include <map>
 #include <string>
 
+#include "signal.hpp"
 #include "vector-queue.hpp"
 
 
@@ -18,125 +19,6 @@ namespace ppc {
 
 struct Config;
 struct Core;
-struct Module;
-
-
-
-/**
- * Signals are the main way of inter Module communication.  Signal may
- * be addressed to single module (when ppc::Module::reciever does not
- * end with a slash) or to group of modules (when it ends with
- * a slash; signal will be delivered to all modules that
- * ppc::Module::reciever is prefix of names of).
- */
-struct Signal {
-	/**
-	 * Data associated with a signal.  It is an abstract class for
-	 * real data containers to extend.
-	 */
-	struct Data {
-		/** Virtual destructor. */
-		virtual ~Data() { };
-
-	protected:
-		/** Constructor, zeroes reference counter. */
-		Data() : references(0) { }
-		/** Constructor, zeroes reference counter.
-		 * \param data ignored. */
-		Data(const Data &data) : references(0) { (void)data; }
-
-	private:
-		/** Reference counter. */
-		unsigned references;
-
-		/** Decreases reference counter and deletes object if it
-		    reaches zero. */
-		void decreaseReferences() {
-			if (!--references) delete this;
-		}
-
-		/** Increases reference counter. */
-		void increaseReferences() { ++references; }
-
-		friend struct Signal;
-	};
-
-
-
-	/**
-	 * Constructor sets signal's type and reciever.
-	 * \param t signal's type.
-	 * \param s signal's sender.
-	 * \param r reciever name pattern.
-	 * \param d signal's data.
-	 */
-	Signal(const std::string &t = "", const std::string &s = "",
-	       const std::string &r = "", Data *d = 0)
-		: type(t), sender(s), reciever(r), data(d) {
-		if (d) d->increaseReferences();
-	}
-
-
-	/**
-	 * Copy constructor.
-	 * \param s signal to copy.
-	 */
-	Signal(const Signal &s)
-		: type(s.type), sender(s.sender), reciever(s.reciever),
-		  data(s.data) {
-		if (data) data->increaseReferences();
-	}
-
-
-	/** Destructor. */
-	~Signal() {
-		if (data) data->decreaseReferences();
-	}
-
-
-	/**
-	 * Assigment operator
-	 * \param s signal to copy.
-	 */
-	Signal &operator=(const Signal &s) {
-		if (this != &s) {
-			type = s.type;
-			sender = s.sender;
-			reciever = s.reciever;
-			if (data) data->decreaseReferences();
-			data = s.data;
-			if (data) data->increaseReferences();
-		}
-		return *this;
-	}
-
-
-	/** Returns signal's type. */
-	const std::string &getType() const { return type; }
-
-	/** Returns signal's sender. */
-	const std::string &getSender() const { return sender; }
-
-	/** Returns signal's reciever pattern. */
-	const std::string &getReciever() const { return reciever; }
-
-	/** Returns signal's data. */
-	const Data *getData() const { return  data; }
-
-
-private:
-	/** Signal's type. */
-	std::string type;
-
-	/** Signal's sender. */
-	std::string sender;
-
-	/** Signal's reciever pattern. */
-	std::string reciever;
-
-	/** Signal's data. */
-	Data *data;
-};
 
 
 
@@ -253,7 +135,7 @@ struct Core : protected Module {
 	 * \param main main module.
 	 */
 	Core(Config &cfg, Module &main)
-		: Module(*this, "/core"), mainModule(&main), config(cfg), 
+		: Module(*this, "/core"), mainModule(&main), config(cfg),
 		  running(true) {
 		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
 		modules.insert(std::make_pair(main.moduleName, &main));
