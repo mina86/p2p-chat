@@ -1,6 +1,6 @@
 /** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.3 2007/12/08 18:02:53 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 #include <map>
+
+#include "exception.hpp"
+
 
 namespace ppc {
 
@@ -95,19 +98,12 @@ std::string escape(const std::string &str);
 /**
  * Exception thrown by XML tokenizer and parser.
  */
-struct Error {
+struct Error : public Exception {
 	/**
 	 * Constructor.
 	 * \param msg error message.
 	 */
-	Error(const std::string &msg) : message(msg) { }
-
-	/** Returns error message. */
-	const std::string &getMessage() const { return message; }
-
-private:
-	/** Error message. */
-	std::string message;
+	Error(const std::string &msg) : Exception(msg) { }
 };
 
 
