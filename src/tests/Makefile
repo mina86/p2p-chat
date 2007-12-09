@@ -1,10 +1,9 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.1 2007/12/08 18:02:11 mina86 Exp $
+## $Id: Makefile,v 1.2 2007/12/09 17:09:58 mina86 Exp $
 ##
 
-HPP_FILES	:= $(wildcard ../*.hpp)
-EXE_FILES	:= $(basename $(wildcard *.cpp))
+EXE_FILES	:= $(basename $(wildcard *.cpp) $(wildcard *.c))
 
 all: $(EXE_FILES)
 
@@ -23,6 +22,9 @@ xml-parser: xml-parser.o ../xml-parser.o
 
 shared-obj: shared-obj.cpp ../shared-obj.hpp
 	exec $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ $<
+
+multicast: multicast.c
+	exec $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
 clean:
 	exec rm -rf -- *.o $(EXE_FILES)
