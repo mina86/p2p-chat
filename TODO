@@ -1,0 +1,64 @@
+                                                      -*- org-mode -*-
+* Jarunia
+** Przetestowaæ parser XML
+
+   Przetestowaæ wszystkie klasy w przestrzeni nazw ppc::xml,
+   tzn. wszystko to co jest zwi±zane z parsowaniem strumieni danych
+   XML.  Wszelkie ewentualne b³êdy poprawiæ.
+
+** Stworzyæ klasê Config
+
+   Omówiæ z mco interfejs klasy Config, a nastêpnie j± napisaæ.
+   Jej zadaniem jest wczytywanie i zapisywanie plików
+   konfiguracyjnych, które maj± byæ trzymane w formacie XML.  Rzecz
+   jasna musi umo¿liwiaæ jakie¶ metody pozwalaj±ce na dobieranie siê
+   do tych danych i ewentualne rejestrowanie zmiennych
+   konfiguracyjnych.  Klasa ta bêdzie wykorzystywana raczej jedynie
+   w interfejsie u¿ytkownika, st±d wspó³praca z mco.
+
+** Opisaæ schemat protoko³u PPCP.
+
+   Stworzyæ jak±¶ definicjê elementów i atrybutów wchodz±cych w sk³ad
+   protoko³u PPCP bazuj±c na dokumentacji wstêpnej.  Aby to uczniæ
+   nale¿y rzecz jasna obczaiæ jak to siê robi i co to s± te
+   przestrzenie nazw w XML-u.
+
+* Kris
+** Obczaiæ dzia³anie select
+
+   Napisaæ mo¿liwie najbardziej przeno¶ny program wykorzystuj±cy
+   selecta, który bêdzie: (i) nas³uchiwa³ na standardowym wej¶ciu
+   i je¿eli s± tam jakie¶ dane to odczytywa³ je i wypisywa³ na
+   standardowe wyj¶cie, (ii) co 5 sekund wypisywa³ linijkê ze s³owem
+   "tick" oraz (iii) gdy do programu zostanie dostarczony jaki¶ sygna³
+   wypisywa³ na standardowe wyj¶cie "signal <num>" gdzie <num> to
+   numer sygna³u.
+
+   Je¶li chodzi o (ii) to pod Linuksem mo¿na to zrobiæ ustawiaj±c time
+   out na piêæ sekund i sprawdzaj±c czy kod wyj¶cia selecta to nie 0.
+   Je¿eli jest to 0 to znaczy, ¿e czas min±³ i timeout nale¿y znowu
+   ustawiæ, a je¿eli nie jest to 0 to w strukturze timeval zosta³
+   zapisany pozosta³y czas.  Warto jednak obczaiæ, czy nie mo¿na
+   zrobiæ tego bardziej przeno¶nie z wykorzystaniem sygna³u alarm lub
+   czego¶ podobnego.
+
+* mco
+** Uzgodniæ z Jaruni± interfejs klasy Config
+** Napisaæ interfejs u¿ytkownika
+
+   Napisaæ modu³, który bêdzie odbiera³ i wysy³a³ odpowiednie sygna³y
+   i odpowiednio na nie reagowa³.  Modu³ rzecz jasna nie mo¿e blokowaæ
+   i jego dzia³anie musi byæ oparte o funkcjê select(), a dok³adniej
+   interfejs definiowane w bazowej klasie Module.
+
+** Napisaæ funkcjê main
+
+   Funkcja main bêdzie zapewne parsowaæ argumenty, po czym wczytywaæ
+   plik konfiguracyjny (klasa Config), tworzyæ rdzeñ systemu (Core),
+   nastêpnie jaki¶ g³ówny modu³ (zapewne napisany wcze¶niej interfejs
+   u¿ytkownika), a potem odpalaæ machineriê.
+
+* mina86
+** Napisaæ parser komunikatów PPCP
+** Napisaæ modu³ obs³uguj±cy sieæ
+
