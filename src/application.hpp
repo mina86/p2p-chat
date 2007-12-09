@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.3 2007/12/08 18:00:58 mina86 Exp $
+ * $Id: application.hpp,v 1.4 2007/12/09 17:09:32 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -127,19 +127,39 @@ protected:
  */
 struct Core : protected Module {
 	/**
-	 * Initialises core module.  \a main is a main madule whitch must
-	 * be running whole the time application is running.  If it stops
-	 * core will exit.
+	 * Initialises core module.
 	 *
 	 * \param cfg  application configuration.
-	 * \param main main module.
 	 */
-	Core(Config &cfg, Module &main)
-		: Module(*this, "/core"), mainModule(&main), config(cfg),
-		  running(true) {
+	Core(Config &cfg)
+		: Module(*this, "/core"), config(cfg), running(true) {
 		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
-		modules.insert(std::make_pair(main.moduleName, &main));
 	}
+
+	/**
+	 * Sets main module.  This is a module that will run through the
+	 * execution of application.  When core module notices that main
+	 * module have exited it will unconditionally terminate.  Main
+	 * module will be automatically added to modules list, no need to
+	 * call addModule.  If module with given name already exists \c
+	 * false is returned and no action taken.
+	 *
+	 * \param main main module.
+	 * \return \c true iff module with given name does not yet exist.
+	 */
+	bool setMainModule(Module &main) {
+		if (!addModule(main)) return false;
+		mainModule = &main;
+		return true;
+	}
+
+
+	/**
+	 * Adds module to modules list.
+	 * \param module Module to add.
+	 * \return \c true iff module with given name does not yet exist.
+	 */
+	bool addModule(Module &module);
 
 
 	/** Runs core, returns exit status. */
@@ -178,6 +198,10 @@ private:
 
 	/** Whether application should still run. */
 	bool running;
+
+
+	/** Delivers signals to modules. */
+	void deliverSignals();
 
 
 	friend struct Module;

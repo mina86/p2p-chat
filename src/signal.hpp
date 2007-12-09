@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.1 2007/12/08 18:00:58 mina86 Exp $
+ * $Id: signal.hpp,v 1.2 2007/12/09 17:09:32 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -56,8 +56,6 @@ struct Module;
  *   <li>\c /core/module/remove send by core module to all modules
  *     when module exits and is removed from list; its argument is
  *     a sig::StringData object.</li>
- *   <li>\c /core/module/add send to core module to add new module;
- *     its argument is a sig::ModuleData object.</li>
  *   <li>\c /core/module/exit send to core madule when sender exits
  *     and should be removed from list; it has no argument.</li>
  * </ul>
@@ -94,10 +92,8 @@ struct Module;
  *
  * It may be tempting to use pointers or references when passing data
  * with singlas.  This is not good sollution however because pointed
- * object may be deleted when singal is delivered.  The two exceptions
- * are \c /core/module/add and \c /net/users/rp signals where former
- * adds new module to modules list and later is protected by using
- * shared_ptr.
+ * object may be deleted when singal is delivered.  The only exception
+ * is \c /net/users/rp signals which is protected by using shared_ptr.
  */
 struct Signal {
 	/** Base type for data objects. */
@@ -181,23 +177,6 @@ struct StringData : public Signal::Data {
 
 	/** Signal's string data. */
 	std::string data;
-};
-
-
-/**
- * Signal data with pointer to module.  Used with \c /core/module/add
- * signal when some module created new module and requested that core
- * will add it to list.
- */
-struct ModuleData : public Signal::Data {
-	/**
-	 * Sets data.
-	 * \param m module to set.
-	 */
-	ModuleData(Module &m) : module(m) { }
-
-	/** Signal's Module data. */
-	Module &module;
 };
 
 

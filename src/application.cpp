@@ -1,11 +1,13 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
+ * $Id: application.cpp,v 1.3 2007/12/09 17:09:32 mina86 Exp $
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include "application.hpp"
+
 
 namespace ppc {
 
@@ -46,19 +48,66 @@ int Core::run() {
 			}
 		}
 
-		while (!signals.empty()) {
-			const Signal sig = signals.front();
-			const std::string &rec = sig.getReciever();
-			signals.pop();
-			if (rec.empty()) continue;
-
-			Modules::iterator it, end = modules.end();
-			/* TODO */
-
-		}
+		deliverSignals();
 	}
+
+	for (Modules::iterator it = modules.begin(), end = modules.end();
+	     it!=end; ++it) {
+		delete it->second;
+	}
+
+	modules.clear();
+	while (!signals.empty()) {
+		signals.front().clear();
+		signals.pop();
+	}
+	mainModule = 0;
+
 	return 0;
 }
+
+
+void Core::deliverSignals() {
+	while (!signals.empty()) {
+		const Signal sig = signals.front();
+		signals.front().clear();
+		signals.pop();
+
+		const std::string &rec = sig.getReciever();
+		const std::string::size_type length = rec.length();
+		if (!length) continue;
+
+		Modules::iterator it = modules.lower_bound(rec);
+		const Modules::iterator end = modules.end();
+
+		if (it==end) continue;
+
+		if (rec[length - 1] != '/') {
+			if (it->second->moduleName == rec) {
+				it->second->recievedSignal(sig);
+			}
+			continue;
+		}
+
+		while (it!=end && it->second->moduleName.length() > length &&
+		       !memcmp(rec.data(), it->second->moduleName.data(), length)) {
+			it->second->recievedSignal(sig);
+			++it;
+		}
+	}
+}
+
+
+bool Core::addModule(Module &module) {
+	if (modules.find(module.moduleName) != modules.end()) {
+		return false;
+	}
+	modules.insert(std::make_pair(module.moduleName, &module));
+	signals.push(Signal("/core/module/new", moduleName, "/",
+	                    new sig::StringData(module.moduleName)));
+	return true;
+}
+
 
 
 int Core::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
