@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.1 2007/12/10 11:56:09 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.2 2007/12/10 12:34:29 mina86 Exp $
  */
 
 #include <errno.h>
@@ -42,6 +42,7 @@ enum {
 
 void Tokenizer::init() {
 	element = E_START;
+	ignore = 0;
 	data.clear();
 	data2.clear();
 }
@@ -64,7 +65,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 	if (ignore) {
 		if (xToken.type == xml::Tokenizer::TAG_OPEN) {
 			++ignore;
-		} else if (xToken.type == xml::Tokenizer::TAG_CLOSE) {
+		} else if (xToken.type == xml::Tokenizer::ELEMENT_CLOSE) {
 			--ignore;
 		}
 		return token;
@@ -172,10 +173,14 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			break;
 		}
 
-		if (data.empty() || !User::isValidNick(data)) {
+		if (data.empty() || !User::isValidNick(data) ||
+		    (ignoreSelf && data == ourNick)) {
 		ignore_rest:
 			token.type = IGNORE;
 			element = E_IGNORE;
+			data.clear();
+			data2.clear();
+			break;
 		}
 		token.data = data;
 		data.clear();
@@ -185,7 +190,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			char *end;
 			errno = 0;
 			val = strtoul(data2.c_str(), &end, 10);
-			if (errno || val > 0xff || *end) val = 0;
+			if (errno || val > 0xffff || *end) val = 0;
 			token.flags = val;
 			data2.clear();
 		}
