@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.2 2007/12/10 12:34:29 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.3 2007/12/10 13:00:53 mina86 Exp $
  */
 
 #include <errno.h>
@@ -14,6 +14,7 @@ namespace ppc {
 namespace ppcp {
 
 
+/** Some constants - possible elements, attributes and flags. */
 enum {
 	E_START           = 0,
 	E_PPCP            = 1,

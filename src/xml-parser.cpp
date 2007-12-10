@@ -1,6 +1,6 @@
 /** \file
  * XML parser implementation.
- * $Id: xml-parser.cpp,v 1.3 2007/12/10 11:55:43 mina86 Exp $
+ * $Id: xml-parser.cpp,v 1.4 2007/12/10 13:00:53 mina86 Exp $
  */
 
 #include <errno.h>
@@ -154,7 +154,8 @@ std::string escape(const std::string &str) {
 }
 
 
-enum State {
+/** Possible states. */
+enum {
 	START,          /**< We're starting */
 	CDATA,          /**< Inside cdata */
 	TAG,            /**< Inside tag, reading element name */

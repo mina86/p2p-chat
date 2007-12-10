@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.1 2007/12/10 11:56:09 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.2 2007/12/10 13:00:53 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -15,6 +15,10 @@
 namespace ppc {
 
 
+/**
+ * Namespace containing stuff connected with parsing and creating PPCP
+ * packets.
+ */
 namespace ppcp {
 
 
@@ -132,9 +136,10 @@ struct Tokenizer {
 
 
 private:
-
-
+	/** Our user's nick name. */
 	std::string ourNick;
+
+	/** Should we ignore packets from ourselves. */
 	bool ignoreSelf;
 
 	/** Current element. */
