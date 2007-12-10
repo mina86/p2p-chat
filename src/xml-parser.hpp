@@ -1,6 +1,6 @@
 /** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.3 2007/12/08 18:02:53 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.4 2007/12/10 11:55:42 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
@@ -114,7 +114,7 @@ struct Error : public Exception {
  */
 struct Tokenizer {
 	/** Token type. */
-	enum Tk {
+	enum Type {
 		END        =  0,  /**< No more tokens. */
 		TAG_OPEN,         /**< Tag opening an element is opened. */
 		ATTR_NAME,        /**< An attribute name. */
@@ -134,17 +134,17 @@ struct Tokenizer {
 		 * \param t token's type.
 		 * \param d token's data.
 		 */
-		Token(enum Tk t = END, const std::string &d = std::string())
+		Token(enum Type t = END, const std::string &d = std::string())
 			: type(t), data(d) { }
 
 		/** Returns token type. */
-		operator enum Tk() const { return type; }
+		operator enum Type() const { return type; }
 
 		/** Returns \c true if token's type is not \c END. */
 		operator bool() const { return type != END; }
 
 		/** Token's type. */
-		enum Tk type;
+		enum Type type;
 
 		/**
 		 * Token's data.  If \a type is \c TAG_OPEN or \c
@@ -162,7 +162,7 @@ struct Tokenizer {
 	void init() {
 		stack.clear();
 		buffer.clear();
-		state = START;
+		state = 0;
 		pos = 0;
 	}
 
@@ -203,7 +203,7 @@ struct Tokenizer {
 	 * \throw Error if tokenizer is in state that does not allow end of data.
 	 */
 	void done() {
-		if (!stack.empty() || state != START || !buffer.empty()) {
+		if (!stack.empty() || state || !buffer.empty()) {
 			throw Error("Unexpected end of data.");
 		}
 	}
@@ -228,17 +228,7 @@ private:
 
 
 	/** Parser's state. */
-	enum {
-		START,          /**< We're starting */
-		CDATA,          /**< Inside cdata */
-		TAG,            /**< Inside tag, reading element name */
-		TAG_INSIDE,     /**< Inside open tag, waiting for attribute or end */
-		TAG_CLOSING,    /**< Inside close tag, waiting for '>' */
-		ATTR,           /**< Reading attribute name */
-		ATTR_GOT_NAME,  /**< Got attribute name, waiting for '=' */
-		ATTR_GOT_EQ,    /**< Got arg name and '=', waiting for '"' */
-		ATTR_RD_VALUE   /**< Reading attribute value, waiting for '"' */
-	} state;
+	unsigned state;
 };
 
 

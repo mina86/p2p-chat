@@ -1,6 +1,6 @@
 /** \file
  * XML parser implementation.
- * $Id: xml-parser.cpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
+ * $Id: xml-parser.cpp,v 1.3 2007/12/10 11:55:43 mina86 Exp $
  */
 
 #include <errno.h>
@@ -154,6 +154,18 @@ std::string escape(const std::string &str) {
 }
 
 
+enum State {
+	START,          /**< We're starting */
+	CDATA,          /**< Inside cdata */
+	TAG,            /**< Inside tag, reading element name */
+	TAG_INSIDE,     /**< Inside open tag, waiting for attribute or end */
+	TAG_CLOSING,    /**< Inside close tag, waiting for '>' */
+	ATTR,           /**< Reading attribute name */
+	ATTR_GOT_NAME,  /**< Got attribute name, waiting for '=' */
+	ATTR_GOT_EQ,    /**< Got arg name and '=', waiting for '"' */
+	ATTR_RD_VALUE   /**< Reading attribute value, waiting for '"' */
+};
+
 
 Tokenizer::Token Tokenizer::nextToken() {
 	std::string::size_type p;
@@ -166,7 +178,7 @@ Tokenizer::Token Tokenizer::nextToken() {
 	const char *const data = buffer.data();
 
 
-	switch (state) {
+	switch ((enum State)state) {
 		/* We're starting. */
 	case START:
 		p = buffer.find_first_not_of(" \t\n\f\v", pos);
