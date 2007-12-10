@@ -1,0 +1,21 @@
+ppcp element:
+  n       required, user's nick name
+  p       required if sent through UDP, user's TCP listening port
+  to:n    required if sent through TCP, recipient's nick name
+  to:neg  optional, bool attribute, negates to:n
+  may contain st, rq and m rlements
+
+st element:
+  st      optional, default value "on", possible values:
+          on, off, away, xa, dnd
+  dn      optional, user's display name
+  it's data is status message
+
+rq element:
+  no attribtues, no elements, no text
+
+m element:
+  ac      optional, bool attribute, if true it's an action
+  msg     optional, bool attribute, if true it's a message
+  text is message
+
