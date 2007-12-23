@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.2 2007/12/23 00:58:03 mina86 Exp $
+ * $Id: user.hpp,v 1.3 2007/12/23 01:13:22 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -223,7 +223,7 @@ struct User {
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
  */
-bool operator==(const User::ID &a, const User::ID &b) {
+inline bool operator==(const User::ID &a, const User::ID &b) {
 	return a.address == b.address && a.nick == b.nick;
 }
 
@@ -234,7 +234,7 @@ bool operator==(const User::ID &a, const User::ID &b) {
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
  */
-bool operator!=(const User::ID &a, const User::ID &b) {
+inline bool operator!=(const User::ID &a, const User::ID &b) {
 	return !(a == b);
 }
 
@@ -250,7 +250,7 @@ bool operator!=(const User::ID &a, const User::ID &b) {
  * \param b second User::ID object to compare.
  * \return \c true if first object is greater then the second.
  */
-bool operator> (const User::ID &a, const User::ID &b) {
+inline bool operator> (const User::ID &a, const User::ID &b) {
 	return a.address > b.address ||
 		(a.address == b.address &&
 		 (a.nick.length() > b.nick.length() ||
@@ -269,7 +269,7 @@ bool operator> (const User::ID &a, const User::ID &b) {
  * \param b second User::ID object to compare.
  * \return \c true if first object is greater then or equal to the second.
  */
-bool operator>=(const User::ID &a, const User::ID &b) {
+inline bool operator>=(const User::ID &a, const User::ID &b) {
 	return a.address > b.address ||
 		(a.address == b.address &&
 		 (a.nick.length() > b.nick.length() ||
@@ -288,7 +288,7 @@ bool operator>=(const User::ID &a, const User::ID &b) {
  * \param b second User::ID object to compare.
  * \return \c true if first object is less then the second.
  */
-bool operator< (const User::ID &a, const User::ID &b) {
+inline bool operator< (const User::ID &a, const User::ID &b) {
 	return b > a;
 }
 
@@ -304,7 +304,7 @@ bool operator< (const User::ID &a, const User::ID &b) {
  * \param b second User::ID object to compare.
  * \return \c true if first object is less then or equal to the second.
  */
-bool operator<=(const User::ID &a, const User::ID &b) {
+inline bool operator<=(const User::ID &a, const User::ID &b) {
 	return b >= a;
 }
 

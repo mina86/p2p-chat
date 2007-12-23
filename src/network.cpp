@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.1 2007/12/23 00:53:19 mina86 Exp $
+ * $Id: network.cpp,v 1.2 2007/12/23 01:13:22 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -14,11 +14,26 @@
 namespace ppc {
 
 
+/** Structure holding data associated with TCP connection. */
 struct NetworkConnection {
+	/**
+	 * ID of user this connection is to.  \a id's nick may be an empty
+	 * string which means that we don't know sender's nick name yet.
+	 */
 	User::ID id;
+
+	/** A TCP socket. */
 	TCPSocket *tcpSocket;
+
+	/** Tokenizer used to parse packets. */
 	ppcp::StandAloneTokenizer *tokenizer;
 
+	/**
+	 * Constructor.
+	 * \param sock    TCP socket.
+	 * \param i       remote user ID.
+	 * \param ourNick our nick name.
+	 */
 	NetworkConnection(TCPSocket *sock, const User::ID &i,
 	                  const std::string &ourNick)
 		: id(i), tcpSocket(sock),
@@ -26,8 +41,19 @@ struct NetworkConnection {
 };
 
 
+/**
+ * Specialisation of User class used to store additional attributes.
+ * Network object has shared_obj which points to sig::UsersListData
+ * object.  This object contains a map of pointers to User objects.
+ * Network object really holds there pointers to NetworkUser object
+ * (which extends User so there should be no problem as long as
+ * casting is used when deleting users and no one outside Network
+ * touches those User objects).
+ */
 struct NetworkUser : public User {
+	/** Active connections to user. */
 	unordered_vector<NetworkConnection *> connections;
+	/** User age in ticks. */
 	unsigned age;
 };
 
@@ -39,7 +65,7 @@ unsigned Network::network_id = 0;
 Network::Network(Core &c, Address addr, const std::string &nick)
 	: Module(c, "/net/ppc/" + network_id++), address(addr),
 	  users(new sig::UsersListData(nick)), ourUser(users->ourUser) {
-	tcpListeningSocket = TCPListeningSocket::bind(addr);
+	tcpListeningSocket = TCPListeningSocket::bind(Address(0, addr.port));
 	udpSocket = UDPSocket::bind(addr);
 }
 
@@ -180,7 +206,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 
-void recievedSignal(const Signal &sig) {
+void Network::recievedSignal(const Signal &sig) {
 	(void)sig;
 	/* FIXME: TODO */
 }

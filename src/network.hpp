@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.1 2007/12/23 00:53:19 mina86 Exp $
+ * $Id: network.hpp,v 1.2 2007/12/23 01:13:22 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -45,22 +45,48 @@ struct Network : public Module {
 
 
 private:
+	/** Vector of all opened TCP connections. */
 	typedef unordered_vector<NetworkConnection> TCPSockets;
 
+	/** A sequence used to give each module unique name. */
 	static unsigned network_id;
 
+	/**
+	 * accept()s connections from listening socket and adds them to
+	 * tcpSockets vector.
+	 */
 	void acceptConnections();
+
+	/** Reads data from udpSocket and parses it. */
 	void recieveUDPDatagrams();
+
+	/**
+	 * Reads data from given TCP connection and parses it.
+	 * \param conn connection to handle.
+	 */
 	void readFromTCPConnection(NetworkConnection &conn);
 
+
+	/** Network's address. */
 	Address address;
+
+	/** TCP listening socket. */
 	TCPListeningSocket *tcpListeningSocket;
+
+	/** UDP socket. */
 	UDPSocket *udpSocket;
+
+	/** Vector of TCP sockets. */
 	TCPSockets tcpSockets;
 
+
+	/** "Pointer" to map of all users connected to network. */
 	shared_obj<sig::UsersListData> users;
+
+	/** Reference to ourUser field from users. */
 	User &ourUser;
 };
+
 
 }
 

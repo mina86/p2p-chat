@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.3 2007/12/23 00:54:54 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.4 2007/12/23 01:13:22 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -166,6 +166,16 @@ private:
  * tokenizer object since it has it built in.
  */
 struct StandAloneTokenizer {
+	/**
+	 * Default constructor.  \a nick is our nick name.  It's used to
+	 * compare it against a \c to:n attribute of \c ppcp element.
+	 * Moreover, if \a ignoreFromSelf is \c true it is also compared
+	 * with \c n attribute and if both nick mach packet is ignored.
+	 *
+	 * \param nick           our nick name.
+	 * \param ignoreFromSelf whether we should ignore packets that
+	 *                       nick name maches ours.
+	 */
 	StandAloneTokenizer(const std::string &nick, bool ignoreFromSelf = false)
 		: ppcpTokenizer(nick, ignoreFromSelf), xmlTokenizer() { }
 

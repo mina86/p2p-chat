@@ -77,6 +77,11 @@ protected:
 	/** Socket address. */
 	Address address;
 
+	/**
+	 * Creates socket by setting file descriptor and address.
+	 * \param sock socket's file descriptor number.
+	 * \param addr address associated with socket.
+	 */
 	Socket(int sock, Address addr);
 };
 
