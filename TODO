@@ -42,6 +42,13 @@
    zrobiæ tego bardziej przeno¶nie z wykorzystaniem sygna³u alarm lub
    czego¶ podobnego.
 
+** Zaimplementowaæ netio
+
+   Stworzyæ plik netio.cpp, w którym bêd± zaimplementowane wszystkie
+   metody zdefiniowane w netio.hpp.  Istotne jest, ¿e funkcje musz±
+   byæ nieblokuj±ce.  Aby by³y takowe warto w konstruktorze struktury
+   Socket ustawiæ tryb deskryptora plików na nieblokuj±cy.
+
 * mco
 ** Uzgodniæ z Jaruni± interfejs klasy Config
 ** Napisaæ interfejs u¿ytkownika
