@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.1 2007/12/08 18:01:30 mina86 Exp $
+ * $Id: user.hpp,v 1.2 2007/12/23 00:58:03 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -9,9 +9,15 @@
 #include <string>
 
 #include "exception.hpp"
+#include "netio.hpp"
 
 
 namespace ppc {
+
+
+class Network;
+
+
 
 /** Exception thrown when invalid nick name was once given. */
 struct InvalidNick : public Exception {
@@ -73,7 +79,7 @@ struct User {
 	};
 
 
-	/** Pair which identifies user in single network.*/
+	/** Pair which identifies user in single network. */
 	struct ID {
 		/**
 		 * Initialises structure.  \a name is user's name which will
@@ -84,13 +90,25 @@ struct User {
 		 * \param addr user's IP address.
 		 * \throw InvalidNick if name is empty.
 		 */
-		ID(const std::string &name, unsigned long addr = 0)
-			: nick(requireValidNick(nickFromName(name))), address(addr) { }
+		explicit ID(const std::string &name, IP addr = 0)
+			: nick(nickFromName(name)), address(addr) {
+			if (name.empty()) throw InvalidNick("Invalid nick name: ''");
+		}
 
 		/** User's nick name. */
 		std::string nick;
 		/** Users IP address. */
-		unsigned long address;
+		IP address;
+
+	private:
+		/**
+		 * A special case constructor to create identificators for
+		 * users with not yet known nick names.
+		 * \param addr user's IP address.
+		 */
+		explicit ID(IP addr) : nick(), address(addr) { }
+
+		friend class Network;
 	};
 
 
@@ -153,21 +171,142 @@ struct User {
 	Status status;
 
 
-
-protected:
 	/**
-	 * Throws exception if nick name is not valid.
-	 * \param nick nick name to validte.
-	 * \return \a nick.
-	 * \throw InvalidNick if nick name is invalid.
+	 * Initialises User object.
+	 *
+	 * \param i  user's ID -- nick name, IP address pair
+	 * \param n  user's display name.
+	 * \param st user's status.
+	 * \throw InvalidNick if \a n is invalid display name.
 	 */
-	static const std::string &requireValidNick(const std::string &nick) {
-		if (!isValidNick(nick)) {
-			throw InvalidNick("Invalid nick name: '" + nick + '\'');
+	User(ID i, const std::string &n, const Status &st = Status())
+		: id(i), name(n), status(st) {
+		if (!isValidName(n)) {
+			throw InvalidNick("Invalid display name: '" + n + '\'');
 		}
-		return nick;
+	}
+
+
+	/**
+	 * Initialises User object.  User's display name is set from
+	 * <tt>i.name</tt>.
+	 *
+	 * \param i  user's ID -- nick name, IP address pair
+	 * \param st user's status.
+	 */
+	explicit User(ID i, const Status &st = Status())
+		: id(i), name(i.nick), status(st) { }
+
+
+	/**
+	 * Initialises User object.  User's ID is set from \a n and \a
+	 * addr.
+	 *
+	 * \param n    user's display name.
+	 * \param addr user's IP address.
+	 * \param st   user's status.
+	 * \throw InvalidNick if \a n is invalid display name.
+	 */
+	User(const std::string &n, IP addr, const Status &st = Status())
+		: id(n, addr), name(n), status(st) {
+		if (!isValidName(n)) {
+			throw InvalidNick("Invalid display name: '" + n + '\'');
+		}
 	}
 };
+
+
+
+/**
+ * Returns \c true if User::ID objects are equal.  Objects are equal
+ * if they have the same IP address and nick name.
+ * \param a first User::ID object to compare.
+ * \param b second User::ID object to compare.
+ */
+bool operator==(const User::ID &a, const User::ID &b) {
+	return a.address == b.address && a.nick == b.nick;
+}
+
+
+/**
+ * Returns \c true if User::ID objects are not equal.  Objects are
+ * equal if they have the same IP address and nick name.
+ * \param a first User::ID object to compare.
+ * \param b second User::ID object to compare.
+ */
+bool operator!=(const User::ID &a, const User::ID &b) {
+	return !(a == b);
+}
+
+
+/**
+ * User::ID linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.address, a.nick.length, a.nick) <= (b.address,
+ * b.nick.length, b.nick)</tt> which means that ID's are first ordered
+ * by IP address, then by nick's length and then (only if nick's
+ * lengths are equal) lexicographically on nicks.
+ *
+ * \param a first User::ID object to compare.
+ * \param b second User::ID object to compare.
+ * \return \c true if first object is greater then the second.
+ */
+bool operator> (const User::ID &a, const User::ID &b) {
+	return a.address > b.address ||
+		(a.address == b.address &&
+		 (a.nick.length() > b.nick.length() ||
+		  (a.nick.length() == b.nick.length() && a > b)));
+}
+
+
+/**
+ * User::ID linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.address, a.nick.length, a.nick) <= (b.address,
+ * b.nick.length, b.nick)</tt> which means that ID's are first ordered
+ * by IP address, then by nick's length and then (only if nick's
+ * lengths are equal) lexicographically on nicks.
+ *
+ * \param a first User::ID object to compare.
+ * \param b second User::ID object to compare.
+ * \return \c true if first object is greater then or equal to the second.
+ */
+bool operator>=(const User::ID &a, const User::ID &b) {
+	return a.address > b.address ||
+		(a.address == b.address &&
+		 (a.nick.length() > b.nick.length() ||
+		  (a.nick.length() == b.nick.length() && a >= b)));
+}
+
+
+/**
+ * User::ID linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.address, a.nick.length, a.nick) <= (b.address,
+ * b.nick.length, b.nick)</tt> which means that ID's are first ordered
+ * by IP address, then by nick's length and then (only if nick's
+ * lengths are equal) lexicographically on nicks.
+ *
+ * \param a first User::ID object to compare.
+ * \param b second User::ID object to compare.
+ * \return \c true if first object is less then the second.
+ */
+bool operator< (const User::ID &a, const User::ID &b) {
+	return b > a;
+}
+
+
+/**
+ * User::ID linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.address, a.nick.length, a.nick) <= (b.address,
+ * b.nick.length, b.nick)</tt> which means that ID's are first ordered
+ * by IP address, then by nick's length and then (only if nick's
+ * lengths are equal) lexicographically on nicks.
+ *
+ * \param a first User::ID object to compare.
+ * \param b second User::ID object to compare.
+ * \return \c true if first object is less then or equal to the second.
+ */
+bool operator<=(const User::ID &a, const User::ID &b) {
+	return b >= a;
+}
 
 
 }
