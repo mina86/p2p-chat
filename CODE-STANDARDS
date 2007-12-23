@@ -1,0 +1,51 @@
+                                                                -*- org -*-
+
+* Do wciêæ stosujemy tabulatory o szeroko¶ci 4 znaków.  Do
+  wyrównywania tekstu z poprzedni± linijk± stosujemy natomiast spacje,
+  np.:
+
+    if (warunek) {
+    TAB>funkcja(dluga, lista,
+    TAB>        argumentow);
+    }
+
+* Linie nie powinny mieæ wiêcej ni¿ 78 znaków.  Za wiêcej ni¿ 80
+  bêdê zabija³.
+
+* Przy ka¿dej instrukcji z³o¿onej (if, for, while, do) stosujemy
+  klamry nawet je¿eli w jej wnêtrzu jest pojedyncza instrukcja, np.:
+
+    if (warunek) {
+        instrukcja;
+    }
+
+* Nie stosujemy makra NULL, a to dlatego, ¿e wprowadza ono ludzi w b³±d
+  sugeruj±c, ¿e mamy do czynienia ze wska¼nikiem.  W rzecziwysto¶ci NULL
+  mo¿e byæ litera³em 0 (w szczgólno¶ci w C++) zatem je¿eli mamy funkcjê
+  przeci±¿on±, z czego jedna z wersji przyjmuje int, a druga wska¼nik to
+  wywo³anie jej z argumentem NULL mo¿e z du¿ym prawdopodobieñstwem
+  uruchomiæ t± przyjmuj±c± inta, a nie wska¼nik.
+
+* Program kompilujemy z u¿yciem nastêpuj±cych prze³±czników:
+
+  -Wall -Wextra -Wfloat-equal -Wshadow -Wwrite-strings -Winline
+  -Wdisabled-optimization -Wstrict-aliasing=2 -pedantic
+  -Wpointer-arith -Wstrict-null-sentinel -Wctor-dtor-privacy
+  -Woverloaded-virtual -ggdb -O0 -std=c++98
+
+  i je¿eli zosta³y wygenerowane jakie¶ ostrze¿enia to poprawiamy kod.
+
+* Je¿eli w instrukcji switch przechodzimy z jednego case'a do drugiego
+  stosujemy komentarz "FALL THROUGH", np.:
+
+    switch (foo) {
+    case bar:
+        instrukcja;
+        /* FALL THROUGH */
+
+    case baz:
+        instrukcja;
+    }
+
+    Brak takiego komentarza oraz brak instrukcji break nale¿y
+    traktowaæ jak b³±d.
