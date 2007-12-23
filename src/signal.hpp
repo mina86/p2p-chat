@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.2 2007/12/09 17:09:32 mina86 Exp $
+ * $Id: signal.hpp,v 1.3 2007/12/23 00:55:10 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -245,6 +245,18 @@ struct UsersListData : public Signal::Data {
 
 	/** List of users connected to network. */
 	std::map<User::ID, User *> users;
+
+	/**
+	 * Constructor.
+	 * \param our our user.
+	 */
+	UsersListData(const User &our) : ourUser(our) { }
+
+	/**
+	 * Constructor.
+	 * \param nick our user's nick name.
+	 */
+	UsersListData(const std::string &nick) : ourUser(nick, 0) { }
 };
 
 
