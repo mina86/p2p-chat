@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.3 2007/12/09 17:09:32 mina86 Exp $
+ * $Id: application.cpp,v 1.4 2007/12/23 00:53:47 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -123,8 +123,23 @@ int Core::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 void Core::recievedSignal(const Signal &sig) {
-	(void)sig;
-	/* TODO */
+	if (sig.getType() == "/core/module/exit") {
+		Modules::iterator it = modules.find(sig.getSender());
+		if (it == modules.end()) {
+			return;
+		}
+
+		if (it->second == mainModule) {
+			mainModule = 0;
+			running = 0;
+		}
+
+		modules.erase(it);
+		delete it->second;
+		signals.push(Signal("/core/module/remove", moduleName, "/",
+		                    new sig::StringData(sig.getSender())));
+	}
 }
+
 
 }
