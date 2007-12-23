@@ -1,7 +1,9 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.3 2007/12/10 12:34:34 mina86 Exp $
+## $Id: Makefile,v 1.4 2007/12/23 00:52:09 mina86 Exp $
 ##
+
+CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
 
 HPP_FILES	:= $(wildcard ../*.hpp)
 EXE_FILES	:= $(basename $(wildcard *.cpp) $(wildcard *.c))
