@@ -18,7 +18,7 @@ namespace ppc {
 /**
  * An exception in network communication.
  */
-	struct NetException : public Exception {
+struct NetException : public Exception {
 	/**
 	 * Constructor.
 	 * \param msg error message.
