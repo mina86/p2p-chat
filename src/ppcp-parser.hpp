@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.4 2007/12/23 01:13:22 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.5 2007/12/24 12:29:24 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -42,7 +42,7 @@ struct Tokenizer {
 
 	/** Single PPCP token. */
 	struct Token {
-		/** TOken's type. */
+		/** Token's type. */
 		enum Type type;
 
 		/**
@@ -214,7 +214,7 @@ struct StandAloneTokenizer {
 
 	/**
 	 * Returns next token, \c END if there are no more tokens.
-	 * \throw Error if data is missformatted.
+	 * \throw xml::Error if data is missformatted.
 	 */
 	Tokenizer::Token nextToken() {
 		return ppcpTokenizer.nextToken(xmlTokenizer);
@@ -223,7 +223,8 @@ struct StandAloneTokenizer {
 	/**
 	 * If tokenizer expects more data exreption is thrown otherwise no
 	 * action is taken.
-	 * \throw Error if tokenizer is in state that does not allow end of data.
+	 * \throw xml::Error if tokenizer is in state that does not allow
+	 *                   end of data.
 	 */
 	void done() {
 		xmlTokenizer.done();
