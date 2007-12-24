@@ -9,8 +9,15 @@
     TAB>        argumentow);
     }
 
-* Linie nie powinny mieæ wiêcej ni¿ 78 znaków.  Za wiêcej ni¿ 80
-  bêdê zabija³.
+** Staramy siê nie robiæ wiêcej ni¿ 3 poziomów wciêæ.  Je¿eli
+   gdzie¶ jest du¿y fragment kodu z poziomem zag³êbienia równym 4 to
+   nale¿y rozwa¿yæ, czy aby takiego fragmentu nie wstawiæ do
+   oddzielnej funkcji.  Wiêcej poziomów wciêæ nie ma w ogóle prawa
+   zaistnieæ.
+
+** Deklaracji po s³owie namespace nie wcinamy.
+
+* Linie nie powinny mieæ wiêcej ni¿ 78 znaków.
 
 * Przy ka¿dej instrukcji z³o¿onej (if, for, while, do) stosujemy
   klamry nawet je¿eli w jej wnêtrzu jest pojedyncza instrukcja, np.:
@@ -18,6 +25,14 @@
     if (warunek) {
         instrukcja;
     }
+
+** Jedynym wyj±tkiem jest sytuacja, gdy instrukcja z³o¿ona jest wciêta
+   3 tabulatorami i nie chcemy robiæ 4 poziomu wciêæ.  W takiej
+   sytuacji mo¿na zastosowaæ:
+
+     if (wrunek) instrukcja;
+
+  pod warunkeim, ¿e nie przekraczamy 78. kolumny.
 
 * Nie stosujemy makra NULL, a to dlatego, ¿e wprowadza ono ludzi w b³±d
   sugeruj±c, ¿e mamy do czynienia ze wska¼nikiem.  W rzecziwysto¶ci NULL
@@ -49,3 +64,6 @@
 
     Brak takiego komentarza oraz brak instrukcji break nale¿y
     traktowaæ jak b³±d.
+* Staramy siê nie u¿ywaæ s³ówka using.  Wszystkie identyfikatory
+  podajemy z pe³nymi modyfikatorami zasiêgu (czy jak to siê tam zwie),
+  np. std::string.
