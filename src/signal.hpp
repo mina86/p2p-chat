@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.3 2007/12/23 00:55:10 mina86 Exp $
+ * $Id: signal.hpp,v 1.4 2007/12/24 12:30:09 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -227,6 +227,15 @@ struct MessageData : public StringData {
 
 	/** Message's sender or reciever (depending on signal). */
 	User user;
+
+	/** Possible message's flags. */
+	enum {
+		ACTION  = 1,  /**< This is an action. */
+		MESSAGE = 2   /**< This is a message. */
+	};
+
+	/** Combination fo \c ACTION and \c MESSAGE flags. */
+	unsigned flags;
 };
 
 
@@ -240,11 +249,14 @@ struct MessageData : public StringData {
  * operate on shared_obj not on pointer to this object itself.
  */
 struct UsersListData : public Signal::Data {
+	/** List of users connected to network. */
+	typedef std::map<User::ID, User *> Users;
+
 	/** Our user. */
 	User ourUser;
 
 	/** List of users connected to network. */
-	std::map<User::ID, User *> users;
+	Users users;
 
 	/**
 	 * Constructor.
@@ -257,6 +269,21 @@ struct UsersListData : public Signal::Data {
 	 * \param nick our user's nick name.
 	 */
 	UsersListData(const std::string &nick) : ourUser(nick, 0) { }
+
+
+	/** Deletes all users in users map. */
+	virtual ~UsersListData() {
+		if (users.empty()) {
+			return;
+		}
+
+		std::map<User::ID, User *>::iterator it = users.begin();
+		std::map<User::ID, User *>::iterator end = users.end();
+		for (; it != end; ++it) {
+			delete it->second;
+		}
+		users.clear();
+	}
 };
 
 
