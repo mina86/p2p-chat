@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.6 2007/12/25 15:36:12 mina86 Exp $
+ * $Id: signal.hpp,v 1.7 2007/12/25 16:50:11 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -220,7 +220,8 @@ struct UserData : public Signal::Data {
 		MESSAGE      =  2,  /**< User's status message was changed. */
 		NAME         =  4,  /**< User's display name was changed. */
 		CONNECTED    =  8,  /**< User's just connected. */
-		DISCONNECTED = 16   /**< User's just disconnected. */
+		DISCONNECTED = 16,  /**< User's just disconnected. */
+		REQUEST      = 32   /**< Send \c rq element along with \c st. */
 	};
 };
 
@@ -245,8 +246,9 @@ struct MessageData : public StringData {
 
 	/** Possible message's flags. */
 	enum {
-		ACTION  = 1,  /**< This is an action. */
-		MESSAGE = 2   /**< This is a message. */
+		ACTION    = 1,  /**< This is an action. */
+		MESSAGE   = 2,  /**< This is a message. */
+		ALLOW_UDP = 4   /**< Message may be sent through UDP socket. */
 	};
 
 	/** Combination fo \c ACTION and \c MESSAGE flags. */
