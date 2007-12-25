@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.5 2007/12/25 01:33:49 mina86 Exp $
+ * $Id: signal.hpp,v 1.6 2007/12/25 15:36:12 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -114,6 +114,17 @@ struct Signal {
 	       const std::string &r = "", const data_ptr &d = data_ptr())
 		: data(d), type(t), sender(s), reciever(r) { }
 
+	/**
+	 * Constructor sets signal's type and reciever.
+	 * \param t signal's type.
+	 * \param s signal's sender.
+	 * \param r reciever name pattern.
+	 * \param d signal to get data from.
+	 */
+	Signal(const std::string &t, const std::string &s,
+	       const std::string &r, const Signal &d)
+		: data(d.data), type(t), sender(s), reciever(r) { }
+
 
 	/** Returns signal's type. */
 	const std::string &getType() const { return type; }
@@ -205,10 +216,11 @@ struct UserData : public Signal::Data {
 
 	/** Flags which specify what to change or what was changed. */
 	enum {
-		STATE   = 1,  /**< User's state was changed. */
-		MESSAGE = 2,  /**< User's status message was changed. */
-		NAME    = 4,  /**< User's display name was changed. */
-		NEW     = 8   /**< It's a new user. */
+		STATE        =  1,  /**< User's state was changed. */
+		MESSAGE      =  2,  /**< User's status message was changed. */
+		NAME         =  4,  /**< User's display name was changed. */
+		CONNECTED    =  8,  /**< User's just connected. */
+		DISCONNECTED = 16   /**< User's just disconnected. */
 	};
 };
 
