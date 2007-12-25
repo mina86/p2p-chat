@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.5 2007/12/25 15:34:54 mina86 Exp $
+ * $Id: network.cpp,v 1.6 2007/12/25 16:49:41 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -341,7 +341,8 @@ void Network::recievedSignal(const Signal &sig) {
 
 		sendSignal("/net/user/changed", "/ui/",
 		           new sig::UserData(ourUser, data.flags));
-		send((NetworkUser*)0, ppcp::st(ourUser));
+		send(data.flags & sig::UserData::REQUEST
+		     ? ppcp::st(ourUser)+ppcp::rq() : ppcp::st(ourUser));
 		lastStatus = getTicks();
 
 	} else if (sig.getType() == "/net/users/rq") {
@@ -350,7 +351,8 @@ void Network::recievedSignal(const Signal &sig) {
 	} else if (sig.getType() == "/net/msg/send") {
 		const sig::MessageData &data =
 			*static_cast<const sig::MessageData*>(sig.getData());
-		send(&data.user, ppcp::m(data));
+		send(data.user, ppcp::m(data),
+		     data.flags & sig::MessageData::ALLOW_UDP);
 		sendSignal("/net/msg/sent", "/ui/", sig);
 	}
 }
@@ -393,7 +395,7 @@ void Network::readFromUDPSocket() {
 				goto nextDatagram;
 
 			case ppcp::Tokenizer::PPCP_OPEN:
-				user = getUser(User::ID(token.data, addr.ip));
+				user = &getUser(User::ID(token.data, addr.ip));
 			case ppcp::Tokenizer::END: /* dead code */
 				break;
 
@@ -412,7 +414,7 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 	ppcp::Tokenizer::Token token;
 	std::string data;
 	NetworkUser *user = conn.flags & NetworkConnection::KNOW_WHO
-		? getUser(conn.id) : 0;
+		? &getUser(conn.id) : 0;
 
 	while (!(data = conn.tcpSocket->read()).empty()) {
 		if (conn.flags & NetworkConnection::REMOTE_CLOSED) {
@@ -444,8 +446,8 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 
 			case ppcp::Tokenizer::PPCP_OPEN:
 				if (user) break;
-				user = getUser(User::ID(token.data,
-				                        conn.tcpSocket->getAddress().ip));
+				user = &getUser(User::ID(token.data,
+				                         conn.tcpSocket->getAddress().ip));
 				conn.id = user->id;
 				conn.flags |= NetworkConnection::KNOW_WHO;
 				user->connections.push_back(&conn);
@@ -483,10 +485,10 @@ void Network::handleToken(NetworkUser &user,
 
 	case ppcp::Tokenizer::RQ:
 		if (getTicks() - lastStatus + 10 >= STATUS_RESEND) {
-			send((NetworkUser*)0, ppcp::st(ourUser));
+			send(ppcp::st(ourUser));
 			lastStatus = getTicks();
 		} else {
-			send(&user, ppcp::st(ourUser));
+			send(user, ppcp::st(ourUser));
 		}
 		break;
 
@@ -536,7 +538,7 @@ void Network::performTick() {
 	const unsigned long ticks = getTicks();
 
 	if (ticks - lastStatus >= STATUS_RESEND) {
-		send((NetworkUser*)0, ppcp::st(ourUser));
+		send(ppcp::st(ourUser));
 		lastStatus = ticks;
 	}
 
@@ -583,7 +585,7 @@ void Network::performTick() {
 }
 
 
-NetworkUser *Network::getUser(const User::ID &id) {
+NetworkUser &Network::getUser(const User::ID &id) {
 	std::pair<sig::UsersListData::Users::iterator, bool> ret;
 	ret = users->users.insert(std::make_pair(id, (User*)0));
 	if (!ret.second) {
@@ -592,31 +594,24 @@ NetworkUser *Network::getUser(const User::ID &id) {
 		           new sig::UserData(*ret.first->second,
 		                             sig::UserData::CONNECTED));
 	}
-	return static_cast<NetworkUser*>(ret.first->second);
+	return *static_cast<NetworkUser*>(ret.first->second);
 }
 
 
 
-void Network::send(NetworkUser *user, const std::string &str, bool udp) {
-	/* A multicast message */
-	if (!user) {
-		udpSocket->push(ppcp::ppcpOpen(ourUser.id) + str + ppcp::ppcpClose(),
-		                address);
-		return;
-	}
-
+void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 	/* Find TCP connection */
-	NetworkUser::Connections::iterator c = user->connections.begin();
-	NetworkUser::Connections::iterator end = user->connections.end();
+	NetworkUser::Connections::iterator c = user.connections.begin();
+	NetworkUser::Connections::iterator end = user.connections.end();
 	while (c != end && ~(*c)->flags & NetworkConnection::LOCAL_CLOSING) {
 		++c;
 	}
 
 	/* If none found and we can send through udp do it */
 	if (c == end && udp) {
-		udpSocket->push(ppcp::ppcpOpen(ourUser.id, user->id) + str +
+		udpSocket->push(ppcp::ppcpOpen(ourUser.id, user.id) + str +
 		                ppcp::ppcpClose(),
-		                Address(user->id.address, address.port));
+		                Address(user.id.address, address.port));
 		return;
 	}
 
@@ -624,7 +619,7 @@ void Network::send(NetworkUser *user, const std::string &str, bool udp) {
 	TCPSocket *sock;
 	if (c == end) {
 		try {
-			sock = TCPSocket::connect(Address(user->id.address,
+			sock = TCPSocket::connect(Address(user.id.address,
 			                          address.port));
 		}
 		catch (const NetException &e) {
@@ -634,10 +629,10 @@ void Network::send(NetworkUser *user, const std::string &str, bool udp) {
 			return;
 		}
 		NetworkConnection *conn;
-		conn = new NetworkConnection(sock, user->id, ourUser.id.nick);
+		conn = new NetworkConnection(sock, user.id, ourUser.id.nick);
 		conn->lastAccessed = getTicks();
-		user->connections.push_back(conn);
-		sock->push(ppcp::ppcpOpen(ourUser.id.nick, user->id.nick));
+		user.connections.push_back(conn);
+		sock->push(ppcp::ppcpOpen(ourUser.id.nick, user.id.nick));
 	} else {
 		sock = (*c)->tcpSocket;
 	}

@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.5 2007/12/25 15:34:54 mina86 Exp $
+ * $Id: network.hpp,v 1.6 2007/12/25 16:49:41 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -11,6 +11,7 @@
 #include "user.hpp"
 #include "unordered-vector.hpp"
 #include "ppcp-parser.hpp"
+#include "ppcp-packets.hpp"
 
 
 namespace ppc {
@@ -159,7 +160,7 @@ private:
 	 * \param str  string to send.
 	 * \param udp  whether data may be send through UDP multicast.
 	 */
-	void send(NetworkUser *user, const std::string &str, bool udp = false);
+	void send(NetworkUser &user, const std::string &str, bool udp = false);
 
 
 	/**
@@ -168,8 +169,18 @@ private:
 	 * \param str  string to send.
 	 * \param udp  whether data may be send through UDP multicast.
 	 */
-	void send(const User *user, const std::string &str, bool udp = false) {
-		send(user ? getUser(user->id) : (NetworkUser*)0, str, udp);
+	void send(const User &user, const std::string &str, bool udp = false) {
+		send(getUser(user.id), str, udp);
+	}
+
+
+	/**
+	 * Sends given string to all users (using multicast UDP).
+	 * \param str  string to send.
+	 */
+	void send(const std::string &str) {
+		udpSocket->push(ppcp::ppcpOpen(ourUser.id) + str + ppcp::ppcpClose(),
+		                address);
 	}
 
 
@@ -179,7 +190,7 @@ private:
 	 * \param id user's ID
 	 * \return Networkuser with given ID.
 	 */
-	NetworkUser *getUser(const User::ID &id);
+	NetworkUser &getUser(const User::ID &id);
 
 
 
