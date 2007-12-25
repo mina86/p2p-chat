@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.4 2007/12/24 12:30:09 mina86 Exp $
+ * $Id: signal.hpp,v 1.5 2007/12/25 01:33:49 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -50,13 +50,14 @@ struct Module;
  *
  * \c /core signals include:
  * <ul>
- *   <li>\c /core/module/new send by core module to all modules when
+ *   <li>\c /core/tick sent by core module every second.</li>
+ *   <li>\c /core/module/new sent by core module to all modules when
  *     new module is added; its argument is a sig::StringData
  *     object.</li>
- *   <li>\c /core/module/remove send by core module to all modules
+ *   <li>\c /core/module/remove sent by core module to all modules
  *     when module exits and is removed from list; its argument is
  *     a sig::StringData object.</li>
- *   <li>\c /core/module/exit send to core madule when sender exits
+ *   <li>\c /core/module/exit sent to core madule when sender exits
  *     and should be removed from list; it has no argument.</li>
  * </ul>
  *
@@ -67,25 +68,25 @@ struct Module;
  *
  * \c /net signals include:
  * <ul>
- *   <li>\c /net/user/changed send by network module to all \c /ui/
+ *   <li>\c /net/user/changed sent by network module to all \c /ui/
  *     modules when user (including "our" user) changes status or
  *     display name; it is also used to inform that user went
  *     offline; its argument is sig::UserData object.</li>
- *   <li>\c /net/user/change send to network module to request status
+ *   <li>\c /net/user/change sent to network module to request status
  *     or display name change; its argument is sig::UserData object
  *     (but some fields are ignored).</li>
- *   <li>\c /net/users/rq send to network module to request list of
+ *   <li>\c /net/users/rq sent to network module to request list of
  *     all connected users; it has no argument.</li>
- *   <li>\c /net/users/rp send by network module as a reply to \c
+ *   <li>\c /net/users/rp sent by network module as a reply to \c
  *     /net/users/rq signal; its argument is sig::UsersListData
  *     object (which see for more information).</li>
- *   <li>\c /net/msg/got send by network module to all \c /ui/ modules
+ *   <li>\c /net/msg/got sent by network module to all \c /ui/ modules
  *     when new message is recieved; its argument is
  *     sig::MessageData object.</li>
- *   <li>\c /net/msg/send send to network module to request message to
+ *   <li>\c /net/msg/send sent to network module to request message to
  *     be send to user; it's argument is sig::rMessageData
  *     object.</li>
- *   <li>\c /net/msg/sent send by network module to all \c /ui/
+ *   <li>\c /net/msg/sent sent by network module to all \c /ui/
  *     modules when message has been sent; it's argument is
  *     sig::MessageData object.</li>
  * </ul>
@@ -206,7 +207,8 @@ struct UserData : public Signal::Data {
 	enum {
 		STATE   = 1,  /**< User's state was changed. */
 		MESSAGE = 2,  /**< User's status message was changed. */
-		NAME    = 4   /**< User's display name was changed. */
+		NAME    = 4,  /**< User's display name was changed. */
+		NEW     = 8   /**< It's a new user. */
 	};
 };
 
@@ -221,9 +223,10 @@ struct MessageData : public StringData {
 	 * Sets data.
 	 * \param u   message's sender/reciever.
 	 * \param msg message's text.
+	 * \param fl  message's flags.
 	 */
-	MessageData(const User &u, const std::string &msg)
-		: StringData(msg), user(u) { }
+	MessageData(const User &u, const std::string &msg, unsigned fl = 0)
+		: StringData(msg), user(u), flags(fl) { }
 
 	/** Message's sender or reciever (depending on signal). */
 	User user;
