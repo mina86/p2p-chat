@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.4 2007/12/23 00:53:47 mina86 Exp $
+ * $Id: application.cpp,v 1.5 2007/12/25 01:32:28 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -37,6 +37,7 @@ int Core::run() {
 
 		case  0:
 			sendSignal("/core/tick", "/", 0);
+			++ticks;
 			tv.tv_sec = 1;
 			tv.tv_usec = 0;
 			break;

@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.4 2007/12/09 17:09:32 mina86 Exp $
+ * $Id: application.hpp,v 1.5 2007/12/25 01:32:28 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -117,6 +117,18 @@ protected:
 
 	/** Returns configuration. */
 	inline const Config &getConfig() const;
+
+	/**
+	 * Returns number of ticks since Core::run() was called.  This was
+	 * introduced because: (i) calling time() is believed to take more
+	 * time, (ii) current systam time may be changed so we cannot
+	 * realy on it to grow at a rate one per second and (iii) it's
+	 * easier (and faster) to save "times" some events occured and
+	 * then calculate how far in the past it happend using a single
+	 * variable which is increased once per second then to increase
+	 * all those variables every second.
+	 */
+	inline unsigned long getTicks() const;
 };
 
 
@@ -172,12 +184,14 @@ protected:
 	                  const fd_set *ex);
 	virtual void recievedSignal(const Signal &sig);
 
+	/* Those HAVE TO BE OVERWRITTEN, otherwise will in trouble. */
 	void sendSignal(const std::string &type, const std::string &reciever,
 	                Signal::Data *sigData) {
 		signals.push(Signal(type, moduleName, reciever, sigData));
 	}
 	const Modules getModules() const { return modules; }
 	const Config &getConfig() const { return config; }
+	unsigned long getTicks() const { return ticks; }
 
 
 private:
@@ -196,6 +210,10 @@ private:
 	/** Application configuration. */
 	Config &config;
 
+	/** Seconds since run() was called. */
+	unsigned long ticks;
+
+
 	/** Whether application should still run. */
 	bool running;
 
@@ -211,17 +229,25 @@ private:
 
 
 
+/* Those method below work because compiler knows core is object of
+   Core structure thus it will call Core's specific method which in
+   turn does what we want. */
+
 void Module::sendSignal(const std::string &type, const std::string &reciever,
                          Signal::Data *sigData) {
-	core.signals.push(Signal(type, moduleName, reciever, sigData));
+	core.sendSignal(type, reciever, sigData);
 }
 
 const Module::Modules Module::getModules() const {
-	return core.modules;
+	return core.getModules();
 }
 
 const Config &Module::getConfig() const {
-	return core.config;
+	return core.getConfig();
+}
+
+unsigned long Module::getTicks() const {
+	return core.getTicks();
 }
 
 
