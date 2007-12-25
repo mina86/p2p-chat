@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.5 2007/12/25 01:32:28 mina86 Exp $
+ * $Id: application.hpp,v 1.6 2007/12/25 15:34:16 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -112,6 +112,17 @@ protected:
 	                       const std::string &reciever,
 	                       Signal::Data *sigData);
 
+	/**
+	 * Sends a signal.  Signal is added to core module's signal queue
+	 * and will be delivered later on.
+	 *
+	 * \param type     signal's type.
+	 * \param reciever signal's reciever.
+	 * \param sig      signal to copy data from.
+	 */
+	inline void sendSignal(const std::string &type,
+	                       const std::string &reciever, const Signal &sig);
+
 	/** Returns list of modules. */
 	inline const Modules getModules() const;
 
@@ -189,6 +200,10 @@ protected:
 	                Signal::Data *sigData) {
 		signals.push(Signal(type, moduleName, reciever, sigData));
 	}
+	void sendSignal(const std::string &type, const std::string &reciever,
+	                const Signal &sig) {
+		signals.push(Signal(type, moduleName, reciever, sig));
+	}
 	const Modules getModules() const { return modules; }
 	const Config &getConfig() const { return config; }
 	unsigned long getTicks() const { return ticks; }
@@ -234,8 +249,12 @@ private:
    turn does what we want. */
 
 void Module::sendSignal(const std::string &type, const std::string &reciever,
-                         Signal::Data *sigData) {
+                        Signal::Data *sigData) {
 	core.sendSignal(type, reciever, sigData);
+}
+void Module::sendSignal(const std::string &type, const std::string &reciever,
+                        const Signal &sig) {
+	core.sendSignal(type, reciever, sig);
 }
 
 const Module::Modules Module::getModules() const {
