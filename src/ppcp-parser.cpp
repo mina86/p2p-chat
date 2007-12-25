@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.3 2007/12/10 13:00:53 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.4 2007/12/25 01:33:59 mina86 Exp $
  */
 
 #include <errno.h>
@@ -221,6 +221,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			token.data = data;
 			token.flags = flags;
 			element = E_PPCP;
+			/* FIXME: Display name is ignored */
 			break;
 
 		case E_RQ:
