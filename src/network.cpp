@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.4 2007/12/25 01:40:28 mina86 Exp $
+ * $Id: network.cpp,v 1.5 2007/12/25 15:34:54 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -341,13 +341,17 @@ void Network::recievedSignal(const Signal &sig) {
 
 		sendSignal("/net/user/changed", "/ui/",
 		           new sig::UserData(ourUser, data.flags));
-		sendStatus(0);
+		send((NetworkUser*)0, ppcp::st(ourUser));
+		lastStatus = getTicks();
 
 	} else if (sig.getType() == "/net/users/rq") {
 		sendSignal("/net/users/rp", sig.getSender(), users.get());
 
 	} else if (sig.getType() == "/net/msg/send") {
-		/* TODO sending message */
+		const sig::MessageData &data =
+			*static_cast<const sig::MessageData*>(sig.getData());
+		send(&data.user, ppcp::m(data));
+		sendSignal("/net/msg/sent", "/ui/", sig);
 	}
 }
 
@@ -478,7 +482,12 @@ void Network::handleToken(NetworkUser &user,
 	}
 
 	case ppcp::Tokenizer::RQ:
-		sendStatus(&user);
+		if (getTicks() - lastStatus + 10 >= STATUS_RESEND) {
+			send((NetworkUser*)0, ppcp::st(ourUser));
+			lastStatus = getTicks();
+		} else {
+			send(&user, ppcp::st(ourUser));
+		}
 		break;
 
 	case ppcp::Tokenizer::M:
@@ -527,7 +536,8 @@ void Network::performTick() {
 	const unsigned long ticks = getTicks();
 
 	if (ticks - lastStatus >= STATUS_RESEND) {
-		sendStatus(0);
+		send((NetworkUser*)0, ppcp::st(ourUser));
+		lastStatus = ticks;
 	}
 
 	/* Handle connections */
@@ -558,10 +568,17 @@ void Network::performTick() {
 		    ticks - user.lastAccessed < (user.status.state == User::OFFLINE
 		                                 ? OFFLINE_USER_MAX_AGE
 		                                 : ONLINE_USER_MAX_AGE)) {
+			++u;
 			continue;
 		}
 
-		/* TODO */
+		sendSignal("/net/usr/changed", "/ui/",
+		           new sig::UserData(user, sig::UserData::DISCONNECTED));
+		User::ID id = user.id;
+		delete u->second;
+		users->users.erase(u);
+		u = users->users.lower_bound(id);
+		uend = users->users.end();
 	}
 }
 
@@ -572,9 +589,60 @@ NetworkUser *Network::getUser(const User::ID &id) {
 	if (!ret.second) {
 		ret.first->second = new NetworkUser(id);
 		sendSignal("/net/user/changed", "/ui/",
-		           new sig::UserData(*ret.first->second, sig::UserData::NEW));
+		           new sig::UserData(*ret.first->second,
+		                             sig::UserData::CONNECTED));
 	}
 	return static_cast<NetworkUser*>(ret.first->second);
+}
+
+
+
+void Network::send(NetworkUser *user, const std::string &str, bool udp) {
+	/* A multicast message */
+	if (!user) {
+		udpSocket->push(ppcp::ppcpOpen(ourUser.id) + str + ppcp::ppcpClose(),
+		                address);
+		return;
+	}
+
+	/* Find TCP connection */
+	NetworkUser::Connections::iterator c = user->connections.begin();
+	NetworkUser::Connections::iterator end = user->connections.end();
+	while (c != end && ~(*c)->flags & NetworkConnection::LOCAL_CLOSING) {
+		++c;
+	}
+
+	/* If none found and we can send through udp do it */
+	if (c == end && udp) {
+		udpSocket->push(ppcp::ppcpOpen(ourUser.id, user->id) + str +
+		                ppcp::ppcpClose(),
+		                Address(user->id.address, address.port));
+		return;
+	}
+
+	/* Connect to user */
+	TCPSocket *sock;
+	if (c == end) {
+		try {
+			sock = TCPSocket::connect(Address(user->id.address,
+			                          address.port));
+		}
+		catch (const NetException &e) {
+			sendSignal("/ui/msg/error", "/ui/",
+			           new sig::StringData("Error connecting to user: " +
+			                               e.getMessage()));
+			return;
+		}
+		NetworkConnection *conn;
+		conn = new NetworkConnection(sock, user->id, ourUser.id.nick);
+		conn->lastAccessed = getTicks();
+		user->connections.push_back(conn);
+		sock->push(ppcp::ppcpOpen(ourUser.id.nick, user->id.nick));
+	} else {
+		sock = (*c)->tcpSocket;
+	}
+
+	sock->push(str);
 }
 
 

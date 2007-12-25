@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.4 2007/12/25 01:36:27 mina86 Exp $
+ * $Id: network.hpp,v 1.5 2007/12/25 15:34:54 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -154,10 +154,23 @@ private:
 
 
 	/**
-	 * Sends status to given user or whole network.
-	 * \param user user to send status to.
+	 * Sends given string to given user or to whole network.
+	 * \param user user to send packet to or \c 0.
+	 * \param str  string to send.
+	 * \param udp  whether data may be send through UDP multicast.
 	 */
-	void sendStatus(NetworkUser *user);
+	void send(NetworkUser *user, const std::string &str, bool udp = false);
+
+
+	/**
+	 * Sends given string to given user or to whole network.
+	 * \param user user to send packet to or \c 0.
+	 * \param str  string to send.
+	 * \param udp  whether data may be send through UDP multicast.
+	 */
+	void send(const User *user, const std::string &str, bool udp = false) {
+		send(user ? getUser(user->id) : (NetworkUser*)0, str, udp);
+	}
 
 
 	/**
