@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.3 2007/12/24 12:34:01 mina86 Exp $
+ * $Id: network.cpp,v 1.4 2007/12/25 01:40:28 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -53,7 +53,10 @@ struct NetworkConnection {
 	/** Tokenizer used to parse packets. */
 	ppcp::StandAloneTokenizer tokenizer;
 
-	/* Connection flags. */
+	/** Last moment there was activity on connection. */
+	unsigned long lastAccessed;
+
+	/** Connection flags -- combination of flags defined in Flags enum. */
 	unsigned short flags;
 
 
@@ -65,7 +68,7 @@ struct NetworkConnection {
 	 */
 	NetworkConnection(TCPSocket *sock, const User::ID &i,
 	                  const std::string &ourNick)
-		: id(i), tcpSocket(sock), tokenizer(ourNick), flags(0) { }
+		: id(i), tcpSocket(sock), tokenizer(ourNick) { }
 
 	/** Deletes a tcpSocket. */
 	~NetworkConnection() {
@@ -87,10 +90,47 @@ struct NetworkUser : public User {
 	/** Active connections to user. */
 	typedef unordered_vector<NetworkConnection *> Connections;
 
+
+	/**
+	 * Initialises User object.
+	 *
+	 * \param i  user's ID -- nick name, IP address pair
+	 * \param n  user's display name.
+	 * \param st user's status.
+	 * \throw InvalidNick if \a n is invalid display name.
+	 */
+	NetworkUser(ID i, const std::string &n, const Status &st = Status())
+		: User(i, n, st), lastAccessed(0) { }
+
+
+	/**
+	 * Initialises User object.  User's display name is set from
+	 * <tt>i.name</tt>.
+	 *
+	 * \param i  user's ID -- nick name, IP address pair
+	 * \param st user's status.
+	 */
+	explicit NetworkUser(ID i, const Status &st = Status())
+		: User(i, st), lastAccessed(0) { }
+
+
+	/**
+	 * Initialises User object.  User's ID is set from \a n and \a
+	 * addr.
+	 *
+	 * \param n    user's display name.
+	 * \param addr user's IP address.
+	 * \param st   user's status.
+	 * \throw InvalidNick if \a n is invalid display name.
+	 */
+	NetworkUser(const std::string &n, IP addr, const Status &st = Status())
+		: User(n, addr, st) { }
+
+
 	/** Active connections to user. */
 	Connections connections;
-	/** User age in ticks. */
-	unsigned age;
+	/** Moment user did some activity last time. */
+	unsigned long lastAccessed;
 };
 
 
@@ -128,7 +168,8 @@ unsigned Network::network_id = 0;
 
 Network::Network(Core &c, Address addr, const std::string &nick)
 	: Module(c, "/net/ppc/" + network_id++), address(addr),
-	  users(new sig::UsersListData(nick)), ourUser(users->ourUser) {
+	  lastStatus(getTicks()), users(new sig::UsersListData(nick)),
+	  ourUser(users->ourUser) {
 	tcpListeningSocket = TCPListeningSocket::bind(Address(0, addr.port));
 	udpSocket = UDPSocket::bind(addr);
 }
@@ -140,11 +181,11 @@ Network::~Network() {
 	tcpListeningSocket = 0;
 	delete udpSocket;
 	udpSocket = 0;
-	TCPSockets::iterator it = tcpSockets.begin(), end = tcpSockets.end();
+	Connections::iterator it = connections.begin(), end = connections.end();
 	for (; it != end; ++it) {
 		delete *it;
 	}
-	tcpSockets.clear();
+	connections.clear();
 	/* NetworkUser objects kept in \a users may reference already
 	   deleted TCP sockets but this doesn't really matter since only
 	   we knew that User object stored there are really
@@ -166,7 +207,7 @@ int Network::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 		max = fd;
 	}
 
-	TCPSockets::iterator it = tcpSockets.begin(), end = tcpSockets.end();
+	Connections::iterator it = connections.begin(), end = connections.end();
 	for (; it != end; ++it) {
 		FD_SET(fd = (*it)->tcpSocket->getFD(), rd);
 		if ((*it)->tcpSocket->hasDataToWrite()) {
@@ -237,7 +278,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 	/* TCP sockets */
-	TCPSockets::iterator it = tcpSockets.begin(), end = tcpSockets.end();
+	Connections::iterator it = connections.begin(), end = connections.end();
 	while (nfds > 0 && it != end) {
 		int fd = (*it)->tcpSocket->getFD();
 		if (FD_ISSET(fd, rd)) {
@@ -261,8 +302,8 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 		/* !(~a & b)  is the same thing as  (a & b) == b */
 		if (!(~(*it)->flags & NetworkConnection::BOTH_CLOSED)) {
 			closeConnection(**it);
-			it = tcpSockets.erase(it);
-			end = tcpSockets.end();
+			it = connections.erase(it);
+			end = connections.end();
 		} else {
 			++it;
 		}
@@ -275,10 +316,40 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 void Network::recievedSignal(const Signal &sig) {
-	(void)sig;
-	/* FIXME: TODO */
-}
+	if (sig.getType() == "/core/tick") {
+		missedTicks = (missedTicks + 1) % HZ_DIVIDER;
+		if (!missedTicks) {
+			performTick();
+		}
 
+	} else if (sig.getType() == "/net/user/change") {
+		const sig::UserData &data =
+			*static_cast<const sig::UserData*>(sig.getData());
+		if (!data.flags) {
+			return;
+		}
+
+		if (data.flags & sig::UserData::STATE) {
+			ourUser.status.state = data.user.status.state;
+		}
+		if (data.flags & sig::UserData::MESSAGE) {
+			ourUser.status.message = data.user.status.message;
+		}
+		if (data.flags & sig::UserData::NAME) {
+			ourUser.name = data.user.name;
+		}
+
+		sendSignal("/net/user/changed", "/ui/",
+		           new sig::UserData(ourUser, data.flags));
+		sendStatus(0);
+
+	} else if (sig.getType() == "/net/users/rq") {
+		sendSignal("/net/users/rp", sig.getSender(), users.get());
+
+	} else if (sig.getType() == "/net/msg/send") {
+		/* TODO sending message */
+	}
+}
 
 
 void Network::acceptConnections() {
@@ -287,8 +358,9 @@ void Network::acceptConnections() {
 		NetworkConnection *conn;
 		conn = new NetworkConnection(sock, User::ID(sock->getAddress()),
 		                             ourUser.id.nick);
+		conn->lastAccessed = getTicks();
 		sock->push(ppcp::ppcpOpen(ourUser.id.nick));
-		tcpSockets.push_back(conn);
+		connections.push_back(conn);
 	}
 }
 
@@ -312,31 +384,21 @@ void Network::readFromUDPSocket() {
 
 		while ((token = tokenizer.nextToken())) {
 			switch (token.type) {
-			case ppcp::Tokenizer::END: /* dead code */
-				break;
-
 			case ppcp::Tokenizer::IGNORE:
 			case ppcp::Tokenizer::PPCP_CLOSE:
-				return;
+				goto nextDatagram;
 
 			case ppcp::Tokenizer::PPCP_OPEN:
 				user = getUser(User::ID(token.data, addr.ip));
+			case ppcp::Tokenizer::END: /* dead code */
 				break;
 
-			case ppcp::Tokenizer::ST:
-				gotStatus(*user, User::Status((User::State)token.flags,
-				                              token.data));
-				break;
-
-			case ppcp::Tokenizer::RQ:
-				sendStatus(user);
-				break;
-
-			case ppcp::Tokenizer::M:
-				gotMessage(*user, token.data, token.flags);
-				break;
+			default:
+				if (user) handleToken(*user, token);
 			}
 		}
+
+	nextDatagram: ;
 	}
 }
 
@@ -385,25 +447,50 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 				user->connections.push_back(&conn);
 				break;
 
-			case ppcp::Tokenizer::ST:
-				if (!user) break;
-				gotStatus(*user, User::Status((User::State)token.flags,
-				                              token.data));
-				break;
-
-			case ppcp::Tokenizer::RQ:
-				if (!user) break;
-				sendStatus(user);
-				break;
-
-			case ppcp::Tokenizer::M:
-				if (!user) break;
-				gotMessage(*user, token.data, token.flags);
-				break;
+			default:
+				if (user) handleToken(*user, token);
 			}
 		}
 	}
 }
+
+
+
+void Network::handleToken(NetworkUser &user,
+                          const ppcp::Tokenizer::Token &token) {
+	switch (token.type) {
+	case ppcp::Tokenizer::ST: {
+		unsigned flags = 0;
+		/* FIXME: Display name is ignored */
+		if (user.status.state != (User::State)token.flags) {
+			user.status.state = (User::State)token.flags;
+			flags |= sig::UserData::STATE;
+		}
+		if (user.status.message != token.data) {
+			user.status.message = token.data;
+			flags |= sig::UserData::MESSAGE;
+		}
+		if (flags) {
+			sendSignal("/net/user/changed", "/ui/",
+			           new sig::UserData(user, flags));
+		}
+		break;
+	}
+
+	case ppcp::Tokenizer::RQ:
+		sendStatus(&user);
+		break;
+
+	case ppcp::Tokenizer::M:
+		sendSignal("/net/msg/got", "/ui/",
+		           new sig::MessageData(user, token.data, token.flags));
+		break;
+
+	default: /* dead code */
+		;
+	}
+}
+
 
 
 void Network::writeToTCPConnection(NetworkConnection &conn) {
@@ -417,8 +504,11 @@ void Network::writeToTCPConnection(NetworkConnection &conn) {
 
 void Network::closeConnection(NetworkConnection &conn) {
 	delete conn.tcpSocket;
+	conn.tcpSocket = 0;
 
 	sig::UsersListData::Users::iterator uit = users->users.find(conn.id);
+	conn.id.nick.clear();
+	conn.tokenizer.init();
 	if (uit == users->users.end()) {
 		return;
 	}
@@ -427,8 +517,65 @@ void Network::closeConnection(NetworkConnection &conn) {
 	NetworkUser::Connections::iterator it = u.connections.find(&conn);
 	if (it != u.connections.end()) {
 		u.connections.erase(it);
-		u.age = 0;
+		u.lastAccessed = getTicks();
 	}
 }
+
+
+
+void Network::performTick() {
+	const unsigned long ticks = getTicks();
+
+	if (ticks - lastStatus >= STATUS_RESEND) {
+		sendStatus(0);
+	}
+
+	/* Handle connections */
+	Connections::iterator c    = connections.begin();
+	Connections::iterator cend = connections.end();
+	while (c != cend) {
+		if ((*c)->flags & NetworkConnection::LOCAL_CLOSING) {
+			if(ticks-(*c)->lastAccessed<CONNECTION_CLOSING_TIMEOUT) goto next;
+			closeConnection(**c);
+			c = connections.erase(c);
+			cend = connections.end();
+			continue;
+		} else {
+			if (ticks - (*c)->lastAccessed < CONNECTION_MAX_AGE) goto next;
+			(*c)->flags |= NetworkConnection::LOCAL_CLOSING;
+			(*c)->tcpSocket->push(ppcp::ppcpClose());
+		}
+	next:
+		++c;
+	}
+
+	/* Handle users */
+	sig::UsersListData::Users::iterator u = users->users.begin();
+	sig::UsersListData::Users::iterator uend = users->users.end();
+	while (u != uend) {
+		NetworkUser &user = *static_cast<NetworkUser*>(u->second);
+		if (!user.connections.empty() ||
+		    ticks - user.lastAccessed < (user.status.state == User::OFFLINE
+		                                 ? OFFLINE_USER_MAX_AGE
+		                                 : ONLINE_USER_MAX_AGE)) {
+			continue;
+		}
+
+		/* TODO */
+	}
+}
+
+
+NetworkUser *Network::getUser(const User::ID &id) {
+	std::pair<sig::UsersListData::Users::iterator, bool> ret;
+	ret = users->users.insert(std::make_pair(id, (User*)0));
+	if (!ret.second) {
+		ret.first->second = new NetworkUser(id);
+		sendSignal("/net/user/changed", "/ui/",
+		           new sig::UserData(*ret.first->second, sig::UserData::NEW));
+	}
+	return static_cast<NetworkUser*>(ret.first->second);
+}
+
 
 }
