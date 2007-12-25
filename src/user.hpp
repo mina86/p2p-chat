@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.3 2007/12/23 01:13:22 mina86 Exp $
+ * $Id: user.hpp,v 1.4 2007/12/25 15:36:28 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -37,10 +37,6 @@ struct InvalidNick : public Exception {
 struct User {
 	/** Possible user states. */
 	enum State {
-		/** User has disconnected from netwock.  Used by networks in
-		    \c /net/status/changed signal This is not the same as
-		    OFFLINE. */
-		DISCONNECTED = -1,
 		/** User is OFFLINE but we know he is connected.  This
 		    happens if user sent us some data.  */
 		OFFLINE,
@@ -94,6 +90,9 @@ struct User {
 			: nick(nickFromName(name)), address(addr) {
 			if (name.empty()) throw InvalidNick("Invalid nick name: ''");
 		}
+
+		/** Returns user's nick name. */
+		operator const std::string &() const { return nick; }
 
 		/** User's nick name. */
 		std::string nick;
