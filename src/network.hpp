@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.6 2007/12/25 16:49:41 mina86 Exp $
+ * $Id: network.hpp,v 1.7 2007/12/27 00:40:33 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -140,12 +140,6 @@ private:
 	 */
 	void writeToTCPConnection(NetworkConnection &conn);
 
-	/**
-	 * Closes TCP connection and removes all references to users.
-	 * \param conn connection to close.
-	 */
-	void closeConnection(NetworkConnection &conn);
-
 
 	/**
 	 * Removes all users and closes all connections that age exceeded
@@ -170,7 +164,7 @@ private:
 	 * \param udp  whether data may be send through UDP multicast.
 	 */
 	void send(const User &user, const std::string &str, bool udp = false) {
-		send(getUser(user.id), str, udp);
+		send(getUser(user.id, user.name), str, udp);
 	}
 
 
@@ -179,7 +173,7 @@ private:
 	 * \param str  string to send.
 	 */
 	void send(const std::string &str) {
-		udpSocket->push(ppcp::ppcpOpen(ourUser.id) + str + ppcp::ppcpClose(),
+		udpSocket->push(ppcp::ppcpOpen(ourUser) + str + ppcp::ppcpClose(),
 		                address);
 	}
 
@@ -187,10 +181,12 @@ private:
 	/**
 	 * Returns user with given ID.  If such user does not exist
 	 * creates him/her.
-	 * \param id user's ID
+	 * \param id   user's ID
+	 * \param name user's display name to use if it is new user.
 	 * \return Networkuser with given ID.
 	 */
-	NetworkUser &getUser(const User::ID &id);
+	NetworkUser &getUser(const User::ID &id,
+	                     const std::string &name = std::string());
 
 
 
