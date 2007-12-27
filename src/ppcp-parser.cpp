@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.5 2007/12/27 00:38:36 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.6 2007/12/27 17:44:11 mina86 Exp $
  */
 
 #include <errno.h>
@@ -24,6 +24,7 @@ enum {
 	E_IGNORE          = 255,
 
 	A_PPCP_N          = 1,
+	A_PPCP_P          = 2,
 	A_PPCP_TO_N       = 3,
 	A_PPCP_TO_NEG     = 4,
 	A_ST_ST           = 5,
@@ -109,6 +110,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		switch (element) {
 		case E_PPCP:
 			if (xToken.data == "n") attribute = A_PPCP_N;
+			if (xToken.data == "p") attribute = A_PPCP_P;
 			else if (xToken.data == "to:n") attribute = A_PPCP_TO_N;
 			else if (xToken.data == "to:neg") attribute = A_PPCP_TO_NEG;
 			break;
@@ -132,6 +134,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			data = xToken.data;
 			break;
 
+		case A_PPCP_P:
 		case A_ST_DN:
 			data2 = xToken.data;
 			break;
@@ -171,8 +174,17 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			break;
 		}
 
-		if (!User::isValidName(data)) {
+		if (data2.empty() || !User::isValidName(data)) {
 			goto ignore_rest;
+		}
+
+		{
+			unsigned long port;
+			char *end;
+			errno = 0;
+			port = strtoul(data2.c_str(), &end, 10);
+			if (errno || port<=1024 || port>65535 || *end) goto ignore_rest;
+			token.flags = port;
 		}
 
 		data = User::nickFromName(data2 = data);

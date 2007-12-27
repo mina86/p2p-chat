@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.6 2007/12/27 00:38:36 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.7 2007/12/27 17:44:11 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -68,9 +68,10 @@ struct Tokenizer {
 		};
 
 		/**
-		 * Meaning of flags depends on type.  For ST this is user's
-		 * state cast to unsigned (see User::State).  For M this is
-		 * combination of M_ACTION and M_MESSAGE.
+		 * Meaning of flags depends on type.  For PPCP_OPEN it's value
+		 * of \a p attribute.  For ST this is user's state cast to
+		 * unsigned (see User::State).  For M this is combination of
+		 * M_ACTION and M_MESSAGE.
 		 */
 		unsigned flags;
 
