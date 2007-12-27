@@ -1,15 +1,18 @@
 /** \file
  * Network I/O operations.
+ * $Id: netio.hpp,v 1.4 2007/12/27 17:42:33 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
 #define H_NETIO_HPP
 
+#include <stdio.h>
 #include <unistd.h>
 
 #include <string>
 
 #include "vector-queue.hpp"
+#include "exception.hpp"
 
 
 namespace ppc {
@@ -45,10 +48,15 @@ struct Address {
 	 * \param i IP address.
 	 * \param p port number.
 	 */
-	Address(IP i = 0, Port p = 0) : ip(i), port(p) { }
+	explicit Address(IP i = 0, Port p = 0) : ip(i), port(p) { }
 
-	/** Returns IP address. */
-	operator IP() const { return ip; }
+
+	/** Returns Address as a string. */
+	std::string toString() const {
+		char buffer[100];
+		sprintf(buffer, "%lu:%u", ip, port);
+		return std::string(buffer);
+	}
 };
 
 
@@ -144,7 +152,11 @@ private:
 /** A TCP Listening socket. */
 struct TCPListeningSocket : public Socket {
 	/**
-	 * Creats new TCP listening socket and binds to given address.
+	 * Creats new TCP listening socket and binds to given address.  IP
+	 * address withing \a addr may be zero which means to bind to all
+	 * IP addresses.  Also port number may be zero which means that we
+	 * can bind to any port number.  If port was zero method must
+	 * later fill it with accual port number.
 	 *
 	 * \param addr address to bind to.
 	 * \return new TCP listening socket.
@@ -175,7 +187,7 @@ private:
 	/**
 	 * Initialises TCPListeningSocket.
 	 * \param sock socket number.
-	 * \param addr address we are connected to.
+	 * \param addr address we are bound to.
 	 */
 	TCPListeningSocket(int sock, Address addr): Socket(sock, addr) {}
 };
@@ -243,6 +255,83 @@ private:
 	 */
 	UDPSocket(int sock, Address addr): Socket(sock, addr), queue() {}
 };
+
+
+
+
+
+/**
+ * Returns \c true if Address objects are equal.  Objects are equal
+ * if they have the same IP address and port number.
+ * \param a first Address object to compare.
+ * \param b second Address object to compare.
+ */
+inline bool operator==(const Address &a, const Address &b) {
+	return a.ip == b.ip && a.port == b.port;
+}
+
+
+/**
+ * Returns \c true if Address objects are not equal.  Objects are
+ * equal if they have the same IP address and port number.
+ * \param a first Address object to compare.
+ * \param b second Address object to compare.
+ */
+inline bool operator!=(const Address &a, const Address &b) {
+	return !(a == b);
+}
+
+
+/**
+ * Address linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.ip, a.port) <= (b.ip, b.port)</tt>.
+ *
+ * \param a first Address object to compare.
+ * \param b second Address object to compare.
+ * \return \c true if first object is greater then the second.
+ */
+inline bool operator> (const Address &a, const Address &b) {
+	return a.ip > b.ip || (a.ip == b.ip && a.port > b.port);
+}
+
+
+/**
+ * Address linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.ip, a.port) <= (b.ip, b.port)</tt>.
+ *
+ * \param a first Address object to compare.
+ * \param b second Address object to compare.
+ * \return \c true if first object is greater then or equal to the second.
+ */
+inline bool operator>=(const Address &a, const Address &b) {
+	return a.ip > b.ip || (a.ip == b.ip && a.port >= b.port);
+}
+
+
+/**
+ * Address linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.ip, a.port) <= (b.ip, b.port)</tt>.
+ *
+ * \param a first Address object to compare.
+ * \param b second Address object to compare.
+ * \return \c true if first object is less then the second.
+ */
+inline bool operator< (const Address &a, const Address &b) {
+	return b > a;
+}
+
+
+/**
+ * Address linear order.  This order is defined as follows: <tt>a <=
+ * b iff (a.ip, a.port) <= (b.ip, b.port)</tt>.
+ *
+ * \param a first Address object to compare.
+ * \param b second Address object to compare.
+ * \return \c true if first object is less then or equal to the second.
+ */
+inline bool operator<=(const Address &a, const Address &b) {
+	return b >= a;
+}
 
 
 }
