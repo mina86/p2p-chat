@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.4 2007/12/25 15:36:28 mina86 Exp $
+ * $Id: user.hpp,v 1.5 2007/12/27 00:39:01 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -91,9 +91,6 @@ struct User {
 			if (name.empty()) throw InvalidNick("Invalid nick name: ''");
 		}
 
-		/** Returns user's nick name. */
-		operator const std::string &() const { return nick; }
-
 		/** User's nick name. */
 		std::string nick;
 		/** Users IP address. */
@@ -174,13 +171,13 @@ struct User {
 	 * Initialises User object.
 	 *
 	 * \param i  user's ID -- nick name, IP address pair
-	 * \param n  user's display name.
+	 * \param n  user's display name or empty string.
 	 * \param st user's status.
 	 * \throw InvalidNick if \a n is invalid display name.
 	 */
 	User(ID i, const std::string &n, const Status &st = Status())
-		: id(i), name(n), status(st) {
-		if (!isValidName(n)) {
+		: id(i), name(n.empty() ? i.nick : n), status(st) {
+		if (!n.empty() && !isValidName(n)) {
 			throw InvalidNick("Invalid display name: '" + n + '\'');
 		}
 	}
