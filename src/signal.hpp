@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.7 2007/12/25 16:50:11 mina86 Exp $
+ * $Id: signal.hpp,v 1.8 2007/12/27 17:44:54 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -68,11 +68,11 @@ struct Module;
  *
  * \c /net signals include:
  * <ul>
- *   <li>\c /net/user/changed sent by network module to all \c /ui/
+ *   <li>\c /net/status/changed sent by network module to all \c /ui/
  *     modules when user (including "our" user) changes status or
  *     display name; it is also used to inform that user went
  *     offline; its argument is sig::UserData object.</li>
- *   <li>\c /net/user/change sent to network module to request status
+ *   <li>\c /net/status/change sent to network module to request status
  *     or display name change; its argument is sig::UserData object
  *     (but some fields are ignored).</li>
  *   <li>\c /net/users/rq sent to network module to request list of
@@ -234,15 +234,27 @@ struct UserData : public Signal::Data {
 struct MessageData : public StringData {
 	/**
 	 * Sets data.
-	 * \param u   message's sender/reciever.
+	 * \param i   message's sender/reciever's id.
 	 * \param msg message's text.
 	 * \param fl  message's flags.
 	 */
-	MessageData(const User &u, const std::string &msg, unsigned fl = 0)
-		: StringData(msg), user(u), flags(fl) { }
+	MessageData(const User::ID &i, const std::string &msg, unsigned fl = 0)
+		: StringData(msg), id(i), flags(fl) { }
 
-	/** Message's sender or reciever (depending on signal). */
-	User user;
+	/**
+	 * Message's sender's or reciever's (depending on signal) ID.
+	 *
+	 * This field does not need to be fully set (but only if \c
+	 * ALLOW_UDP flag is set).  If IP address is set but port number
+	 * is not set data will be sent to given IP address to given user
+	 * using UDP unicast datagram.  If IP address is not set message
+	 * will be sent to given user (actually all users with given nick
+	 * name) using UDP multicast datagram.  If in those two scenarios
+	 * nick name is empty a \c to:n attribute of sent packet won't be
+	 * set and thus message will be sent to all users which listen at
+	 * given address or all users in network.
+	 */
+	User::ID id;
 
 	/** Possible message's flags. */
 	enum {
@@ -284,8 +296,10 @@ struct UsersListData : public Signal::Data {
 	/**
 	 * Constructor.
 	 * \param nick our user's nick name.
+	 * \param port our TCP listening port.
 	 */
-	UsersListData(const std::string &nick) : ourUser(nick, 0) { }
+	UsersListData(const std::string &nick, Port port)
+		: ourUser(nick, Address(0, port)) { }
 
 
 	/** Deletes all users in users map. */
