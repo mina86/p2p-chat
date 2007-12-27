@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.8 2007/12/27 03:12:27 mina86 Exp $
+ * $Id: network.cpp,v 1.9 2007/12/27 17:58:36 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -60,11 +60,11 @@ struct NetworkUser : public User {
 	 * addr.
 	 *
 	 * \param n    user's display name.
-	 * \param addr user's IP address.
+	 * \param addr user's address (IP, port pair).
 	 * \param st   user's status.
 	 * \throw InvalidNick if \a n is invalid display name.
 	 */
-	NetworkUser(const std::string &n, IP addr, const Status &st = Status())
+	NetworkUser(const std::string &n, Address addr, const Status &st=Status())
 		: User(n, addr, st) { }
 
 	/**
@@ -281,10 +281,10 @@ unsigned Network::network_id = 0;
 
 Network::Network(Core &c, Address addr, const std::string &nick)
 	: Module(c, "/net/ppc/" + network_id++), address(addr),
-	  lastStatus(Core::getTicks()), users(new sig::UsersListData(nick)),
-	  ourUser(users->ourUser) {
-	tcpListeningSocket = TCPListeningSocket::bind(Address(0, addr.port));
+	  lastStatus(Core::getTicks()), ourUser(users->ourUser) {
+	tcpListeningSocket = TCPListeningSocket::bind(Address());
 	udpSocket = UDPSocket::bind(addr);
+	users=new sig::UsersListData(nick, tcpListeningSocket->getAddress().port);
 }
 
 
@@ -435,7 +435,7 @@ void Network::recievedSignal(const Signal &sig) {
 			performTick();
 		}
 
-	} else if (sig.getType() == "/net/user/change") {
+	} else if (sig.getType() == "/net/status/change") {
 		const sig::UserData &data =
 			*static_cast<const sig::UserData*>(sig.getData());
 		if (!data.flags) {
@@ -452,7 +452,7 @@ void Network::recievedSignal(const Signal &sig) {
 			ourUser.name = data.user.name;
 		}
 
-		sendSignal("/net/user/changed", "/ui/",
+		sendSignal("/net/status/changed", "/ui/",
 		           new sig::UserData(ourUser, data.flags));
 		send(data.flags & sig::UserData::REQUEST
 		     ? ppcp::st(ourUser)+ppcp::rq() : ppcp::st(ourUser));
@@ -464,7 +464,7 @@ void Network::recievedSignal(const Signal &sig) {
 	} else if (sig.getType() == "/net/msg/send") {
 		const sig::MessageData &data =
 			*static_cast<const sig::MessageData*>(sig.getData());
-		send(data.user, ppcp::m(data),
+		send(data.id, ppcp::m(data),
 		     data.flags & sig::MessageData::ALLOW_UDP);
 		sendSignal("/net/msg/sent", "/ui/", sig);
 	}
@@ -507,7 +507,9 @@ void Network::readFromUDPSocket() {
 				goto nextDatagram;
 
 			case ppcp::Tokenizer::PPCP_OPEN:
-				user = &getUser(User::ID(token.data, addr.ip), token.data2);
+				user = &getUser(User::ID(token.data,
+				                         Address(addr.ip, token.flags)),
+				                token.data2);
 			case ppcp::Tokenizer::END: /* dead code */
 				break;
 
@@ -548,7 +550,9 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 
 		case ppcp::Tokenizer::PPCP_OPEN:
 			if (conn.isAttached()) break;
-			conn.attachTo(getUser(User::ID(token.data, conn.getAddress().ip),
+			conn.attachTo(getUser(User::ID(token.data,
+			                               Address(conn.getAddress().ip,
+			                                       token.flags)),
 			                      token.data2));
 			break;
 
@@ -580,7 +584,7 @@ void Network::handleToken(NetworkUser &user,
 			flags |= sig::UserData::NAME;
 		}
 		if (flags) {
-			sendSignal("/net/user/changed", "/ui/",
+			sendSignal("/net/status/changed", "/ui/",
 			           new sig::UserData(user, flags));
 		}
 		break;
@@ -597,7 +601,7 @@ void Network::handleToken(NetworkUser &user,
 
 	case ppcp::Tokenizer::M:
 		sendSignal("/net/msg/got", "/ui/",
-		           new sig::MessageData(user, token.data, token.flags));
+		           new sig::MessageData(user.id, token.data, token.flags));
 		break;
 
 	default: /* dead code */
@@ -667,13 +671,13 @@ void Network::performTick() {
 NetworkUser &Network::getUser(const User::ID &id, const std::string &name) {
 	std::pair<sig::UsersListData::Users::iterator, bool> ret;
 	ret = users->users.insert(std::make_pair(id, (User*)0));
-	if (!ret.second) {
+	if (ret.second) {
+		static_cast<NetworkUser*>(ret.first->second)->accessed();
+	} else {
 		ret.first->second = new NetworkUser(id, name);
-		sendSignal("/net/user/changed", "/ui/",
+		sendSignal("/net/status/changed", "/ui/",
 		           new sig::UserData(*ret.first->second,
 		                             sig::UserData::CONNECTED));
-	} else {
-		static_cast<NetworkUser*>(ret.first->second)->accessed();
 	}
 	return *static_cast<NetworkUser*>(ret.first->second);
 }
@@ -686,12 +690,11 @@ void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 	if (!conn && udp) {
 		udpSocket->push(ppcp::ppcpOpen(ourUser, user.id.nick) + str +
 		                ppcp::ppcpClose(),
-		                Address(user.id.address, address.port));
+		                Address(user.id.address.ip, address.port));
 	} else {
 		TCPSocket *sock;
 		try {
-			sock = TCPSocket::connect(Address(user.id.address,
-			                          address.port));
+			sock = TCPSocket::connect(user.id.address);
 		}
 		catch (const NetException &e) {
 			sendSignal("/ui/msg/error", "/ui/",
@@ -701,12 +704,25 @@ void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 		}
 		conn = new NetworkConnection(*sock, ourUser.id.nick);
 		conn->attachTo(user);
-		sock->push(ppcp::ppcpOpen(ourUser.id.nick, user.id.nick));
+		sock->push(ppcp::ppcpOpen(ourUser, user.id.nick));
 	}
 
 	conn->push(str);
 }
 
+
+void Network::send(const User::ID &id, const std::string &str, bool udp) {
+	if (id.address.ip && id.address.port) {
+		send(getUser(id), str, udp);
+	} else if (!udp) {
+		/* nothing */
+	} else {
+		udpSocket->push(ppcp::ppcpOpen(ourUser, id.nick) + str +
+		                ppcp::ppcpClose(),
+		                id.address.ip
+		                ? Address(id.address.ip, address.port) : address);
+	}
+}
 
 
 NetworkConnection *NetworkUser::getConnection() {
