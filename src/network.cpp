@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.7 2007/12/27 00:41:28 mina86 Exp $
+ * $Id: network.cpp,v 1.8 2007/12/27 03:12:27 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -126,7 +126,6 @@ struct NetworkConnection {
 	/**
 	 * Constructor.
 	 * \param sock    TCP socket.
-	 * \param i       remote user ID.
 	 * \param ourNick our nick name.
 	 */
 	NetworkConnection(TCPSocket &sock, const std::string &ourNick)
@@ -143,7 +142,10 @@ struct NetworkConnection {
 		}
 	}
 
-	/** Attaches connection to given user. */
+	/**
+	 * Attaches connection to given user.
+	 * \param u user to attach connection to.
+	 */
 	void attachTo(NetworkUser &u) {
 		user = &u;
 		u.connections.push_back(this);
