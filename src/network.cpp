@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.6 2007/12/25 16:49:41 mina86 Exp $
+ * $Id: network.cpp,v 1.7 2007/12/27 00:41:28 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -15,66 +15,9 @@
 namespace ppc {
 
 
-/** Structure holding data associated with TCP connection. */
-struct NetworkConnection {
-	/** Possible flags. */
-	enum Flags {
-		/** Remote side have opened \c ppcp element and thus we have
-		 * recieved remote user's nick name. */
-		KNOW_WHO      = 0x01,
+struct NetworkUser;
+struct NetworkConnection;
 
-		/** Remote side have closed \c ppcp element.  We should do the
-		 * same.  All data read from strem must be ignored. */
-		REMOTE_CLOSED = 0x02,
-
-		/** We have pushed \c ppcp closing tag yet it was not sent
-		 * yet.  We must not writa data through this stream. */
-		LOCAL_CLOSING = 0x04,
-
-		/** We have closed \c ppcp element.  We must not write data
-		 * through this stream.  */
-		LOCAL_CLOSED  = 0x08,
-
-		/** Both sides have closed \c ppcp element.  Connection shall
-		 * be closed and removed from list. */
-		BOTH_CLOSED   = 0x0A
-	};
-
-
-	/**
-	 * ID of user this connection is to.  \a id's nick may be an empty
-	 * string which means that we don't know sender's nick name yet.
-	 */
-	User::ID id;
-
-	/** A TCP socket. */
-	TCPSocket *tcpSocket;
-
-	/** Tokenizer used to parse packets. */
-	ppcp::StandAloneTokenizer tokenizer;
-
-	/** Last moment there was activity on connection. */
-	unsigned long lastAccessed;
-
-	/** Connection flags -- combination of flags defined in Flags enum. */
-	unsigned short flags;
-
-
-	/**
-	 * Constructor.
-	 * \param sock    TCP socket.
-	 * \param i       remote user ID.
-	 * \param ourNick our nick name.
-	 */
-	NetworkConnection(TCPSocket *sock, const User::ID &i,
-	                  const std::string &ourNick)
-		: id(i), tcpSocket(sock), tokenizer(ourNick) { }
-
-	/** Deletes a tcpSocket. */
-	~NetworkConnection() {
-		delete tcpSocket;
-	}
-};
 
 
 /**
@@ -95,13 +38,12 @@ struct NetworkUser : public User {
 	 * Initialises User object.
 	 *
 	 * \param i  user's ID -- nick name, IP address pair
-	 * \param n  user's display name.
+	 * \param n  user's display name or empty string.
 	 * \param st user's status.
 	 * \throw InvalidNick if \a n is invalid display name.
 	 */
 	NetworkUser(ID i, const std::string &n, const Status &st = Status())
-		: User(i, n, st), lastAccessed(0) { }
-
+		: User(i, n, st), lastAccessed(Core::getTicks()) { }
 
 	/**
 	 * Initialises User object.  User's display name is set from
@@ -111,8 +53,7 @@ struct NetworkUser : public User {
 	 * \param st user's status.
 	 */
 	explicit NetworkUser(ID i, const Status &st = Status())
-		: User(i, st), lastAccessed(0) { }
-
+		: User(i, st), lastAccessed(Core::getTicks()) { }
 
 	/**
 	 * Initialises User object.  User's ID is set from \a n and \a
@@ -126,12 +67,182 @@ struct NetworkUser : public User {
 	NetworkUser(const std::string &n, IP addr, const Status &st = Status())
 		: User(n, addr, st) { }
 
+	/**
+	 * Returns time in ticks since last access or \c 0 if there is at
+	 * least one connection associated with given user.
+	 */
+	unsigned long age() const {
+		return connections.empty() ? Core::getTicks() - lastAccessed : 0;
+	}
 
+	/** Returns first connection we can send data through or \c NULL. */
+	inline NetworkConnection *getConnection();
+
+	/** Updates last access time. */
+	void accessed() {
+		lastAccessed = Core::getTicks();
+	}
+
+
+private:
 	/** Active connections to user. */
 	Connections connections;
+
 	/** Moment user did some activity last time. */
 	unsigned long lastAccessed;
+
+
+	friend struct NetworkConnection;
 };
+
+
+
+/** Structure holding data associated with TCP connection. */
+struct NetworkConnection {
+	/** Possible flags. */
+	enum {
+		/** Remote side have closed \c ppcp element.  We should do the
+		 * same.  All data read from strem must be ignored. */
+		REMOTE_CLOSED = 0x02,
+
+		/** We have pushed \c ppcp closing tag yet it was not sent
+		 * yet.  We must not writa data through this stream. */
+		LOCAL_CLOSING = 0x04,
+
+		/** We have closed \c ppcp element.  We must not write data
+		 * through this stream.  */
+		LOCAL_CLOSED  = 0x08,
+
+		/** Both sides have closed \c ppcp element.  Connection shall
+		 * be closed and removed from list. */
+		BOTH_CLOSED   = 0x0A
+	};
+
+
+	/** Connection flags -- combination of flags defined in enum above. */
+	unsigned short flags;
+
+
+	/**
+	 * Constructor.
+	 * \param sock    TCP socket.
+	 * \param i       remote user ID.
+	 * \param ourNick our nick name.
+	 */
+	NetworkConnection(TCPSocket &sock, const std::string &ourNick)
+		: tcpSocket(sock), tokenizer(ourNick),
+		  lastAccessed(Core::getTicks()) { }
+
+	/** Deletes a tcpSocket. */
+	~NetworkConnection() {
+		delete &tcpSocket;
+		if (user) {
+			user->connections.erase(user->connections.find(this));
+			user->lastAccessed = Core::getTicks();
+			user = 0;
+		}
+	}
+
+	/** Attaches connection to given user. */
+	void attachTo(NetworkUser &u) {
+		user = &u;
+		u.connections.push_back(this);
+	}
+
+	/** Returns \c true iff connection is attached to some user. */
+	bool isAttached() const {
+		return user;
+	}
+
+	/** Returns user connection is attached to or \c NULL. */
+	NetworkUser *getUser() { return user; }
+
+	/** Returns time in ticks since last access. */
+	unsigned long age() const {
+		return Core::getTicks() - lastAccessed;
+	}
+
+	/**
+	 * Returns next token from tokenizer.
+	 * \throw xml::Error if data read from socket was invalid XML.
+	 */
+	ppcp::Tokenizer::Token nextToken() {
+		return tokenizer.nextToken();
+	}
+
+	/**
+	 * Reads data from socket and feeds data to tokenizer.  Returns \c
+	 * true iff data was sucesfully read from socket.
+	 * \throw NetException if error while reading data from socket occured.
+	 */
+	bool feed() {
+		std::string data = read();
+		if (!data.empty()) {
+			tokenizer.feed(data);
+		}
+		return !data.empty();
+	}
+
+	/**
+	 * Reads data from socket.  Returns read data or empty string.  If
+	 * data was read updates \a lastAccessed field.
+	 * \throw NetException if error while reading data from socket occured.
+	 */
+	std::string read() {
+		std::string data = tcpSocket.read();
+		if (!data.empty()) {
+			lastAccessed = Core::getTicks();
+		}
+		return data;
+	}
+
+	/**
+	 * Writes data to socket and updates \c lastAccessed field.
+	 * \throw NetException if error while writting data from socket occured.
+	 */
+	void write() {
+		tcpSocket.write();
+		lastAccessed = Core::getTicks();
+	}
+
+	/**
+	 * Pushes data to buffer to send it later on.
+	 * \param str string to append to buffer.
+	 */
+	void push(const std::string &str) {
+		tcpSocket.push(str);
+	}
+
+	/** Returns whether socket has pending data to write. */
+	bool hasDataToWrite() const {
+		return tcpSocket.hasDataToWrite();
+	}
+
+	/** Returns socket's file descriptor number. */
+	int getFD() {
+		return tcpSocket.getFD();
+	}
+
+	/** Returns address socket is connected to. */
+	Address getAddress() const {
+		return tcpSocket.getAddress();
+	}
+
+
+private:
+	/** A TCP socket. */
+	TCPSocket &tcpSocket;
+
+	/** User this connection is associated with or \c NULL. */
+	NetworkUser *user;
+
+	/** Tokenizer used to parse packets. */
+	ppcp::StandAloneTokenizer tokenizer;
+
+	/** Last moment there was activity on connection. */
+	unsigned long lastAccessed;
+};
+
 
 
 /**
@@ -168,7 +279,7 @@ unsigned Network::network_id = 0;
 
 Network::Network(Core &c, Address addr, const std::string &nick)
 	: Module(c, "/net/ppc/" + network_id++), address(addr),
-	  lastStatus(getTicks()), users(new sig::UsersListData(nick)),
+	  lastStatus(Core::getTicks()), users(new sig::UsersListData(nick)),
 	  ourUser(users->ourUser) {
 	tcpListeningSocket = TCPListeningSocket::bind(Address(0, addr.port));
 	udpSocket = UDPSocket::bind(addr);
@@ -209,8 +320,8 @@ int Network::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 
 	Connections::iterator it = connections.begin(), end = connections.end();
 	for (; it != end; ++it) {
-		FD_SET(fd = (*it)->tcpSocket->getFD(), rd);
-		if ((*it)->tcpSocket->hasDataToWrite()) {
+		FD_SET(fd = (*it)->getFD(), rd);
+		if ((*it)->hasDataToWrite()) {
 			FD_SET(fd, wr);
 		}
 		if (fd > max) {
@@ -280,7 +391,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	/* TCP sockets */
 	Connections::iterator it = connections.begin(), end = connections.end();
 	while (nfds > 0 && it != end) {
-		int fd = (*it)->tcpSocket->getFD();
+		int fd = (*it)->getFD();
 		if (FD_ISSET(fd, rd)) {
 			++handled, --nfds;
 		}
@@ -301,7 +412,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 		/* !(~a & b)  is the same thing as  (a & b) == b */
 		if (!(~(*it)->flags & NetworkConnection::BOTH_CLOSED)) {
-			closeConnection(**it);
+			delete *it;
 			it = connections.erase(it);
 			end = connections.end();
 		} else {
@@ -343,7 +454,7 @@ void Network::recievedSignal(const Signal &sig) {
 		           new sig::UserData(ourUser, data.flags));
 		send(data.flags & sig::UserData::REQUEST
 		     ? ppcp::st(ourUser)+ppcp::rq() : ppcp::st(ourUser));
-		lastStatus = getTicks();
+		lastStatus = Core::getTicks();
 
 	} else if (sig.getType() == "/net/users/rq") {
 		sendSignal("/net/users/rp", sig.getSender(), users.get());
@@ -358,14 +469,13 @@ void Network::recievedSignal(const Signal &sig) {
 }
 
 
+
 void Network::acceptConnections() {
 	TCPSocket *sock;
 	while ((sock = tcpListeningSocket->accept())) {
 		NetworkConnection *conn;
-		conn = new NetworkConnection(sock, User::ID(sock->getAddress()),
-		                             ourUser.id.nick);
-		conn->lastAccessed = getTicks();
-		sock->push(ppcp::ppcpOpen(ourUser.id.nick));
+		conn = new NetworkConnection(*sock, ourUser.id.nick);
+		sock->push(ppcp::ppcpOpen(ourUser));
 		connections.push_back(conn);
 	}
 }
@@ -395,7 +505,7 @@ void Network::readFromUDPSocket() {
 				goto nextDatagram;
 
 			case ppcp::Tokenizer::PPCP_OPEN:
-				user = &getUser(User::ID(token.data, addr.ip));
+				user = &getUser(User::ID(token.data, addr.ip), token.data2);
 			case ppcp::Tokenizer::END: /* dead code */
 				break;
 
@@ -412,51 +522,39 @@ void Network::readFromUDPSocket() {
 
 void Network::readFromTCPConnection(NetworkConnection &conn) {
 	ppcp::Tokenizer::Token token;
-	std::string data;
-	NetworkUser *user = conn.flags & NetworkConnection::KNOW_WHO
-		? &getUser(conn.id) : 0;
 
-	while (!(data = conn.tcpSocket->read()).empty()) {
-		if (conn.flags & NetworkConnection::REMOTE_CLOSED) {
-			continue;
-		}
+	if (conn.flags & NetworkConnection::REMOTE_CLOSED) {
+	ignore:
+		while (!conn.read().empty());
+		return;
+	}
 
-		conn.tokenizer.feed(data);
+	for(;;){
+		switch (token.type) {
+		case ppcp::Tokenizer::END:
+			if (!conn.feed()) return;
+			break;
 
-		/* Blah... 4 levels of indention and even more!  But making
-		   this loop a separate function does not make much more sense
-		   then using so many levels of indention as it would require
-		   passing tons of arguments to that new function or
-		   reconstructing objects several times.  The other solution
-		   would bo to first read all data from connection and feed
-		   tokenizer with it and then consume tokens but that would
-		   require more memory. */
-
-		while ((token = conn.tokenizer.nextToken())) {
-			switch (token.type) {
-			case ppcp::Tokenizer::IGNORE:
-			case ppcp::Tokenizer::PPCP_CLOSE:
-				if (!(conn.flags & NetworkConnection::LOCAL_CLOSING)) {
-					conn.tcpSocket->push(ppcp::ppcpClose());
-				}
-				conn.flags |= NetworkConnection::REMOTE_CLOSED;
-				conn.flags |= NetworkConnection::LOCAL_CLOSED;
-			case ppcp::Tokenizer::END:
-				break;
-
-			case ppcp::Tokenizer::PPCP_OPEN:
-				if (user) break;
-				user = &getUser(User::ID(token.data,
-				                         conn.tcpSocket->getAddress().ip));
-				conn.id = user->id;
-				conn.flags |= NetworkConnection::KNOW_WHO;
-				user->connections.push_back(&conn);
-				break;
-
-			default:
-				if (user) handleToken(*user, token);
+		case ppcp::Tokenizer::IGNORE:
+		case ppcp::Tokenizer::PPCP_CLOSE:
+			if (~conn.flags & NetworkConnection::LOCAL_CLOSING) {
+				conn.push(ppcp::ppcpClose());
 			}
+			conn.flags |= NetworkConnection::REMOTE_CLOSED;
+			conn.flags |= NetworkConnection::LOCAL_CLOSING;
+			goto ignore;
+
+		case ppcp::Tokenizer::PPCP_OPEN:
+			if (conn.isAttached()) break;
+			conn.attachTo(getUser(User::ID(token.data, conn.getAddress().ip),
+			                      token.data2));
+			break;
+
+		default:
+			if (conn.isAttached()) handleToken(*conn.getUser(), token);
 		}
+
+		token = conn.nextToken();
 	}
 }
 
@@ -467,7 +565,6 @@ void Network::handleToken(NetworkUser &user,
 	switch (token.type) {
 	case ppcp::Tokenizer::ST: {
 		unsigned flags = 0;
-		/* FIXME: Display name is ignored */
 		if (user.status.state != (User::State)token.flags) {
 			user.status.state = (User::State)token.flags;
 			flags |= sig::UserData::STATE;
@@ -475,6 +572,10 @@ void Network::handleToken(NetworkUser &user,
 		if (user.status.message != token.data) {
 			user.status.message = token.data;
 			flags |= sig::UserData::MESSAGE;
+		}
+		if (user.name != token.data2) {
+			user.name = token.data2;
+			flags |= sig::UserData::NAME;
 		}
 		if (flags) {
 			sendSignal("/net/user/changed", "/ui/",
@@ -484,9 +585,9 @@ void Network::handleToken(NetworkUser &user,
 	}
 
 	case ppcp::Tokenizer::RQ:
-		if (getTicks() - lastStatus + 10 >= STATUS_RESEND) {
+		if (Core::getTicks() - lastStatus + 10 >= STATUS_RESEND) {
 			send(ppcp::st(ourUser));
-			lastStatus = getTicks();
+			lastStatus = Core::getTicks();
 		} else {
 			send(user, ppcp::st(ourUser));
 		}
@@ -505,41 +606,19 @@ void Network::handleToken(NetworkUser &user,
 
 
 void Network::writeToTCPConnection(NetworkConnection &conn) {
-	conn.tcpSocket->write();
+	conn.write();
 	if ((conn.flags & NetworkConnection::LOCAL_CLOSING) &&
-	    !conn.tcpSocket->hasDataToWrite()) {
+	    !conn.hasDataToWrite()) {
 		conn.flags |= NetworkConnection::LOCAL_CLOSED;
-	}
-}
-
-
-void Network::closeConnection(NetworkConnection &conn) {
-	delete conn.tcpSocket;
-	conn.tcpSocket = 0;
-
-	sig::UsersListData::Users::iterator uit = users->users.find(conn.id);
-	conn.id.nick.clear();
-	conn.tokenizer.init();
-	if (uit == users->users.end()) {
-		return;
-	}
-
-	NetworkUser &u = *static_cast<NetworkUser*>(uit->second);
-	NetworkUser::Connections::iterator it = u.connections.find(&conn);
-	if (it != u.connections.end()) {
-		u.connections.erase(it);
-		u.lastAccessed = getTicks();
 	}
 }
 
 
 
 void Network::performTick() {
-	const unsigned long ticks = getTicks();
-
-	if (ticks - lastStatus >= STATUS_RESEND) {
+	if (Core::getTicks() - lastStatus >= STATUS_RESEND) {
 		send(ppcp::st(ourUser));
-		lastStatus = ticks;
+		lastStatus = Core::getTicks();
 	}
 
 	/* Handle connections */
@@ -547,15 +626,15 @@ void Network::performTick() {
 	Connections::iterator cend = connections.end();
 	while (c != cend) {
 		if ((*c)->flags & NetworkConnection::LOCAL_CLOSING) {
-			if(ticks-(*c)->lastAccessed<CONNECTION_CLOSING_TIMEOUT) goto next;
-			closeConnection(**c);
+			if((*c)->age() < CONNECTION_CLOSING_TIMEOUT) goto next;
+			delete *c;
 			c = connections.erase(c);
 			cend = connections.end();
 			continue;
 		} else {
-			if (ticks - (*c)->lastAccessed < CONNECTION_MAX_AGE) goto next;
+			if ((*c)->age() < CONNECTION_MAX_AGE) goto next;
 			(*c)->flags |= NetworkConnection::LOCAL_CLOSING;
-			(*c)->tcpSocket->push(ppcp::ppcpClose());
+			(*c)->push(ppcp::ppcpClose());
 		}
 	next:
 		++c;
@@ -566,10 +645,8 @@ void Network::performTick() {
 	sig::UsersListData::Users::iterator uend = users->users.end();
 	while (u != uend) {
 		NetworkUser &user = *static_cast<NetworkUser*>(u->second);
-		if (!user.connections.empty() ||
-		    ticks - user.lastAccessed < (user.status.state == User::OFFLINE
-		                                 ? OFFLINE_USER_MAX_AGE
-		                                 : ONLINE_USER_MAX_AGE)) {
+		if (user.age() < (user.status.state == User::OFFLINE
+		                  ? OFFLINE_USER_MAX_AGE : ONLINE_USER_MAX_AGE)) {
 			++u;
 			continue;
 		}
@@ -585,14 +662,16 @@ void Network::performTick() {
 }
 
 
-NetworkUser &Network::getUser(const User::ID &id) {
+NetworkUser &Network::getUser(const User::ID &id, const std::string &name) {
 	std::pair<sig::UsersListData::Users::iterator, bool> ret;
 	ret = users->users.insert(std::make_pair(id, (User*)0));
 	if (!ret.second) {
-		ret.first->second = new NetworkUser(id);
+		ret.first->second = new NetworkUser(id, name);
 		sendSignal("/net/user/changed", "/ui/",
 		           new sig::UserData(*ret.first->second,
 		                             sig::UserData::CONNECTED));
+	} else {
+		static_cast<NetworkUser*>(ret.first->second)->accessed();
 	}
 	return *static_cast<NetworkUser*>(ret.first->second);
 }
@@ -600,24 +679,14 @@ NetworkUser &Network::getUser(const User::ID &id) {
 
 
 void Network::send(NetworkUser &user, const std::string &str, bool udp) {
-	/* Find TCP connection */
-	NetworkUser::Connections::iterator c = user.connections.begin();
-	NetworkUser::Connections::iterator end = user.connections.end();
-	while (c != end && ~(*c)->flags & NetworkConnection::LOCAL_CLOSING) {
-		++c;
-	}
+	NetworkConnection *conn = user.getConnection();
 
-	/* If none found and we can send through udp do it */
-	if (c == end && udp) {
-		udpSocket->push(ppcp::ppcpOpen(ourUser.id, user.id) + str +
+	if (!conn && udp) {
+		udpSocket->push(ppcp::ppcpOpen(ourUser, user.id.nick) + str +
 		                ppcp::ppcpClose(),
 		                Address(user.id.address, address.port));
-		return;
-	}
-
-	/* Connect to user */
-	TCPSocket *sock;
-	if (c == end) {
+	} else {
+		TCPSocket *sock;
 		try {
 			sock = TCPSocket::connect(Address(user.id.address,
 			                          address.port));
@@ -628,17 +697,22 @@ void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 			                               e.getMessage()));
 			return;
 		}
-		NetworkConnection *conn;
-		conn = new NetworkConnection(sock, user.id, ourUser.id.nick);
-		conn->lastAccessed = getTicks();
-		user.connections.push_back(conn);
+		conn = new NetworkConnection(*sock, ourUser.id.nick);
+		conn->attachTo(user);
 		sock->push(ppcp::ppcpOpen(ourUser.id.nick, user.id.nick));
-	} else {
-		sock = (*c)->tcpSocket;
 	}
 
-	sock->push(str);
+	conn->push(str);
 }
 
+
+
+NetworkConnection *NetworkUser::getConnection() {
+	Connections::iterator it = connections.begin(), end = connections.end();
+	while (it != end && ~(*it)->flags & NetworkConnection::LOCAL_CLOSING) {
+		++it;
+	}
+	return it == end ? 0 : *it;
+}
 
 }
