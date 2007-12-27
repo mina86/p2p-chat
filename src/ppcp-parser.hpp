@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.5 2007/12/24 12:29:24 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.6 2007/12/27 00:38:36 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -53,6 +53,14 @@ struct Tokenizer {
 		 */
 		std::string data;
 
+		/**
+		 * Meaning of secondary data depends on type.  For PPCP_OPEN
+		 * it is the oryginal value of \a n attribute.  For PPCP_ST
+		 * it's a display name or empty string if \a dn attribute was
+		 * missing.
+		 */
+		std::string data2;
+
 		/** Possible flags when type is M. */
 		enum {
 			M_ACTION  = 1,
@@ -60,10 +68,8 @@ struct Tokenizer {
 		};
 
 		/**
-		 * Meaning of flags depends on type.  For PPCP_OPEN this is \c
-		 * p attribute's value parsed to \c int or 0 if this attribute
-		 * was not given or was invalid.  For ST this is user's state
-		 * cast to unsigned (see User::State).  For M this is
+		 * Meaning of flags depends on type.  For ST this is user's
+		 * state cast to unsigned (see User::State).  For M this is
 		 * combination of M_ACTION and M_MESSAGE.
 		 */
 		unsigned flags;

@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.4 2007/12/25 01:33:59 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.5 2007/12/27 00:38:36 mina86 Exp $
  */
 
 #include <errno.h>
@@ -24,7 +24,6 @@ enum {
 	E_IGNORE          = 255,
 
 	A_PPCP_N          = 1,
-	A_PPCP_P          = 2,
 	A_PPCP_TO_N       = 3,
 	A_PPCP_TO_NEG     = 4,
 	A_ST_ST           = 5,
@@ -110,7 +109,6 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		switch (element) {
 		case E_PPCP:
 			if (xToken.data == "n") attribute = A_PPCP_N;
-			else if (xToken.data == "p") attribute = A_PPCP_P;
 			else if (xToken.data == "to:n") attribute = A_PPCP_TO_N;
 			else if (xToken.data == "to:neg") attribute = A_PPCP_TO_NEG;
 			break;
@@ -134,7 +132,6 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			data = xToken.data;
 			break;
 
-		case A_PPCP_P:
 		case A_ST_DN:
 			data2 = xToken.data;
 			break;
@@ -174,8 +171,12 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			break;
 		}
 
-		if (data.empty() || !User::isValidNick(data) ||
-		    (ignoreSelf && data == ourNick)) {
+		if (!User::isValidName(data)) {
+			goto ignore_rest;
+		}
+
+		data = User::nickFromName(data2 = data);
+		if (ignoreSelf && data == ourNick) {
 		ignore_rest:
 			token.type = IGNORE;
 			element = E_IGNORE;
@@ -183,20 +184,10 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			data2.clear();
 			break;
 		}
-		token.data = data;
-		data.clear();
-
-		if (!data2.empty()) {
-			unsigned long val;
-			char *end;
-			errno = 0;
-			val = strtoul(data2.c_str(), &end, 10);
-			if (errno || val > 0xffff || *end) val = 0;
-			token.flags = val;
-			data2.clear();
-		}
-
 		token.type = PPCP_OPEN;
+		token.data = data;
+		token.data2 = data2;
+		data.clear();
 		break;
 
 
@@ -219,9 +210,9 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		case E_ST:
 			token.type = ST;
 			token.data = data;
+			token.data2 = data2;
 			token.flags = flags;
 			element = E_PPCP;
-			/* FIXME: Display name is ignored */
 			break;
 
 		case E_RQ:
