@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.5 2007/12/27 00:39:01 mina86 Exp $
+ * $Id: user.hpp,v 1.6 2007/12/27 17:45:44 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -83,28 +83,35 @@ struct User {
 		 * If \a name is empty InvalidNick will be thrown.
 		 *
 		 * \param name user's name.
-		 * \param addr user's IP address.
-		 * \throw InvalidNick if name is empty.
+		 * \param addr user's address (IP, port pair).
+		 * \throw InvalidNick if name is not empty and invalid display name.
 		 */
-		explicit ID(const std::string &name, IP addr = 0)
+		ID(const std::string &name, Address addr)
 			: nick(nickFromName(name)), address(addr) {
-			if (name.empty()) throw InvalidNick("Invalid nick name: ''");
+			if (!name.empty() && !isValidName(name)) {
+				throw InvalidNick("Invalid display name: '" + name + '\'');
+			}
+		}
+
+		/** Returns identifier as a string. */
+		std::string toString() const {
+			return nick + '/' + address.toString();
+		}
+
+		/**
+		 * Returns identifier as a string.
+		 * \param name user's display name
+		 */
+		std::string toString(const std::string &name) const {
+			return name + " (" +
+				(nick != User::nickFromName(name) ? nick + '/' : "") +
+				address.toString() + ')';
 		}
 
 		/** User's nick name. */
 		std::string nick;
 		/** Users IP address. */
-		IP address;
-
-	private:
-		/**
-		 * A special case constructor to create identificators for
-		 * users with not yet known nick names.
-		 * \param addr user's IP address.
-		 */
-		explicit ID(IP addr) : nick(), address(addr) { }
-
-		friend class Network;
+		Address address;
 	};
 
 
@@ -174,11 +181,15 @@ struct User {
 	 * \param n  user's display name or empty string.
 	 * \param st user's status.
 	 * \throw InvalidNick if \a n is invalid display name.
+	 * \throw InvalidNick if nick name in \a i is empty.
 	 */
 	User(ID i, const std::string &n, const Status &st = Status())
 		: id(i), name(n.empty() ? i.nick : n), status(st) {
 		if (!n.empty() && !isValidName(n)) {
 			throw InvalidNick("Invalid display name: '" + n + '\'');
+		}
+		if (id.nick.empty()) {
+			throw InvalidNick("Invalid nick name: ''");
 		}
 	}
 
@@ -189,6 +200,7 @@ struct User {
 	 *
 	 * \param i  user's ID -- nick name, IP address pair
 	 * \param st user's status.
+	 * \throw InvalidNick if nick name in \a i is empty.
 	 */
 	explicit User(ID i, const Status &st = Status())
 		: id(i), name(i.nick), status(st) { }
@@ -199,14 +211,18 @@ struct User {
 	 * addr.
 	 *
 	 * \param n    user's display name.
-	 * \param addr user's IP address.
+	 * \param addr user's address (IP, port pair).
 	 * \param st   user's status.
 	 * \throw InvalidNick if \a n is invalid display name.
+	 * \throw InvalidNick if nick name in \a i is empty.
 	 */
-	User(const std::string &n, IP addr, const Status &st = Status())
+	User(const std::string &n, Address addr, const Status &st = Status())
 		: id(n, addr), name(n), status(st) {
 		if (!isValidName(n)) {
 			throw InvalidNick("Invalid display name: '" + n + '\'');
+		}
+		if (id.nick.empty()) {
+			throw InvalidNick("Invalid nick name: ''");
 		}
 	}
 };
@@ -215,7 +231,7 @@ struct User {
 
 /**
  * Returns \c true if User::ID objects are equal.  Objects are equal
- * if they have the same IP address and nick name.
+ * if they have the same address and nick name.
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
  */
@@ -226,7 +242,7 @@ inline bool operator==(const User::ID &a, const User::ID &b) {
 
 /**
  * Returns \c true if User::ID objects are not equal.  Objects are
- * equal if they have the same IP address and nick name.
+ * equal if they have the same address and nick name.
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
  */
@@ -239,8 +255,8 @@ inline bool operator!=(const User::ID &a, const User::ID &b) {
  * User::ID linear order.  This order is defined as follows: <tt>a <=
  * b iff (a.address, a.nick.length, a.nick) <= (b.address,
  * b.nick.length, b.nick)</tt> which means that ID's are first ordered
- * by IP address, then by nick's length and then (only if nick's
- * lengths are equal) lexicographically on nicks.
+ * by address, then by nick's length and then (only if nick's lengths
+ * are equal) lexicographically on nicks.
  *
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
@@ -258,8 +274,8 @@ inline bool operator> (const User::ID &a, const User::ID &b) {
  * User::ID linear order.  This order is defined as follows: <tt>a <=
  * b iff (a.address, a.nick.length, a.nick) <= (b.address,
  * b.nick.length, b.nick)</tt> which means that ID's are first ordered
- * by IP address, then by nick's length and then (only if nick's
- * lengths are equal) lexicographically on nicks.
+ * by address, then by nick's length and then (only if nick's lengths
+ * are equal) lexicographically on nicks.
  *
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
@@ -277,8 +293,8 @@ inline bool operator>=(const User::ID &a, const User::ID &b) {
  * User::ID linear order.  This order is defined as follows: <tt>a <=
  * b iff (a.address, a.nick.length, a.nick) <= (b.address,
  * b.nick.length, b.nick)</tt> which means that ID's are first ordered
- * by IP address, then by nick's length and then (only if nick's
- * lengths are equal) lexicographically on nicks.
+ * by address, then by nick's length and then (only if nick's lengths
+ * are equal) lexicographically on nicks.
  *
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
@@ -293,8 +309,8 @@ inline bool operator< (const User::ID &a, const User::ID &b) {
  * User::ID linear order.  This order is defined as follows: <tt>a <=
  * b iff (a.address, a.nick.length, a.nick) <= (b.address,
  * b.nick.length, b.nick)</tt> which means that ID's are first ordered
- * by IP address, then by nick's length and then (only if nick's
- * lengths are equal) lexicographically on nicks.
+ * by address, then by nick's length and then (only if nick's lengths
+ * are equal) lexicographically on nicks.
  *
  * \param a first User::ID object to compare.
  * \param b second User::ID object to compare.
