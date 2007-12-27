@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.9 2007/12/27 17:58:36 mina86 Exp $
+ * $Id: network.cpp,v 1.10 2007/12/27 21:09:38 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -464,9 +464,15 @@ void Network::recievedSignal(const Signal &sig) {
 	} else if (sig.getType() == "/net/msg/send") {
 		const sig::MessageData &data =
 			*static_cast<const sig::MessageData*>(sig.getData());
-		send(data.id, ppcp::m(data),
+		send(data.id,
+		     data.flags & sig::MessageData::RAW ? data.data : ppcp::m(data),
 		     data.flags & sig::MessageData::ALLOW_UDP);
 		sendSignal("/net/msg/sent", "/ui/", sig);
+
+	} else if (sig.getType() == "/net/status/rq") {
+		const sig::MessageData &data =
+			*static_cast<const sig::MessageData*>(sig.getData());
+		send(data.id, ppcp::rq(), true);
 	}
 }
 

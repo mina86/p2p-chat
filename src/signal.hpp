@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.8 2007/12/27 17:44:54 mina86 Exp $
+ * $Id: signal.hpp,v 1.9 2007/12/27 21:09:38 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -75,6 +75,10 @@ struct Module;
  *   <li>\c /net/status/change sent to network module to request status
  *     or display name change; its argument is sig::UserData object
  *     (but some fields are ignored).</li>
+ *   <li>\c /net/status/rq sent to network module to make it send
+ *     a request to given user to reply with that user's status; its
+ *     argument is sig::MessageData object but \a flags and \a data
+ *     fields are ignored.</li>
  *   <li>\c /net/users/rq sent to network module to request list of
  *     all connected users; it has no argument.</li>
  *   <li>\c /net/users/rp sent by network module as a reply to \c
@@ -260,7 +264,9 @@ struct MessageData : public StringData {
 	enum {
 		ACTION    = 1,  /**< This is an action. */
 		MESSAGE   = 2,  /**< This is a message. */
-		ALLOW_UDP = 4   /**< Message may be sent through UDP socket. */
+		ALLOW_UDP = 4,  /**< Message may be sent through UDP socket. */
+		RAW       = 8   /**< \a data is a raw XML data to send, ACTION
+		                      and MESSAGE flags are ignored. */
 	};
 
 	/** Combination fo \c ACTION and \c MESSAGE flags. */
