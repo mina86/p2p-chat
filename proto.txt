@@ -1,8 +1,8 @@
 ppcp element:
   n       required, user's nick name
-  p       required if sent through UDP, user's TCP listening port
   to:n    required if sent through TCP, recipient's nick name
   to:neg  optional, bool attribute, negates to:n
+  p       required, user's TCP listening port number
   may contain st, rq and m rlements
 
 st element:
