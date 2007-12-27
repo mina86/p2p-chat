@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.5 2007/12/25 01:32:28 mina86 Exp $
+ * $Id: application.cpp,v 1.6 2007/12/27 00:33:40 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -10,6 +10,9 @@
 
 
 namespace ppc {
+
+
+unsigned long Core::ticks = 0;
 
 
 int Core::run() {

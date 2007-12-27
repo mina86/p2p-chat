@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.6 2007/12/25 15:34:16 mina86 Exp $
+ * $Id: application.hpp,v 1.7 2007/12/27 00:33:40 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -128,18 +128,6 @@ protected:
 
 	/** Returns configuration. */
 	inline const Config &getConfig() const;
-
-	/**
-	 * Returns number of ticks since Core::run() was called.  This was
-	 * introduced because: (i) calling time() is believed to take more
-	 * time, (ii) current systam time may be changed so we cannot
-	 * realy on it to grow at a rate one per second and (iii) it's
-	 * easier (and faster) to save "times" some events occured and
-	 * then calculate how far in the past it happend using a single
-	 * variable which is increased once per second then to increase
-	 * all those variables every second.
-	 */
-	inline unsigned long getTicks() const;
 };
 
 
@@ -189,6 +177,21 @@ struct Core : protected Module {
 	int run();
 
 
+	/**
+	 * Returns number of ticks since Core::run() was called.  This was
+	 * introduced because: (i) calling time() is believed to take more
+	 * time, (ii) current systam time may be changed so we cannot
+	 * realy on it to grow at a rate one per second and (iii) it's
+	 * easier (and faster) to save "times" some events occured and
+	 * then calculate how far in the past it happend using a single
+	 * variable which is increased once per second then to increase
+	 * all those variables every second.
+	 */
+	static inline unsigned long getTicks() {
+		return ticks;
+	}
+
+
 protected:
 	virtual int setFDSets(fd_set *rd, fd_set *wr, fd_set *ex);
 	virtual int doFDs(int nfds, const fd_set *rd, const fd_set *wr,
@@ -206,7 +209,6 @@ protected:
 	}
 	const Modules getModules() const { return modules; }
 	const Config &getConfig() const { return config; }
-	unsigned long getTicks() const { return ticks; }
 
 
 private:
@@ -225,12 +227,13 @@ private:
 	/** Application configuration. */
 	Config &config;
 
-	/** Seconds since run() was called. */
-	unsigned long ticks;
-
 
 	/** Whether application should still run. */
 	bool running;
+
+
+	/** Number of ticks since the beginning. */
+	static unsigned long ticks;
 
 
 	/** Delivers signals to modules. */
@@ -263,10 +266,6 @@ const Module::Modules Module::getModules() const {
 
 const Config &Module::getConfig() const {
 	return core.getConfig();
-}
-
-unsigned long Module::getTicks() const {
-	return core.getTicks();
 }
 
 
