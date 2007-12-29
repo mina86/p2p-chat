@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.2 2007/12/29 14:33:05 mina86 Exp $
+ * $Id: ui.hpp,v 1.3 2007/12/29 14:40:40 mina86 Exp $
  */
 
 #ifndef H_UI_HPP
@@ -45,7 +45,7 @@ private:
 
 	/**
 	 * Handles a command user enterd.
-	 * \param cmd command user entered.
+	 * \param command command user entered.
 	 */
 	void handleCommand(const std::string &command);
 
@@ -55,6 +55,7 @@ private:
 	 * std::string::npos values is returned.
 	 *
 	 * \param str string to parse.
+	 * \param pos index to find searching for tokens.
 	 * \return an index of first and one-past-the-last char of token.
 	 */
 	std::pair<std::string::size_type, std::string::size_type>

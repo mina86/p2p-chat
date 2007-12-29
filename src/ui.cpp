@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.2 2007/12/29 14:33:05 mina86 Exp $
+ * $Id: ui.cpp,v 1.3 2007/12/29 14:40:40 mina86 Exp $
  */
 
 #include <errno.h>
@@ -15,6 +15,11 @@
 namespace ppc {
 
 
+/**
+ * A private (file-scope) variable to make sequential numbers in
+ * module names.  Each file implementing each module (should) have its
+ * own \a seq variable.
+ */
 static unsigned long seq = 0;
 
 

@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.11 2007/12/29 02:37:22 mina86 Exp $
+ * $Id: network.cpp,v 1.12 2007/12/29 14:40:40 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -275,6 +275,11 @@ struct NetworkUsersList : sig::UsersListData {
 };
 
 
+/**
+ * A private (file-scope) variable to make sequential numbers in
+ * module names.  Each file implementing each module (should) have its
+ * own \a seq variable.
+ */
 static unsigned long seq = 0;
 
 

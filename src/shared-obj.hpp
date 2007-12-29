@@ -1,6 +1,6 @@
 /** \file
  * Shared object definition.
- * $Id: shared-obj.hpp,v 1.2 2007/12/29 02:38:42 mina86 Exp $
+ * $Id: shared-obj.hpp,v 1.3 2007/12/29 14:40:40 mina86 Exp $
  */
 
 #ifndef H_SHARED_OBJ_HPP
@@ -85,7 +85,7 @@ struct shared_obj : public shared_obj<const T> {
 
 
 private:
-	/* A base class */
+	/** A base class */
 	typedef struct shared_obj<const T> base;
 };
 
