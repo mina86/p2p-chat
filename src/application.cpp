@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.6 2007/12/27 00:33:40 mina86 Exp $
+ * $Id: application.cpp,v 1.7 2007/12/29 02:34:55 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -10,6 +10,9 @@
 
 
 namespace ppc {
+
+
+char sharedBuffer[1024];
 
 
 unsigned long Core::ticks = 0;
