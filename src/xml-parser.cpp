@@ -1,6 +1,6 @@
 /** \file
  * XML parser implementation.
- * $Id: xml-parser.cpp,v 1.5 2007/12/23 00:58:12 mina86 Exp $
+ * $Id: xml-parser.cpp,v 1.6 2007/12/29 02:36:35 mina86 Exp $
  */
 
 #include <errno.h>
@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "xml-parser.hpp"
+#include "shared-buffer.hpp"
 
 
 namespace ppc {
@@ -25,18 +26,19 @@ namespace xml {
  * \return pointer to buffer after encoded character.
  */
 static char *writeUTF8(char *wr, unsigned long value) {
-	char *ch, buffer[7];
+	char *ch = sharedBuffer + sizeof sharedBuffer;
 
-	for (ch = buffer + sizeof buffer; value & ~(0x7fUL); value >>= 7) {
-		*--ch = (value & 0x7f) | 0x80;
-	}
-	if (value >= (0x80UL >> (buffer + sizeof(buffer) - ch))) {
+	while (value & ~(0x7fUL)) {
 		*--ch = (value & 0x7f) | 0x80;
 		value >>= 7;
 	}
-	*wr++ = value | (0xff00 >> (buffer - ch));
+	if (value >= (0x80UL >> (sharedBuffer + sizeof(sharedBuffer) - ch))) {
+		*--ch = (value & 0x7f) | 0x80;
+		value >>= 7;
+	}
+	*wr++ = value | (0xff00 >> (sharedBuffer - ch));
 
-	while (ch!=buffer + sizeof buffer) {
+	while (ch!=sharedBuffer + sizeof sharedBuffer) {
 		*wr++ = *ch++;
 	}
 

@@ -1,6 +1,6 @@
 /** \file
  * Methods generating ppcp packets.
- * $Id: ppcp-packets.cpp,v 1.2 2007/12/27 17:58:36 mina86 Exp $
+ * $Id: ppcp-packets.cpp,v 1.3 2007/12/29 02:36:35 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -10,27 +10,25 @@
 namespace ppc {
 namespace ppcp {
 
-/** Static buffer for internal user.  Code is not thread safe anyway. */
-static char buffer[1024];
-
 
 std::string ppcpOpen(const User &user) {
-	sprintf(buffer, "\" p=\"%u\">", user.id.address.port);
+	sprintf(sharedBuffer, "\" p=\"%u\">", user.id.address.port);
 	return "<ppcp n=\"" +
 		xml::escape(User::nickFromName(user.name) == user.id.nick
-		            ? user.name : user.id.nick) + buffer;
+		            ? user.name : user.id.nick) + sharedBuffer;
 }
 
 
 std::string ppcpOpen(const User &user, const std::string &to, bool neg) {
-	sprintf(buffer, !to.empty() ? neg ? "\" p=\"%u\" to:neg=\"neg\" to:n=\""
-	                                  : "\" p=\"%u\" to:n=\""
-	                            : "\" p=\"%u\">",
-	         user.id.address.port);
+	sprintf(sharedBuffer,
+	        !to.empty() ? neg ? "\" p=\"%u\" to:neg=\"neg\" to:n=\""
+	                          : "\" p=\"%u\" to:n=\""
+	                   : "\" p=\"%u\">",
+	        user.id.address.port);
 
 	std::string packet = "<ppcp n=\"" +
 		xml::escape(User::nickFromName(user.name) == user.id.nick
-		            ? user.name : user.id.nick) + buffer;
+		            ? user.name : user.id.nick) + sharedBuffer;
 	if (!to.empty()) {
 		packet += xml::escape(to) + "\">";
 	}

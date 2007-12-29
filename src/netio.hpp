@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.4 2007/12/27 17:42:33 mina86 Exp $
+ * $Id: netio.hpp,v 1.5 2007/12/29 02:36:35 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
@@ -12,6 +12,7 @@
 #include <string>
 
 #include "vector-queue.hpp"
+#include "shared-buffer.hpp"
 #include "exception.hpp"
 
 
@@ -53,9 +54,8 @@ struct Address {
 
 	/** Returns Address as a string. */
 	std::string toString() const {
-		char buffer[100];
-		sprintf(buffer, "%lu:%u", ip, port);
-		return std::string(buffer);
+		sprintf(sharedBuffer, "%lu:%u", ip, port);
+		return sharedBuffer;
 	}
 };
 
