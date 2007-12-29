@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.7 2007/12/27 00:33:40 mina86 Exp $
+ * $Id: application.hpp,v 1.8 2007/12/29 02:35:55 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -11,6 +11,7 @@
 #include <map>
 #include <string>
 
+#include "shared-buffer.hpp"
 #include "signal.hpp"
 #include "vector-queue.hpp"
 
@@ -45,6 +46,16 @@ struct Module {
 	 * \param name module's name.
 	 */
 	Module(Core &c, const std::string &name) : moduleName(name), core(c) { }
+
+	/**
+	 * Initialises basic variables.
+	 *
+	 * \param c      core module.
+	 * \param prefix module name's prefix.
+	 * \param seq    sequence number
+	 */
+	Module(Core &c, const std::string &prefix, unsigned long seq)
+		: moduleName(makeModuleName(prefix, seq)), core(c) { }
 
 
 	/** Destructor. */
@@ -91,6 +102,20 @@ struct Module {
 	 * \param sig delivered signal.
 	 */
 	virtual void recievedSignal(const Signal &sig) = 0;
+
+
+	/**
+	 * Creats a module name from it's prefix and sequence number.
+	 * Resulting name is \a prefix followed by value of \a seq.
+	 *
+	 * \param prefix module name's prefix.
+	 * \param seq    sequence number
+	 * \return module's name bilt from prefix and sequence number.
+	 */
+	std::string makeModuleName(const std::string &prefix, unsigned long seq) {
+		sprintf(sharedBuffer, "%lu", seq);
+		return prefix + sharedBuffer;
+	}
 
 
 protected:
@@ -162,6 +187,14 @@ struct Core : protected Module {
 		if (!addModule(main)) return false;
 		mainModule = &main;
 		return true;
+	}
+
+	/**
+	 * Returns the main module.  Usefull to check if given module is
+	 * not main module.
+	 */
+	const Module *getMainModule() const {
+		return mainModule;
 	}
 
 
