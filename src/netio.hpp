@@ -1,13 +1,19 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.5 2007/12/29 02:36:35 mina86 Exp $
+ * $Id: netio.hpp,v 1.6 2007/12/29 22:24:17 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
 #define H_NETIO_HPP
 
-#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
 
 #include <string>
 
@@ -51,11 +57,40 @@ struct Address {
 	 */
 	explicit Address(IP i = 0, Port p = 0) : ip(i), port(p) { }
 
+	/**
+	 * Constructs Address from a sockaddr_in structure.
+	 * \param addr address.
+	 */
+	explicit Address(const struct sockaddr_in &addr)
+		: ip(ntohl(addr.sin_addr.s_addr)), port(ntohs(addr.sin_port)) { }
+
+
+	/**
+	 * Copies values from a sockaddr_in structure.
+	 * \param addr address.
+	 */
+	void assign(const struct sockaddr_in &addr) {
+		ip = ntohl(addr.sin_addr.s_addr);
+		port = ntohs(addr.sin_port);
+	}
+
 
 	/** Returns Address as a string. */
 	std::string toString() const {
 		sprintf(sharedBuffer, "%lu:%u", ip, port);
 		return sharedBuffer;
+	}
+
+
+	/**
+	 * Fills a sockaddr_in structure.
+	 * \param addr sockaddr_in structure to fill in.
+	 */
+	void toSockaddr(struct sockaddr_in &addr) {
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(port);
+		addr.sin_addr.s_addr = htons(ip);
+		memset(addr.sin_zero, 0, sizeof addr.sin_zero);
 	}
 };
 
@@ -90,7 +125,12 @@ protected:
 	 * \param sock socket's file descriptor number.
 	 * \param addr address associated with socket.
 	 */
-	Socket(int sock, Address addr);
+	Socket(int sock, Address addr) : fd(sock), address(addr) {
+		int flags = fcntl(sock, F_GETFL);
+		if (flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
+			throw NetException(std::string("fcntl: ") + strerror(errno));
+		}
+	}
 };
 
 
@@ -144,7 +184,11 @@ private:
 	 * \param sock socket number.
 	 * \param addr address we are connected to.
 	 */
-	TCPSocket(int sock, Address addr) : Socket(sock, addr), data() {}
+	TCPSocket(int sock, Address addr) : Socket(sock, addr) { }
+
+	/* TCPListeningSocket needs to create TCPSocket objects when it
+	   accepts connection */
+	friend struct TCPListeningSocket;
 };
 
 
@@ -181,9 +225,6 @@ struct TCPListeningSocket : public Socket {
 
 
 private:
-	/** Socket number */
-	int socket;
-
 	/**
 	 * Initialises TCPListeningSocket.
 	 * \param sock socket number.
