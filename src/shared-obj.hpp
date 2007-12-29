@@ -1,6 +1,6 @@
 /** \file
  * Shared object definition.
- * $Id: shared-obj.hpp,v 1.1 2007/12/08 18:02:22 mina86 Exp $
+ * $Id: shared-obj.hpp,v 1.2 2007/12/29 02:38:42 mina86 Exp $
  */
 
 #ifndef H_SHARED_OBJ_HPP
@@ -10,26 +10,6 @@
 namespace ppc {
 
 
-/**
- * Template which gives typedef for template's argument with \c const
- * removed.
- */
-template<class T>
-struct non_const {
-	/** A non-const type. */
-	typedef T type;
-};
-
-/**
- * Template which gives typedef for template's argument with \c const
- * removed.
- */
-template<class T>
-struct non_const<const T> {
-	/** A non-const type. */
-	typedef T type;
-};
-
 
 /**
  * A shared pointer which maintains a reference counter and deletes
@@ -38,15 +18,86 @@ struct non_const<const T> {
  * which have the same interface.
  */
 template<class T = struct shared_obj_base>
-struct shared_obj {
-	/** A non-const pointer type. */
-	typedef typename non_const<T>::type value_type;
-
+struct shared_obj : public shared_obj<const T> {
 	/**
 	 * Sets pointer to given value.
 	 * \param ptr pointed object.
 	 */
-	shared_obj(value_type *ptr = 0) : pointer(ptr) {
+	shared_obj(T *ptr = 0) : base(ptr) { }
+
+	/**
+	 * Copy constructor.  If you try to construct a shared_obj
+	 * pointing to a modifable object with a shared_obj pointing to
+	 * a const object compile error will stop you.
+	 *
+	 * \param ptr shared pointer to copy.
+	 */
+	template<class T2>
+	shared_obj(const shared_obj<T2> &ptr) : base(ptr.get()) { }
+
+	/**
+	 * Sets pointer to given value.  If currently pointed object has
+	 * only one reference (after decrementation it reaches zero) it
+	 * will be deleted.
+	 *
+	 * \param ptr pointed object.
+	 * \return this object.
+	 */
+	shared_obj &operator=(T *ptr) {
+		base::operator=(ptr);
+		return *this;
+	}
+
+	/**
+	 * Copies pointer value.  If currently pointed object has only one
+	 * reference (after decrementation it reaches zero) it will be
+	 * deleted.
+	 *
+	 * \param ptr shared pointer to copy.
+	 * \return this object.
+	 */
+	shared_obj &operator=(const shared_obj &ptr) {
+		base::operator=(ptr.get());
+		return *this;
+	}
+
+	/**
+	 * Copies pointer value.  If currently pointed object has only one
+	 * reference (after decrementation it reaches zero) it will be
+	 * deleted.  If you try to assing a shared_obj pointing to a const
+	 * object compile error will stop you.
+	 *
+	 * \param ptr shared pointer to copy.
+	 * \return this object.
+	 */
+	template<class T2>
+	shared_obj &operator=(const shared_obj<T2> &ptr) {
+		base::operator=(ptr.get());
+		return *this;
+	}
+
+	/** Returns object pointer. */
+	T *get() const { return const_cast<T*>(base::get()); }
+	/** Returns object pointer. */
+	T *operator->() const { return const_cast<T*>(base::get()); }
+	/** Returns pointed object. */
+	T &operator*() const { return *const_cast<T*>(base::get()); }
+
+
+private:
+	/* A base class */
+	typedef struct shared_obj<const T> base;
+};
+
+
+
+template<class T>
+struct shared_obj<const T> {
+	/**
+	 * Sets pointer to given value.
+	 * \param ptr pointed object.
+	 */
+	shared_obj(T *ptr = 0) : pointer(ptr) {
 		if (pointer) pointer->increase_references();
 	}
 
@@ -55,8 +106,15 @@ struct shared_obj {
 	 * \param ptr shared pointer to copy.
 	 */
 	template<class T2>
-	shared_obj(const shared_obj<T2> &ptr) : pointer(ptr.pointer) {
-		pointer->increase_references();
+	shared_obj(const shared_obj<const T2> &ptr) : pointer(ptr.pointer) {
+		if (pointer) pointer->increase_references();
+	}
+
+	/**
+	 * Decreases pointer object reference counter.
+	 */
+	~shared_obj() {
+		if (pointer) pointer->decrease_references();
 	}
 
 	/**
@@ -67,7 +125,7 @@ struct shared_obj {
 	 * \param ptr pointed object.
 	 * \return this object.
 	 */
-	shared_obj &operator=(value_type *ptr) {
+	shared_obj &operator=(T *ptr) {
 		if (pointer != ptr) {
 			if (pointer) pointer->decrease_references();
 			if ((pointer = ptr)) pointer->increase_references();
@@ -96,21 +154,26 @@ struct shared_obj {
 	 * \return this object.
 	 */
 	template<class T2>
-	shared_obj &operator=(const shared_obj<T2> &ptr) {
+	shared_obj &operator=(const shared_obj<const T2> &ptr) {
 		return *this = ptr.pointer;
 	}
 
 	/** Returns object pointer. */
-	T *get() const { return pointer; }
+	const T *get() const { return pointer; }
 	/** Returns object pointer. */
-	T *operator->() const { return pointer; }
+	const T *operator->() const { return pointer; }
 	/** Returns pointed object. */
-	T &operator*() const { return *pointer; }
+	const T &operator*() const { return *pointer; }
+
 
 private:
 	/** Pointer to object. */
-	value_type *pointer;
+	T *pointer;
+
+	/* all shared_obj are friends */
+	template<class T2> friend struct shared_obj;
 };
+
 
 
 
@@ -129,7 +192,7 @@ protected:
 	shared_obj_base() : references(0) { }
 
 private:
-	/** Copying not allowed. 
+	/** Copying not allowed.
 	 * \param ob ignored. */
 	shared_obj_base(const shared_obj_base &ob) { (void)ob; }
 
