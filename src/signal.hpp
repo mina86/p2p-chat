@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.9 2007/12/27 21:09:38 mina86 Exp $
+ * $Id: signal.hpp,v 1.10 2007/12/29 02:37:55 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -79,11 +79,6 @@ struct Module;
  *     a request to given user to reply with that user's status; its
  *     argument is sig::MessageData object but \a flags and \a data
  *     fields are ignored.</li>
- *   <li>\c /net/users/rq sent to network module to request list of
- *     all connected users; it has no argument.</li>
- *   <li>\c /net/users/rp sent by network module as a reply to \c
- *     /net/users/rq signal; its argument is sig::UsersListData
- *     object (which see for more information).</li>
  *   <li>\c /net/msg/got sent by network module to all \c /ui/ modules
  *     when new message is recieved; its argument is
  *     sig::MessageData object.</li>
@@ -93,12 +88,30 @@ struct Module;
  *   <li>\c /net/msg/sent sent by network module to all \c /ui/
  *     modules when message has been sent; it's argument is
  *     sig::MessageData object.</li>
+ *   <li>\c /net/conn/connect sent to core module to create new
+ *     network object which will be connected to network specified in
+ *     signal's argument; argument is not yet defined.</li>
+ *   <li>\c /net/conn/connected sent by network module to all \c /ui/
+ *     modules when new connection has been made; its argument is
+ *     sig::UsersListData object (which see for more
+ *     information).</li>
+ *   <li>\c /net/conn/disconnect sent to network module to inform it
+ *     to disconnect; it has no argument.</li>
+ *   <li>\c /net/conn/disconnected sent by network module to all \c
+ *     /ui/ modules to inform that it has just disconnected and in
+ *     moment network module should exit (which will be followed by \c
+ *     /core/module/remove signal sent by core module); it has no
+ *     argument.</li>
+ *   <li>\c /net/conn/are-you-connected sent to network module and if
+ *     network module (that is connected) recieves taht signel it
+ *     replies with a \c /net/conn/connected signal to sender; it has
+ *     no argument.</li>
  * </ul>
  *
  * It may be tempting to use pointers or references when passing data
  * with singlas.  This is not good sollution however because pointed
  * object may be deleted when singal is delivered.  The only exception
- * is \c /net/users/rp signals which is protected by using shared_ptr.
+ * is \c /net/conn/connected signals which is protected by using shared_ptr.
  */
 struct Signal {
 	/** Base type for data objects. */
