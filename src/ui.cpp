@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.1 2007/12/29 02:39:04 mina86 Exp $
+ * $Id: ui.cpp,v 1.2 2007/12/29 14:33:05 mina86 Exp $
  */
 
 #include <errno.h>
@@ -56,7 +56,11 @@ int UI::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 		return 0;
 	}
 
-	/* read the data from stdin_fd */
+	/* read the data from stdin_fd and put it inside data.  If user
+	   typed enter you do the rest of the method otherwise you return
+	   from it.  */
+	std::string data = "command user typed in";
+	handleCommand(data);
 
 	return 1;
 }
@@ -154,6 +158,107 @@ void UI::recievedSignal(const Signal &sig) {
 
 	}
 }
+
+
+void UI::handleCommand(const std::string &command) {
+	std::pair<std::string::size_type, std::string::size_type> pos
+		= nextToken(command);
+	std::string::size_type len = pos.second - pos.first;
+
+	if (!len) {
+		return;
+	}
+
+	std::string data(command, pos.first, len);
+	if (command[pos.first] != '/') {
+		pos.second = pos.first;
+		goto message;
+	}
+
+	if (len == 1 || (len == 4 && data == "/msg") ||
+	    (len == 3 && data == "/me")) {
+		/* if len == 0 then data == "/" */
+	message:
+		/* trim */
+		pos = nextToken(command, pos.second);
+		if (pos.first == std::string::npos) {
+			/* refuse to send empty line */
+			return;
+		}
+
+		/* somhow identify network and user you want to send data to. */
+		std::string net = "/net/ppcp/0";
+		User *user = 0;
+		sendSignal("/net/msg/send", net,
+		           new sig::MessageData(user->id,
+		                                std::string(command, pos.first),
+		                                len==3?sig::MessageData::ACTION:0));
+
+	} else if (len == 3 && data == "/aw") {
+		/* dirty trick */
+		pos.second = pos.first + 1;
+		goto status;
+
+	} else if (len == 7 && data == "/status") {
+	status:
+		enum User::State state;
+
+		pos = nextToken(command, pos.second);
+		if (pos.first == std::string::npos) {
+			return;
+		}
+
+		data.assign(command, pos.first, pos.second - pos.first);
+		if (data == "online" || data == "on") {
+			state = User::ONLINE;
+		} else if (data == "away" || data == "aw") {
+			state = User::AWAY;
+		/* ... */
+		} else {
+			/* print error message -- unkonw state */
+			return;
+		}
+
+		/* somhow identify network */
+		std::string net = "/net/ppcp/0";
+		pos = nextToken(command, pos.second);
+		if (pos.first == std::string::npos) {
+			data.assign(command, pos.first, std::string::npos);
+		} else {
+			data.clear();
+		}
+
+		sendSignal("/user/status/change", net,
+		           new sig::UserData(User("dummy", Address(),
+		                                  User::Status(state, data)),
+		                             sig::UserData::STATE |
+		                             sig::UserData::MESSAGE));
+
+	/* ... and so it may go with other commands */
+	} else {
+		/* print error message -- unkonw command */
+	}
+}
+
+
+
+std::pair<std::string::size_type, std::string::size_type>
+UI::nextToken(const std::string &str, std::string::size_type pos) {
+	std::string::size_type start, end = std::string::npos;
+
+	/* you could do better here and interprete ' and " */
+
+	start = str.find_first_not_of(" \t\n\v\r", pos);
+	if (start != std::string::npos) {
+		end = str.find_first_of(" \t\n\v\r", start + 1);
+		if (end == std::string::npos) {
+			end = str.length();
+		}
+	}
+
+	return std::make_pair(start, end);
+}
+
 
 
 }
