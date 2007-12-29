@@ -1,6 +1,6 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.5 2007/12/29 02:34:30 mina86 Exp $
+## $Id: Makefile,v 1.6 2007/12/29 14:34:12 mina86 Exp $
 ##
 
 CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
@@ -24,7 +24,7 @@ tests:
 	cd tests && exec $(MAKE)
 
 clean:
-	exec rm -rf -- *.o mail
+	exec rm -rf -- *.o main
 	cd tests && exec $(MAKE) clean
 
 .PHONY: all doc tests clean
