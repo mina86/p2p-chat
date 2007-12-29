@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.10 2007/12/27 21:09:38 mina86 Exp $
+ * $Id: network.cpp,v 1.11 2007/12/29 02:37:22 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -275,16 +275,16 @@ struct NetworkUsersList : sig::UsersListData {
 };
 
 
-unsigned Network::network_id = 0;
-
+static unsigned long seq = 0;
 
 
 Network::Network(Core &c, Address addr, const std::string &nick)
-	: Module(c, "/net/ppc/" + network_id++), address(addr),
+	: Module(c, "/net/ppc/", seq++), address(addr),
 	  lastStatus(Core::getTicks()), ourUser(users->ourUser) {
 	tcpListeningSocket = TCPListeningSocket::bind(Address());
 	udpSocket = UDPSocket::bind(addr);
 	users=new sig::UsersListData(nick, tcpListeningSocket->getAddress().port);
+	sendSignal("/net/conn/connected", "/ui/", users.get());
 }
 
 
@@ -303,6 +303,7 @@ Network::~Network() {
 	   deleted TCP sockets but this doesn't really matter since only
 	   we knew that User object stored there are really
 	   NetworkUser objects. */
+	sendSignal("/net/conn/disconnected", "/ui/", 0);
 }
 
 
@@ -458,8 +459,8 @@ void Network::recievedSignal(const Signal &sig) {
 		     ? ppcp::st(ourUser)+ppcp::rq() : ppcp::st(ourUser));
 		lastStatus = Core::getTicks();
 
-	} else if (sig.getType() == "/net/users/rq") {
-		sendSignal("/net/users/rp", sig.getSender(), users.get());
+	} else if (sig.getType() == "/net/conn/are-you-connected") {
+		sendSignal("/net/conn/connected", "/ui/", users.get());
 
 	} else if (sig.getType() == "/net/msg/send") {
 		const sig::MessageData &data =
