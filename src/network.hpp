@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.8 2007/12/27 17:43:14 mina86 Exp $
+ * $Id: network.hpp,v 1.9 2007/12/29 02:37:39 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -28,7 +28,8 @@ struct Network : public Module {
 	/**
 	 * Creates new Network module.  This only opens TCP and UDP
 	 * listening sockets but does not send any data (like \c st
-	 * packet).
+	 * packet).  Network modules are named \c /net/ppcp/number where
+	 * number is a sequence number starting from zero.
 	 *
 	 * \param core core module.
 	 * \param addr ppcp network's address.
@@ -96,9 +97,6 @@ private:
 
 	/** Vector of all opened TCP connections. */
 	typedef unordered_vector<NetworkConnection*> Connections;
-
-	/** A sequence used to give each module unique name. */
-	static unsigned network_id;
 
 
 	/**
