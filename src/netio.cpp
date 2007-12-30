@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.3 2007/12/30 15:16:00 mina86 Exp $
+ * $Id: netio.cpp,v 1.4 2007/12/30 15:19:49 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -45,7 +45,7 @@ void TCPSocket::write() {
 	int pos = 0, len = data.length(), ret;
 	const char *buf = data.data();
 	while (len > 0) {
-		ret = send(fd, buf + pos, len, 0);
+		ret = send(fd, buf + pos, len, MSG_NOSIGNAL);
 		if (ret > 0) {
 			pos += ret;
 			len -= ret;
@@ -152,7 +152,7 @@ void UDPSocket::write() {
 		int ret;
 
 		pair.second.toSockaddr(sockaddr);
-		ret = sendto(fd, pair.first.data(), pair.first.size(), 0,
+		ret = sendto(fd, pair.first.data(), pair.first.size(), MSG_NOSIGNAL,
 		             (struct sockaddr*)&sockaddr, sizeof sockaddr);
 		if (ret > 0) {
 			/* ok, we sent something -- we don't really know if it was
