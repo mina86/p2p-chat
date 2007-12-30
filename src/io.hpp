@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: io.hpp,v 1.1 2007/12/30 15:14:44 mina86 Exp $
+ * $Id: io.hpp,v 1.2 2007/12/30 18:42:39 mina86 Exp $
  */
 
 #ifndef H_IO_HPP
@@ -67,7 +67,7 @@ struct NonBlockingFD {
 	/**
 	 * Sets file descriptor into non-blocking mode.
 	 * \param fd file descriptor.
-	 * \param IOException on error.
+	 * \throw IOException on error.
 	 */
 	static void setNonBlocking(int fd) {
 		int flags = fcntl(fd, F_GETFL);

@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.4 2007/12/30 15:19:49 mina86 Exp $
+ * $Id: netio.cpp,v 1.5 2007/12/30 18:42:39 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -63,7 +63,7 @@ void TCPSocket::write() {
  * Performs a common part of bind for TCP and UDP sockets.
  * \param fd socket to bind
  * \param addr address to bind, alters it if it's port was zero.
- * \thorw IOException on error.
+ * \throw IOException on error.
  */
 static void common_bind_part(int fd, Address &addr) {
 	struct sockaddr_in sockaddr;
