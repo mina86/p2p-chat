@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.3 2007/12/29 14:40:40 mina86 Exp $
+ * $Id: ui.cpp,v 1.4 2007/12/30 15:34:11 mina86 Exp $
  */
 
 #include <errno.h>
@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "io.hpp"
 #include "ui.hpp"
 
 
@@ -26,11 +27,7 @@ static unsigned long seq = 0;
 UI::UI(Core &c, int infd /* some more arguments */)
 	: Module(c, "/ui/mco/", seq++), stdin_fd(infd) {
 
-	int flags = fcntl(infd, F_GETFL);
-	if (flags < 0 || fcntl(infd, F_SETFL, flags | O_NONBLOCK) < 0) {
-		/* maybe another exception class */
-		throw Exception(std::string("fcntl: ") + strerror(errno));
-	}
+	NonBlockingFD::setNonBlocking(infd);
 
 	/* disable all kinds of buffering */
 
