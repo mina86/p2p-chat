@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.12 2007/12/29 14:40:40 mina86 Exp $
+ * $Id: network.cpp,v 1.13 2007/12/30 15:21:10 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -175,7 +175,7 @@ struct NetworkConnection {
 	/**
 	 * Reads data from socket and feeds data to tokenizer.  Returns \c
 	 * true iff data was sucesfully read from socket.
-	 * \throw NetException if error while reading data from socket occured.
+	 * \throw IOException if error while reading data from socket occured.
 	 */
 	bool feed() {
 		std::string data = read();
@@ -188,7 +188,7 @@ struct NetworkConnection {
 	/**
 	 * Reads data from socket.  Returns read data or empty string.  If
 	 * data was read updates \a lastAccessed field.
-	 * \throw NetException if error while reading data from socket occured.
+	 * \throw IOException if error while reading data from socket occured.
 	 */
 	std::string read() {
 		std::string data = tcpSocket.read();
@@ -200,7 +200,7 @@ struct NetworkConnection {
 
 	/**
 	 * Writes data to socket and updates \c lastAccessed field.
-	 * \throw NetException if error while writting data from socket occured.
+	 * \throw IOException if error while writting data from socket occured.
 	 */
 	void write() {
 		tcpSocket.write();
@@ -222,12 +222,17 @@ struct NetworkConnection {
 
 	/** Returns socket's file descriptor number. */
 	int getFD() {
-		return tcpSocket.getFD();
+		return tcpSocket.fd;
 	}
 
 	/** Returns address socket is connected to. */
 	Address getAddress() const {
-		return tcpSocket.getAddress();
+		return tcpSocket.address;
+	}
+
+	/** Returns end of file flag of TCP connection. */
+	bool isEOF() const {
+		return tcpSocket.isEOF();
 	}
 
 
@@ -288,7 +293,7 @@ Network::Network(Core &c, Address addr, const std::string &nick)
 	  lastStatus(Core::getTicks()), ourUser(users->ourUser) {
 	tcpListeningSocket = TCPListeningSocket::bind(Address());
 	udpSocket = UDPSocket::bind(addr);
-	users=new sig::UsersListData(nick, tcpListeningSocket->getAddress().port);
+	users = new sig::UsersListData(nick, tcpListeningSocket->address.port);
 	sendSignal("/net/conn/connected", "/ui/", users.get());
 }
 
@@ -317,8 +322,8 @@ int Network::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 	int max, fd;
 	(void)ex;
 
-	FD_SET(max = tcpListeningSocket->getFD(), rd);
-	FD_SET(fd = udpSocket->getFD(), rd);
+	FD_SET(max = tcpListeningSocket->fd, rd);
+	FD_SET(fd = udpSocket->fd, rd);
 	if (udpSocket->hasDataToWrite()) {
 		FD_SET(fd, wr);
 	}
@@ -328,7 +333,10 @@ int Network::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 
 	Connections::iterator it = connections.begin(), end = connections.end();
 	for (; it != end; ++it) {
-		FD_SET(fd = (*it)->getFD(), rd);
+		fd = (*it)->getFD();
+		if (!(*it)->isEOF()) {
+			FD_SET(fd, rd);
+		}
 		if ((*it)->hasDataToWrite()) {
 			FD_SET(fd, wr);
 		}
@@ -349,7 +357,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 	/* Listening socekt */
-	if (FD_ISSET(tcpListeningSocket->getFD(), rd)) {
+	if (FD_ISSET(tcpListeningSocket->fd, rd)) {
 		++handled, --nfds;
 		try {
 			acceptConnections();
@@ -363,7 +371,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 	/* Read from UDP socket */
-	if (FD_ISSET(udpSocket->getFD(), rd)) {
+	if (FD_ISSET(udpSocket->fd, rd)) {
 		++handled, --nfds;
 		try {
 			readFromUDPSocket();
@@ -377,7 +385,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 	/* Write to UDP socket */
-	if (FD_ISSET(udpSocket->getFD(), wr)) {
+	if (FD_ISSET(udpSocket->fd, wr)) {
 		++handled, --nfds;
 		try {
 			udpSocket->write();
@@ -548,7 +556,12 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 	for(;;){
 		switch (token.type) {
 		case ppcp::Tokenizer::END:
-			if (!conn.feed()) return;
+			if (!conn.feed()) {
+				if (conn.isEOF()) {
+					throw IOException("Unexpected end of file.");
+				}
+				return;
+			}
 			break;
 
 		case ppcp::Tokenizer::IGNORE:
@@ -708,7 +721,7 @@ void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 		try {
 			sock = TCPSocket::connect(user.id.address);
 		}
-		catch (const NetException &e) {
+		catch (const IOException &e) {
 			sendSignal("/ui/msg/error", "/ui/",
 			           new sig::StringData("Error connecting to user: " +
 			                               e.getMessage()));

@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.9 2007/12/29 02:37:39 mina86 Exp $
+ * $Id: network.hpp,v 1.10 2007/12/30 15:21:10 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -34,7 +34,7 @@ struct Network : public Module {
 	 * \param core core module.
 	 * \param addr ppcp network's address.
 	 * \param nick our nick in ppcp network.
-	 * \throw NetException if error while creating sockets occured.
+	 * \throw IOException if error while creating sockets occured.
 	 * \throw InvalidNick  if \a nick is invalid.
 	 */
 	Network(Core &core, Address addr, const std::string &nick);
@@ -102,13 +102,13 @@ private:
 	/**
 	 * accept()s connections from listening socket and adds them to
 	 * tcpSockets vector.
-	 * \throw NetException if error while accepting connection occured.
+	 * \throw IOException if error while accepting connection occured.
 	 */
 	void acceptConnections();
 
 	/**
 	 * Reads data from udpSocket and parses it.
-	 * \throw NetException if error while recieving data from UDP
+	 * \throw IOException if error while recieving data from UDP
 	 *                     socket occured.
 	 * \throw xml::Error when data feed to tokenizer was not valid XML.
 	 */
@@ -117,7 +117,7 @@ private:
 	/**
 	 * Reads data from given TCP connection and parses it.
 	 * \param conn connection to handle.
-	 * \throw NetException if error while recieving data from TCP
+	 * \throw IOException if error while recieving data from TCP
 	 *                     socket occured.
 	 * \throw xml::Error   if data was misformatted XML stream.
 	 */
@@ -133,7 +133,7 @@ private:
 	/**
 	 * Writes pending data to given TCP connection and parses it.
 	 * \param conn connection to handle.
-	 * \throw NetException if error while sending data from TCP
+	 * \throw IOException if error while sending data from TCP
 	 *                     socket occured.
 	 */
 	void writeToTCPConnection(NetworkConnection &conn);
