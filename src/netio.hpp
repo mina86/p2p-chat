@@ -1,14 +1,11 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.6 2007/12/29 22:24:17 mina86 Exp $
+ * $Id: netio.hpp,v 1.7 2007/12/30 15:16:00 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
 #define H_NETIO_HPP
 
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -19,22 +16,10 @@
 
 #include "vector-queue.hpp"
 #include "shared-buffer.hpp"
-#include "exception.hpp"
+#include "io.hpp"
 
 
 namespace ppc {
-
-
-/**
- * An exception in network communication.
- */
-struct NetException : public Exception {
-	/**
-	 * Constructor.
-	 * \param msg error message.
-	 */
-	NetException(const std::string &msg) : Exception(msg) { }
-};
 
 
 /** Type representing IP address. */
@@ -89,7 +74,7 @@ struct Address {
 	void toSockaddr(struct sockaddr_in &addr) {
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(port);
-		addr.sin_addr.s_addr = htons(ip);
+		addr.sin_addr.s_addr = htonl(ip);
 		memset(addr.sin_zero, 0, sizeof addr.sin_zero);
 	}
 };
@@ -97,40 +82,20 @@ struct Address {
 
 
 /** Base class for TCP and UDP sockets. */
-struct Socket {
-	/** Closes socket. */
-	~Socket() {
-		close(fd);
-	}
-
-	/** Returns socket number. */
-	int getFD() { return fd; }
-
+struct Socket : public NonBlockingFD {
 	/**
-	 * Returns address associated with socket.  Depending on socket's
-	 * type this may be either address it is connected to or bound
-	 * to.
+	 * Socket address.  Depending on socket's type this may be either
+	 * address it is connected to or bound to.
 	 */
-	Address getAddress() const { return address; }
+	const Address address;
 
 protected:
-	/** Socket number. */
-	int fd;
-
-	/** Socket address. */
-	Address address;
-
 	/**
 	 * Creates socket by setting file descriptor and address.
 	 * \param sock socket's file descriptor number.
 	 * \param addr address associated with socket.
 	 */
-	Socket(int sock, Address addr) : fd(sock), address(addr) {
-		int flags = fcntl(sock, F_GETFL);
-		if (flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
-			throw NetException(std::string("fcntl: ") + strerror(errno));
-		}
-	}
+	Socket(int sock, Address addr) : NonBlockingFD(sock), address(addr) {}
 };
 
 
@@ -142,7 +107,7 @@ struct TCPSocket : public Socket {
 	 *
 	 * \param addr address to connect to.
 	 * \return new TCP socket.
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	static TCPSocket *connect(Address addr);
 
@@ -160,7 +125,7 @@ struct TCPSocket : public Socket {
 	 * Reads data from socket.  This method must not block!  If there
 	 * is no data ready to be read method shall return empty string.
 	 * \return read string.
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	std::string read();
 
@@ -170,14 +135,22 @@ struct TCPSocket : public Socket {
 	 * shall return when there is no more data pending to be sent or
 	 * write operation would block.
 	 *
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	void write();
+
+	/** Returns value of end of file flag. */
+	bool isEOF() const {
+		return eof;
+	}
 
 
 private:
 	/** Buffered data to send. */
 	std::string data;
+
+	/** Flag set if there was an end of file. */
+	bool eof;
 
 	/**
 	 * Initialises TCPSocket.
@@ -204,7 +177,7 @@ struct TCPListeningSocket : public Socket {
 	 *
 	 * \param addr address to bind to.
 	 * \return new TCP listening socket.
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	static TCPListeningSocket *bind(Address addr);
 
@@ -219,7 +192,7 @@ struct TCPListeningSocket : public Socket {
 	 * exception is no thrown.
 	 *
 	 * \return accepted TCP connection or \c 0.
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	TCPSocket *accept();
 
@@ -246,7 +219,7 @@ struct UDPSocket : public Socket {
 	 *
 	 * \param addr address to bind to.
 	 * \return new UDP socket.
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	static UDPSocket *bind(Address addr);
 
@@ -269,7 +242,7 @@ struct UDPSocket : public Socket {
 	 *
 	 * \param addr address datagram was recieved from.
 	 * \return read string.
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	std::string read(Address &addr);
 
@@ -279,7 +252,7 @@ struct UDPSocket : public Socket {
 	 * shall return when there is no more data pending to be sent or
 	 * write operation would block.
 	 *
-	 * \throw NetException if error occured.
+	 * \throw IOException if error occured.
 	 */
 	void write();
 

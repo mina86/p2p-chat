@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.2 2007/12/29 22:24:33 mina86 Exp $
+ * $Id: netio.cpp,v 1.3 2007/12/30 15:16:00 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -10,18 +10,16 @@
 namespace ppc {
 
 
-
-
 TCPSocket *TCPSocket::connect(Address addr) {
 	struct sockaddr_in sockaddr;
 	int fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
-		throw NetException(std::string("socket: ") + strerror(errno));
+		throw IOException("socket: ", errno);
 	}
 
 	addr.toSockaddr(sockaddr);
 	if (::connect(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr) < 0) {
-		throw NetException(std::string("connect: ") + strerror(errno));
+		throw IOException("connect: ", errno);
 	}
 
 	return new TCPSocket(fd, addr);
@@ -33,13 +31,12 @@ std::string TCPSocket::read() {
 	if (numbytes > 0) {
 		return std::string(sharedBuffer, numbytes);
 	} else if (numbytes == 0) {
-		/* TODO: end of file condition; for now throw an error until
-		   we think of any other sollution */
-		throw NetException("end of stream");
+		eof = true;
+		throw std::string();
 	} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
 		return std::string();
 	} else {
-		throw NetException(std::string("recv: ") + strerror(errno));
+		throw IOException("recv: ", errno);
 	}
 }
 
@@ -55,7 +52,7 @@ void TCPSocket::write() {
 		} else if (!ret || errno == EAGAIN || errno == EWOULDBLOCK) {
 			break;
 		} else {
-			throw NetException(std::string("send: ") + strerror(errno));
+			throw IOException("send: ", errno);
 		}
 	}
 	data.erase(0, pos);
@@ -66,14 +63,14 @@ void TCPSocket::write() {
  * Performs a common part of bind for TCP and UDP sockets.
  * \param fd socket to bind
  * \param addr address to bind, alters it if it's port was zero.
- * \thorw NetException on error.
+ * \thorw IOException on error.
  */
 static void common_bind_part(int fd, Address &addr) {
 	struct sockaddr_in sockaddr;
 
 	addr.toSockaddr(sockaddr);
 	if (bind(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr) < 0) {
-		throw NetException(std::string("bind: ") + strerror(errno));
+		throw IOException("bind: ", errno);
 	}
 
 	if (addr.port == 0) {
@@ -86,13 +83,13 @@ static void common_bind_part(int fd, Address &addr) {
 TCPListeningSocket *TCPListeningSocket::bind(Address addr) {
 	int fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
-		throw NetException(std::string("socket: ") + strerror(errno));
+		throw IOException("socket: ", errno);
 	}
 
 	common_bind_part(fd, addr);
 
 	if (listen(fd, 16) < 0) {
-		throw NetException(std::string("listen: ") + strerror(errno));
+		throw IOException("listen: ", errno);
 	}
 
 	return new TCPListeningSocket(fd, addr);
@@ -108,7 +105,7 @@ TCPSocket *TCPListeningSocket::accept() {
 		if (errno == EAGAIN || errno==EWOULDBLOCK) {
 			return 0;
 		} else {
-			throw NetException(std::string("accept: ") + strerror(errno));
+			throw IOException("accept: ", errno);
 		}
 	}
 
@@ -119,7 +116,7 @@ TCPSocket *TCPListeningSocket::accept() {
 UDPSocket* UDPSocket::bind(Address addr) {
 	int fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
-		throw NetException(std::string("socket: ") + strerror(errno));
+		throw IOException("socket: ", errno);
 	}
 
 	common_bind_part(fd, addr);
@@ -138,11 +135,11 @@ std::string UDPSocket::read(Address &addr) {
 		addr.assign(sockaddr);
 		return std::string(sharedBuffer, numbytes);
 	} else if (numbytes == 0) {
-		throw NetException("recvfrom: returned 0");
+		throw IOException("Unexpected end of file");
 	} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
 		return std::string();
 	} else {
-		throw NetException(std::string("recvfrom: ") + strerror(errno));
+		throw IOException("recvfrom: ", errno);
 	}
 }
 
@@ -164,7 +161,7 @@ void UDPSocket::write() {
 			return;
 		} else {
 			queue.pop();
-			throw NetException(std::string("sendto: ") + strerror(errno));
+			throw IOException("sendto: ", errno);
 		}
 
 		queue.pop();
