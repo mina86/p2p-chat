@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.10 2007/12/30 15:21:10 mina86 Exp $
+ * $Id: network.hpp,v 1.11 2007/12/30 18:44:11 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -204,6 +204,8 @@ private:
 	/** Last time status was sent. */
 	unsigned lastStatus;
 
+	/** If \c true we are disconnecting; many signals are ignored. */
+	bool disconnecting;
 
 	/** "Pointer" to map of all users connected to network. */
 	shared_obj<sig::UsersListData> users;

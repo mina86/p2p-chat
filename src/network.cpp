@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.13 2007/12/30 15:21:10 mina86 Exp $
+ * $Id: network.cpp,v 1.14 2007/12/30 18:44:11 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -301,9 +301,7 @@ Network::Network(Core &c, Address addr, const std::string &nick)
 
 Network::~Network() {
 	delete tcpListeningSocket;
-	tcpListeningSocket = 0;
 	delete udpSocket;
-	udpSocket = 0;
 	Connections::iterator it = connections.begin(), end = connections.end();
 	for (; it != end; ++it) {
 		delete *it;
@@ -398,12 +396,6 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	}
 
 
-	/* If there is nothing more exit */
-	if (nfds <= 0) {
-		return handled;
-	}
-
-
 	/* TCP sockets */
 	Connections::iterator it = connections.begin(), end = connections.end();
 	while (nfds > 0 && it != end) {
@@ -437,13 +429,36 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	}
 
 
+	/* Are we disconnecting? */
+	if (disconnecting && connections.empty()) {
+		/* If so send signal to core that we are exiting. */
+		sendSignal("/core/module/exit", "/core", 0);
+	}
+
+
 	return handled;
 }
 
 
 
 void Network::recievedSignal(const Signal &sig) {
-	if (sig.getType() == "/core/tick") {
+	if (sig.getType() == "/net/conn/disconnect") {
+		disconnecting = true;
+		Connections::iterator it(connections.begin()), end(connections.end());
+		for (; it != end; ++it) {
+			if (~(*it)->flags & NetworkConnection::LOCAL_CLOSING) {
+				(*it)->push(ppcp::ppcpClose());
+				(*it)->flags |= NetworkConnection::LOCAL_CLOSING;
+			}
+		}
+
+	} else if (sig.getType() == "/net/conn/are-you-connected") {
+		sendSignal("/net/conn/connected", "/ui/", users.get());
+
+	} else if (disconnecting) {
+		/* if we are disconnecting ignore other signals. */
+
+	} else if (sig.getType() == "/core/tick") {
 		missedTicks = (missedTicks + 1) % HZ_DIVIDER;
 		if (!missedTicks) {
 			performTick();
@@ -471,9 +486,6 @@ void Network::recievedSignal(const Signal &sig) {
 		send(data.flags & sig::UserData::REQUEST
 		     ? ppcp::st(ourUser)+ppcp::rq() : ppcp::st(ourUser));
 		lastStatus = Core::getTicks();
-
-	} else if (sig.getType() == "/net/conn/are-you-connected") {
-		sendSignal("/net/conn/connected", "/ui/", users.get());
 
 	} else if (sig.getType() == "/net/msg/send") {
 		const sig::MessageData &data =
@@ -569,8 +581,8 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 			if (~conn.flags & NetworkConnection::LOCAL_CLOSING) {
 				conn.push(ppcp::ppcpClose());
 			}
-			conn.flags |= NetworkConnection::REMOTE_CLOSED;
-			conn.flags |= NetworkConnection::LOCAL_CLOSING;
+			conn.flags |= NetworkConnection::REMOTE_CLOSED |
+				NetworkConnection::LOCAL_CLOSING;
 			goto ignore;
 
 		case ppcp::Tokenizer::PPCP_OPEN:
