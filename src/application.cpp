@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.7 2007/12/29 02:34:55 mina86 Exp $
+ * $Id: application.cpp,v 1.8 2007/12/31 15:39:27 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -145,6 +145,10 @@ void Core::recievedSignal(const Signal &sig) {
 		delete it->second;
 		signals.push(Signal("/core/module/remove", moduleName, "/",
 		                    new sig::StringData(sig.getSender())));
+
+	} else if (sig.getType() == "/net/conn/connect") {
+		/* FIXME: TODO */
+
 	}
 }
 
