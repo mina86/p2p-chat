@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.14 2007/12/30 18:44:11 mina86 Exp $
+ * $Id: network.cpp,v 1.15 2007/12/31 15:39:16 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -132,23 +132,38 @@ struct NetworkConnection {
 		: tcpSocket(sock), tokenizer(ourNick),
 		  lastAccessed(Core::getTicks()) { }
 
-	/** Deletes a tcpSocket. */
+	/**
+	 * Deletes a tcpSocket and deataches connection from user it is
+	 * attached to (if any).
+	 */
 	~NetworkConnection() {
+		deatach();
 		delete &tcpSocket;
+	}
+
+	/**
+	 * Attaches connection to given user.  If connection is already
+	 * attached to some other user deataches it from him first.
+	 * \param u user to attach connection to.
+	 */
+	void attachTo(NetworkUser &u) {
+		if (user != &u) {
+			deatach();
+			user = &u;
+			u.connections.push_back(this);
+		}
+	}
+
+	/**
+	 * Deataches connection from user it is attached to.  If
+	 * connection is not attached to any user does nothing.
+	 */
+	void deatach() {
 		if (user) {
 			user->connections.erase(user->connections.find(this));
 			user->lastAccessed = Core::getTicks();
 			user = 0;
 		}
-	}
-
-	/**
-	 * Attaches connection to given user.
-	 * \param u user to attach connection to.
-	 */
-	void attachTo(NetworkUser &u) {
-		user = &u;
-		u.connections.push_back(this);
 	}
 
 	/** Returns \c true iff connection is attached to some user. */
@@ -157,7 +172,14 @@ struct NetworkConnection {
 	}
 
 	/** Returns user connection is attached to or \c NULL. */
-	NetworkUser *getUser() { return user; }
+	NetworkUser *getUser() {
+		return user;
+	}
+
+	/** Returns user connection is attached to or \c NULL. */
+	const NetworkUser *getUser() const {
+		return user;
+	}
 
 	/** Returns time in ticks since last access. */
 	unsigned long age() const {
@@ -178,8 +200,9 @@ struct NetworkConnection {
 	 * \throw IOException if error while reading data from socket occured.
 	 */
 	bool feed() {
-		std::string data = read();
+		std::string data = tcpSocket.read();
 		if (!data.empty()) {
+			lastAccessed = Core::getTicks();
 			tokenizer.feed(data);
 		}
 		return !data.empty();
@@ -641,7 +664,7 @@ void Network::handleToken(NetworkUser &user,
 		           new sig::MessageData(user.id, token.data, token.flags));
 		break;
 
-	default: /* dead code */
+	default: /* dead code (we hope) */
 		;
 	}
 }
