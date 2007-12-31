@@ -24,7 +24,7 @@
    przestrzenie nazw w XML-u.
 
 * Kris
-** Obczaiæ dzia³anie select
+** Obczaiæ dzia³anie select [DONE]
 
    Napisaæ mo¿liwie najbardziej przeno¶ny program wykorzystuj±cy
    selecta, który bêdzie: (i) nas³uchiwa³ na standardowym wej¶ciu
@@ -49,6 +49,50 @@
    byæ nieblokuj±ce.  Aby by³y takowe warto w konstruktorze struktury
    Socket ustawiæ tryb deskryptora plików na nieblokuj±cy.
 
+** Podmieniæ obecny sposób korzystania z select()a w application.cpp
+
+   Korzystaj±c z wiedzy zdobytej obczajaj±c dzia³anie select()a
+   podmieniæ zawarto¶æ metody Core::run() tak, aby korzysta³a z tego
+   m±drego sposobu sygna³ów.
+
+   Wype³nianie zbiorów i obs³uga zdarzeñ na deskryptorach plików jest
+   rzecz jasna wykonywana w taki sposób jak obecnje, tzn. odpalane s±
+   metody setFDSets() i doFDs().  Zmieniæ nale¿y sposób odmeirzania
+   czasu oraz dodanie nowego sygna³u /core/sig, który bêdzie wysy³any,
+   gdy jaki¶ sygna³ zostanie odebrany.
+
+   Wyobra¿am to sobiê tak, ¿e na pocz±tku metody Core::run()
+   przechwyci ona wszystkie sygna³y zapamiêtuj±c wcze¶niejsze funkcje
+   obs³ugi oraz ustawi jak±¶ zmienn± globaln± (lokaln± dla pliku),
+   która bêdzie wskazywa³a obiekt Core, którego metoda run() siê
+   wykonuje (np. currentCore = this).
+
+   Wewn±trz funkcji obs³ugi sygna³u alarm, bêdzie wykonywany
+   nastêpuj±cy kod:
+
+     if (currentCore) {
+         currentCore->sendSignal("/core/tick", "/", 0);
+     }
+
+   A wewn±trz funkcji obs³ugi innych sygna³ów:
+
+     if (currentCore) {
+         currentCore->sendSignal("/core/sig", "/", 0);
+     }
+
+  (Rozpoznawaniem numery sygna³u zajmiemy siê pó¼niej.)
+
+  Potem, gdy Core::run() bêdzie koñczyæ dzia³anie przywróci stare
+  funkcje obs³ugi oraz ustawi currentCore na 0 (ew. mo¿e te¿ pamiêtaæ
+  poprzedni± warto¶æ tej zmiennej).
+
+  Jak mo¿na siê domy¶leæ funkcje obs³ugi sygna³ów bêd± musia³y byæ
+  prywatnymi metodami statycznymi klasy Core, bo jest to lepsze
+  rozwi±zanie ni¿ zaprzyja¼nianie -- chyba, ¿e kompilatorowi nie
+  bêdzie siê podobaæ, ¿e to jest metoda statyczna, ale nie powinno byæ
+  k³opotów, bo metoda statyczna nie powinna siê w niczym ró¿niæ od
+  zwyk³ej funkcji.
+
 * mco
 ** Uzgodniæ z Jaruni± interfejs klasy Config
 ** Napisaæ interfejs u¿ytkownika
@@ -66,6 +110,6 @@
    u¿ytkownika), a potem odpalaæ machineriê.
 
 * mina86
-** Napisaæ parser komunikatów PPCP
+** Napisaæ parser komunikatów PPCP [DONE]
 ** Napisaæ modu³ obs³uguj±cy sieæ
 
