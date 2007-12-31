@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.15 2007/12/31 15:39:16 mina86 Exp $
+ * $Id: network.cpp,v 1.16 2007/12/31 19:28:38 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -334,7 +334,6 @@ Network::~Network() {
 	   deleted TCP sockets but this doesn't really matter since only
 	   we knew that User object stored there are really
 	   NetworkUser objects. */
-	sendSignal("/net/conn/disconnected", "/ui/", 0);
 }
 
 
@@ -465,7 +464,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 void Network::recievedSignal(const Signal &sig) {
-	if (sig.getType() == "/net/conn/disconnect") {
+	if (sig.getType() == "/core/module/quit") {
 		disconnecting = true;
 		Connections::iterator it(connections.begin()), end(connections.end());
 		for (; it != end; ++it) {
@@ -475,11 +474,11 @@ void Network::recievedSignal(const Signal &sig) {
 			}
 		}
 
-	} else if (sig.getType() == "/net/conn/are-you-connected") {
-		sendSignal("/net/conn/connected", "/ui/", users.get());
-
 	} else if (disconnecting) {
 		/* if we are disconnecting ignore other signals. */
+
+	} else if (sig.getType() == "/net/conn/are-you-connected") {
+		sendSignal("/net/conn/connected", "/ui/", users.get());
 
 	} else if (sig.getType() == "/core/tick") {
 		missedTicks = (missedTicks + 1) % HZ_DIVIDER;
