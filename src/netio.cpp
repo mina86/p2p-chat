@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.5 2007/12/30 18:42:39 mina86 Exp $
+ * $Id: netio.cpp,v 1.6 2007/12/31 16:10:04 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -12,17 +12,22 @@ namespace ppc {
 
 TCPSocket *TCPSocket::connect(Address addr) {
 	struct sockaddr_in sockaddr;
-	int fd = socket(PF_INET, SOCK_STREAM, 0);
+	const int fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		throw IOException("socket: ", errno);
 	}
 
-	addr.toSockaddr(sockaddr);
-	if (::connect(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr) < 0) {
-		throw IOException("connect: ", errno);
+	try {
+		addr.toSockaddr(sockaddr);
+		if (::connect(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr) < 0) {
+			throw IOException("connect: ", errno);
+		}
+		return new TCPSocket(fd, addr);
 	}
-
-	return new TCPSocket(fd, addr);
+	catch (...) {
+		close(fd);
+		throw;
+	}
 }
 
 
@@ -81,25 +86,29 @@ static void common_bind_part(int fd, Address &addr) {
 
 
 TCPListeningSocket *TCPListeningSocket::bind(Address addr) {
-	int fd = socket(PF_INET, SOCK_STREAM, 0);
+	const int fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		throw IOException("socket: ", errno);
 	}
 
-	common_bind_part(fd, addr);
-
-	if (listen(fd, 16) < 0) {
-		throw IOException("listen: ", errno);
+	try {
+		common_bind_part(fd, addr);
+		if (listen(fd, 16) < 0) {
+			throw IOException("listen: ", errno);
+		}
+		return new TCPListeningSocket(fd, addr);
 	}
-
-	return new TCPListeningSocket(fd, addr);
+	catch (...) {
+		close(fd);
+		throw;
+	}
 }
 
 
 TCPSocket *TCPListeningSocket::accept() {
 	struct sockaddr_in sockaddr;
 	socklen_t size = sizeof sockaddr;
-	int new_fd = ::accept(fd, (struct sockaddr*)&sockaddr, &size);
+	const int new_fd = ::accept(fd, (struct sockaddr*)&sockaddr, &size);
 
 	if (new_fd < 0) {
 		if (errno == EAGAIN || errno==EWOULDBLOCK) {
@@ -109,19 +118,46 @@ TCPSocket *TCPListeningSocket::accept() {
 		}
 	}
 
-	return new TCPSocket(new_fd, Address(sockaddr));
+	try {
+		return new TCPSocket(new_fd, Address(sockaddr));
+	}
+	catch (...) {
+		close(new_fd);
+		throw;
+	}
 }
 
 
 UDPSocket* UDPSocket::bind(Address addr) {
-	int fd = socket(PF_INET, SOCK_DGRAM, 0);
+	const int fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
 		throw IOException("socket: ", errno);
 	}
 
-	common_bind_part(fd, addr);
+	try {
+		const int t = 1;
+		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &t, sizeof t) < 0) {
+			throw IOException("setsockopt: reuseaddr: ", errno);
+		}
+		common_bind_part(fd, addr);
 
-	return new UDPSocket(fd, addr);
+		if ((addr.ip & 0xf8000000) == 0x08000000) {
+			struct ip_mreq mreq;
+			mreq.imr_multiaddr.s_addr = addr.ip;
+			mreq.imr_interface.s_addr = 0;
+			if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+			               &mreq, sizeof(mreq)) < 0) {
+				throw IOException("setsockopt: add membership: ", errno);
+			}
+		}
+
+		return new UDPSocket(fd, addr);
+	}
+	catch (...) {
+		close(fd);
+		throw;
+	}
+
 }
 
 
