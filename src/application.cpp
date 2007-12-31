@@ -1,10 +1,11 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.9 2007/12/31 19:35:41 mina86 Exp $
+ * $Id: application.cpp,v 1.10 2007/12/31 21:05:43 mina86 Exp $
  */
 
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 #include <limits>
 
@@ -16,8 +17,16 @@ namespace ppc {
 
 char sharedBuffer[1024];
 
-
 unsigned long Core::ticks = 0;
+
+/**
+ * Signal handler which does nothing.
+ * \param signum signal number.
+ */
+static void gotsig(int signum) {
+	signal(signum, gotsig);
+}
+
 
 
 int Core::run() {
@@ -29,6 +38,21 @@ int Core::run() {
 		dieDueTime = Core::getTicks() + 60;
 		sendSignal("/core/module/quit", "/", 0);
 	}
+
+
+#if SIGHUP
+	signal(SIGHUP, gotsig);
+#endif
+#if SIGINT
+	signal(SIGINT, gotsig);
+#endif
+#if SIGQUIT
+	signal(SIGQUIT, gotsig);
+#endif
+#if SIGTERM
+	signal(SIGTERM, gotsig);
+#endif
+
 
 	while (modules.size() > 1) {
 		fd_set rd, wr, ex;
@@ -45,31 +69,46 @@ int Core::run() {
 		}
 
 		nfds = select(nfds, &rd, &wr, &ex, &tv);
-		switch (nfds) {
-		case -1:
-			perror("select");
-			return 1;
-
-		case  0:
-			if (++ticks >= dieDueTime) goto killAllModules;
-
-			sendSignal("/core/tick", "/", 0);
-			tv.tv_sec = 1;
-			tv.tv_usec = 0;
-			break;
-
-		default:
+		if (nfds > 0) {
 			for (Modules::iterator it = modules.begin(), end = modules.end();
 			     it!=end && nfds > 0; ++it) {
 				nfds -= it->second->doFDs(nfds, &rd, &wr, &ex);
 			}
+		} else if (nfds == 0) {
+			if (++ticks >= dieDueTime) break;
+			sendSignal("/core/tick", "/", 0);
+			tv.tv_sec = 1;
+			tv.tv_usec = 0;
+		} else if (errno != EINTR) {
+			perror("select");
+			break;
+		} else {
+			unsigned long newDueTime = Core::getTicks() + 60;
+			dieDueTime = newDueTime > dieDueTime ? newDueTime : dieDueTime;
+			sendSignal("/ui/msg/notice", "/ui/",
+			           new sig::StringData("Recieved signal, terminating."));
+			sendSignal("/core/module/quit", "/", 0);
 		}
 
 		deliverSignals();
 	}
 
+
+#if SIGHUP
+	signal(SIGHUP, SIG_DFL);
+#endif
+#if SIGINT
+	signal(SIGINT, SIG_DFL);
+#endif
+#if SIGQUIT
+	signal(SIGQUIT, SIG_DFL);
+#endif
+#if SIGTERM
+	signal(SIGTERM, SIG_DFL);
+#endif
+
+
 	if (modules.size() > 1) {
-	killAllModules:
 		Modules::iterator it = modules.begin(), end = modules.end();
 		for (; it != end; ++it) {
 			if (it->first != moduleName) delete it->second;
