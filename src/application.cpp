@@ -1,10 +1,12 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.8 2007/12/31 15:39:27 mina86 Exp $
+ * $Id: application.cpp,v 1.9 2007/12/31 19:35:41 mina86 Exp $
  */
 
 #include <stdio.h>
 #include <string.h>
+
+#include <limits>
 
 #include "application.hpp"
 
@@ -21,7 +23,14 @@ unsigned long Core::ticks = 0;
 int Core::run() {
 	struct timeval tv = { 1, 0 };
 
-	while (running) {
+	if (ui_modules) {
+		dieDueTime = std::numeric_limits<unsigned long>::max();
+	} else {
+		dieDueTime = Core::getTicks() + 60;
+		sendSignal("/core/module/quit", "/", 0);
+	}
+
+	while (modules.size() > 1) {
 		fd_set rd, wr, ex;
 		int nfds = 0;
 
@@ -42,8 +51,9 @@ int Core::run() {
 			return 1;
 
 		case  0:
+			if (++ticks >= dieDueTime) goto killAllModules;
+
 			sendSignal("/core/tick", "/", 0);
-			++ticks;
 			tv.tv_sec = 1;
 			tv.tv_usec = 0;
 			break;
@@ -58,17 +68,20 @@ int Core::run() {
 		deliverSignals();
 	}
 
-	for (Modules::iterator it = modules.begin(), end = modules.end();
-	     it!=end; ++it) {
-		delete it->second;
+	if (modules.size() > 1) {
+	killAllModules:
+		Modules::iterator it = modules.begin(), end = modules.end();
+		for (; it != end; ++it) {
+			if (it->first != moduleName) delete it->second;
+		}
+		modules.clear();
+		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
 	}
 
-	modules.clear();
 	while (!signals.empty()) {
 		signals.front().clear();
 		signals.pop();
 	}
-	mainModule = 0;
 
 	return 0;
 }
@@ -106,13 +119,15 @@ void Core::deliverSignals() {
 
 
 bool Core::addModule(Module &module) {
-	if (modules.find(module.moduleName) != modules.end()) {
-		return false;
+	std::pair<Modules::iterator, bool> ret =
+		modules.insert(std::make_pair(module.moduleName, &module));
+	if (ret.second) {
+		ui_modules += module.moduleName.length() >= 4 &&
+			!memcmp(module.moduleName.data(), "/ui/", 4);
+		sendSignal("/core/module/new", "/",
+		           new sig::StringData(module.moduleName));
 	}
-	modules.insert(std::make_pair(module.moduleName, &module));
-	signals.push(Signal("/core/module/new", moduleName, "/",
-	                    new sig::StringData(module.moduleName)));
-	return true;
+	return ret.second;
 }
 
 
@@ -136,15 +151,17 @@ void Core::recievedSignal(const Signal &sig) {
 			return;
 		}
 
-		if (it->second == mainModule) {
-			mainModule = 0;
-			running = 0;
-		}
-
 		modules.erase(it);
 		delete it->second;
-		signals.push(Signal("/core/module/remove", moduleName, "/",
-		                    new sig::StringData(sig.getSender())));
+		sendSignal("/core/module/remove", "/",
+		           new sig::StringData(sig.getSender()));
+
+		ui_modules -= sig.getSender().length() >= 4 &&
+			!memcmp(sig.getSender().data(), "/ui/", 4);
+		if (!ui_modules) {
+			sendSignal("/core/module/quit", "/", 0);
+			dieDueTime = Core::getTicks() + 60;
+		}
 
 	} else if (sig.getType() == "/net/conn/connect") {
 		/* FIXME: TODO */

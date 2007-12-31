@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.8 2007/12/29 02:35:55 mina86 Exp $
+ * $Id: application.hpp,v 1.9 2007/12/31 19:35:41 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -168,33 +168,8 @@ struct Core : protected Module {
 	 * \param cfg  application configuration.
 	 */
 	Core(Config &cfg)
-		: Module(*this, "/core"), config(cfg), running(true) {
+		: Module(*this, "/core"), config(cfg) {
 		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
-	}
-
-	/**
-	 * Sets main module.  This is a module that will run through the
-	 * execution of application.  When core module notices that main
-	 * module have exited it will unconditionally terminate.  Main
-	 * module will be automatically added to modules list, no need to
-	 * call addModule.  If module with given name already exists \c
-	 * false is returned and no action taken.
-	 *
-	 * \param main main module.
-	 * \return \c true iff module with given name does not yet exist.
-	 */
-	bool setMainModule(Module &main) {
-		if (!addModule(main)) return false;
-		mainModule = &main;
-		return true;
-	}
-
-	/**
-	 * Returns the main module.  Usefull to check if given module is
-	 * not main module.
-	 */
-	const Module *getMainModule() const {
-		return mainModule;
 	}
 
 
@@ -231,7 +206,7 @@ protected:
 	                  const fd_set *ex);
 	virtual void recievedSignal(const Signal &sig);
 
-	/* Those HAVE TO BE OVERWRITTEN, otherwise will in trouble. */
+	/* Those HAVE TO BE OVERWRITTEN, otherwise we're in trouble. */
 	void sendSignal(const std::string &type, const std::string &reciever,
 	                Signal::Data *sigData) {
 		signals.push(Signal(type, moduleName, reciever, sigData));
@@ -251,19 +226,17 @@ private:
 	/** Modules list. */
 	Modules modules;
 
-	/** Main module, if it stops core stops. */
-	Module *mainModule;
-
 	/** Signals queue. */
 	Queue signals;
 
 	/** Application configuration. */
 	Config &config;
 
+	/** Moment in future that we need to kill all modules and exit. */
+	unsigned long dieDueTime;
 
-	/** Whether application should still run. */
-	bool running;
-
+	/** Number of /ui modules. */
+	unsigned ui_modules;
 
 	/** Number of ticks since the beginning. */
 	static unsigned long ticks;
@@ -271,7 +244,6 @@ private:
 
 	/** Delivers signals to modules. */
 	void deliverSignals();
-
 
 	friend struct Module;
 };
