@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.4 2007/12/30 15:34:11 mina86 Exp $
+ * $Id: ui.cpp,v 1.5 2007/12/31 19:26:51 mina86 Exp $
  */
 
 #include <errno.h>
@@ -73,31 +73,6 @@ void UI::recievedSignal(const Signal &sig) {
 		/* one second have passed, maybe you need to do something? */
 
 
-	} else if (sig.getType() == "/core/module/new") {
-		/* a new module added to list, probably nothing to do here but
-		   who knows */
-		std::string module_name =
-			static_cast<const sig::StringData*>(sig.getData())->data;
-		(void)module_name; /* to silence warning for the time being */
-
-	} else if (sig.getType() == "/core/module/remove") {
-		/* module have been removed, here you probably need to do
-		   something if you are the main module like exit if user
-		   requested us to quit */
-		std::string module_name =
-			static_cast<const sig::StringData*>(sig.getData())->data;
-		(void)module_name; /* to silence warning for the time being */
-
-		if (/*exiting && */ core.getMainModule() == this &&
-		    getModules().size() == 2 /* there is only us and core */) {
-			/* just send signal to core that we wish to exit, core
-			   will know what to do -- since we are main module it
-			   will destroy everything (the entire planet except for
-			   IBM which is unbrekable) */
-			sendSignal("/core/module/exit", "/core", 0);
-		}
-
-
 	} else if (sig.getType() == "/net/status/changed") {
 		/* a user have changed status or display name or have just
 		   connected ot it have jsut disconnected, it's all in data.
@@ -106,9 +81,6 @@ void UI::recievedSignal(const Signal &sig) {
 		const sig::UserData &data =
 			*static_cast<const sig::UserData*>(sig.getData());
 		(void)data; /* to silence warning for the time being */
-
-
-	} else if (sig.getType() == "/net/users/rp") {
 
 
 	} else if (sig.getType() == "/net/msg/got") {
@@ -142,12 +114,11 @@ void UI::recievedSignal(const Signal &sig) {
 		   is required */
 		networkUsers[sig.getSender()] = const_cast<sig::UsersListData*>(data);
 
-	} else if (sig.getType() == "/net/conn/disconnected") {
-		/* ok, so we have disconnected -- time to clear all resources
-		   associated with given network; also informing user is not
-		   that bad idea.  Cleaning reasources may be done like this: */
-
-		networkUsers.erase(networkUsers.find(sig.getSender()));
+	} else if (sig.getType() == "/core/module/remove") {
+		/* module have been removed; it might be a network */
+		std::string module_name =
+			static_cast<const sig::StringData*>(sig.getData())->data;
+		networkUsers.erase(networkUsers.find(module_name));
 
 	} else if (!strncmp(sig.getType().c_str(), "/ui/msg/", 8)) {
 		/* this is some kind of message.  Type is one of:
@@ -157,6 +128,10 @@ void UI::recievedSignal(const Signal &sig) {
 		std::string message =
 			static_cast<const sig::StringData*>(sig.getData())->data;
 		(void)message; /* to silence warning for the time being */
+
+
+	} else if (sig.getType() == "/core/module/quit") {
+		/* we shall exit */
 
 	}
 }
