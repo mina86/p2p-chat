@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.10 2007/12/29 02:37:55 mina86 Exp $
+ * $Id: signal.hpp,v 1.11 2007/12/31 19:27:43 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -42,7 +42,7 @@ struct Module;
  *     message was recieved.</li>
  * </ul>
  *
- * Signals usually have data associated with data.  Signals keep
+ * Signals usually have data associated with them.  Signals keep
  * pointer to abstract structure Signal::Data which should be cast to
  * another structure whitch hold actual data for the signal.  The type
  * shall be deducted from signal's type (it's not very elegant
@@ -59,6 +59,10 @@ struct Module;
  *     a sig::StringData object.</li>
  *   <li>\c /core/module/exit sent to core madule when sender exits
  *     and should be removed from list; it has no argument.</li>
+ *   <li>\c /core/module/quit sent to inform module to exit.  It is
+ *     mostly used to (i) disconnect from given network (then signal
+ *     is sent to given network) or to (ii) stop all modules before
+ *     application exits; it has no argument.</li>
  * </ul>
  *
  * \c /ui signals include \c /ui/msg/debug, \c /ui/msg/info, \c
@@ -95,13 +99,6 @@ struct Module;
  *     modules when new connection has been made; its argument is
  *     sig::UsersListData object (which see for more
  *     information).</li>
- *   <li>\c /net/conn/disconnect sent to network module to inform it
- *     to disconnect; it has no argument.</li>
- *   <li>\c /net/conn/disconnected sent by network module to all \c
- *     /ui/ modules to inform that it has just disconnected and in
- *     moment network module should exit (which will be followed by \c
- *     /core/module/remove signal sent by core module); it has no
- *     argument.</li>
  *   <li>\c /net/conn/are-you-connected sent to network module and if
  *     network module (that is connected) recieves taht signel it
  *     replies with a \c /net/conn/connected signal to sender; it has
