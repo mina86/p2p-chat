@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.17 2008/01/01 02:34:36 mina86 Exp $
+ * $Id: network.cpp,v 1.18 2008/01/01 03:22:55 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -465,7 +465,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	/* Are we disconnecting? */
 	if (disconnecting && connections.empty()) {
 		/* If so send signal to core that we are exiting. */
-		sendSignal("/core/module/exit", "/core", 0);
+		sendSignal("/core/module/exits", "/core", 0);
 	}
 
 

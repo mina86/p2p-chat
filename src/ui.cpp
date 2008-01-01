@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.5 2007/12/31 19:26:51 mina86 Exp $
+ * $Id: ui.cpp,v 1.6 2008/01/01 03:22:55 mina86 Exp $
  */
 
 #include <errno.h>
@@ -114,7 +114,7 @@ void UI::recievedSignal(const Signal &sig) {
 		   is required */
 		networkUsers[sig.getSender()] = const_cast<sig::UsersListData*>(data);
 
-	} else if (sig.getType() == "/core/module/remove") {
+	} else if (sig.getType() == "/core/module/removed") {
 		/* module have been removed; it might be a network */
 		std::string module_name =
 			static_cast<const sig::StringData*>(sig.getData())->data;

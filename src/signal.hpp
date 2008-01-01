@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.12 2008/01/01 02:34:09 mina86 Exp $
+ * $Id: signal.hpp,v 1.13 2008/01/01 03:22:55 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -54,15 +54,17 @@ struct Module;
  *   <li>\c /core/module/new sent by core module to all modules when
  *     new module is added; its argument is a sig::StringData
  *     object.</li>
- *   <li>\c /core/module/remove sent by core module to all modules
+ *   <li>\c /core/module/removed sent by core module to all modules
  *     when module exits and is removed from list; its argument is
  *     a sig::StringData object.</li>
- *   <li>\c /core/module/exit sent to core madule when sender exits
+ *   <li>\c /core/module/exits sent to core module when sender exits
  *     and should be removed from list; it has no argument.</li>
  *   <li>\c /core/module/quit sent to inform module to exit.  It is
  *     mostly used to (i) disconnect from given network (then signal
  *     is sent to given network) or to (ii) stop all modules before
  *     application exits; it has no argument.</li>
+ *   <li>\c /core/module/start sent to core module to create new
+ *     module; argument is not yet defined.</li>
  * </ul>
  *
  * \c /ui signals include \c /ui/msg/debug, \c /ui/msg/info, \c
@@ -94,9 +96,6 @@ struct Module;
  *     doesn't really mean that the message was sent but only that it
  *     was added to buffer of pendig data); it's argument is
  *     sig::MessageData object.</li>
- *   <li>\c /net/conn/connect sent to core module to create new
- *     network object which will be connected to network specified in
- *     signal's argument; argument is not yet defined.</li>
  *   <li>\c /net/conn/connected sent by network module to all \c /ui/
  *     modules when new connection has been made; its argument is
  *     sig::UsersListData object (which see for more
