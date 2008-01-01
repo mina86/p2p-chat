@@ -1,14 +1,16 @@
 /** \file
  * A select() test program.
- * $Id: select-test.c,v 1.1 2007/12/31 15:38:50 mina86 Exp $
+ * $Id: select-test.c,v 1.2 2008/01/01 00:24:35 mina86 Exp $
  */
 
-#define _POSIX_SOURCE  1
+#define _POSIX_SOURCE 1
+#define _XOPEN_SOURCE 600
 
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -17,26 +19,44 @@
 typedef void Sigfunc(int);
 
 static volatile sig_atomic_t got_sig_num = 0;
-static void sig_handler(int);
-static Sigfunc *mysignal(int, Sigfunc*);
+static void sig_handler(int signo) {
+	got_sig_num = signo;
+}
 
 int main(void) {
 	int fd = STDIN_FILENO, i;
 	char buffer[1024];
 	fd_set zbior;
+	struct sigaction act, oldact[32];
+	sigset_t oldsigset;
 
-	setvbuf(stdin, NULL, _IONBF, 0);
+	/* Block all signals -- we will recieve them during pselect(2) only */
+	sigfillset(&act.sa_mask);
+	sigdelset(&act.sa_mask, SIGKILL);
+	sigdelset(&act.sa_mask, SIGSTOP);
+	sigprocmask(SIG_SETMASK, &act.sa_mask, &oldsigset);
 
-	for (i = 1; i<28; ++i) {
-		mysignal(i, sig_handler);
+	/* Now catch all signals */
+	act.sa_handler = sig_handler;
+	act.sa_flags = 0;
+#if SA_INTERRUPT
+	act.sa_flags |= SA_INTERRUPT;
+#endif
+#if SA_RESTART
+	act.sa_flags |= SA_RESTART;
+#endif
+	for (i = 1; i<32; ++i) {
+		sigaction(i, &act, oldact + i);
 	}
 
+	/* Do the job */
+	setvbuf(stdin, NULL, _IONBF, 0);
 	alarm(5);
 	for(;;) {
 		FD_ZERO(&zbior);
 		FD_SET(fd, &zbior);
 
-		i = select(fd + 1, &zbior, 0, 0, 0);
+		i = pselect(fd + 1, &zbior, 0, 0, 0, &oldsigset);
 		if (i > 0) {
 			fgets(buffer, sizeof buffer, stdin);
 			printf("input: %s", buffer);
@@ -56,33 +76,10 @@ int main(void) {
 		}
 	}
 
+	/* Restore old signal handlers and mask */
+	for (i = 1; i<32; ++i) {
+		sigaction(i, oldact + i, 0);
+	}
+	sigprocmask(SIG_SETMASK, &oldsigset, 0);
 	return 0;
 }
-
-
-static void sig_handler(int signo) {
-	got_sig_num = signo;
-}
-
-static Sigfunc* mysignal(int signo, Sigfunc *func) {
-	struct sigaction act, oact;
-
-	act.sa_handler = func;
-	sigfillset(&act.sa_mask);         /* wypelnienie zbioru sygnalow */
-	sigdelset(&act.sa_mask, SIGKILL); /* wyrzucenie sigkill i sigstop */
-	sigdelset(&act.sa_mask, SIGSTOP);
-
-	act.sa_flags = 0;
-#if SA_INTERRUPT
-	act.sa_flags |= SA_INTERRUPT;
-#endif
-#if SA_RESTART
-	act.sa_flags |= SA_RESTART;
-#endif
-
-	if (sigaction(signo, &act, &oact) < 0) {
-		return SIG_ERR;
-	}
-	return oact.sa_handler;
-}
-
