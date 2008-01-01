@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.16 2007/12/31 19:28:38 mina86 Exp $
+ * $Id: network.cpp,v 1.17 2008/01/01 02:34:36 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -339,16 +339,20 @@ Network::~Network() {
 
 
 int Network::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
-	int max, fd;
+	int max = 0, fd;
 	(void)ex;
 
-	FD_SET(max = tcpListeningSocket->fd, rd);
-	FD_SET(fd = udpSocket->fd, rd);
-	if (udpSocket->hasDataToWrite()) {
-		FD_SET(fd, wr);
+	if (tcpListeningSocket) {
+		FD_SET(max = tcpListeningSocket->fd, rd);
 	}
-	if (fd > max) {
-		max = fd;
+	if (udpSocket) {
+		FD_SET(fd = udpSocket->fd, rd);
+		if (udpSocket->hasDataToWrite()) {
+			FD_SET(fd, wr);
+		}
+		if (fd > max) {
+			max = fd;
+		}
 	}
 
 	Connections::iterator it = connections.begin(), end = connections.end();
@@ -377,12 +381,16 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 	/* Listening socekt */
-	if (FD_ISSET(tcpListeningSocket->fd, rd)) {
+	if (tcpListeningSocket && FD_ISSET(tcpListeningSocket->fd, rd)) {
 		++handled, --nfds;
 		try {
 			acceptConnections();
 		}
 		catch (const Exception &e) {
+			/* send signal to ourselves that we want to quit */
+			sendSignal("/core/module/quit", moduleName, 0);
+			delete tcpListeningSocket;
+			tcpListeningSocket = 0;
 			sendSignal("/ui/msg/error", "/ui/",
 			           new sig::StringData("TCP listening socket error: " +
 			                               e.getMessage()));
@@ -390,27 +398,30 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	}
 
 
-	/* Read from UDP socket */
-	if (FD_ISSET(udpSocket->fd, rd)) {
-		++handled, --nfds;
+	/* Read from and write to UDP socket */
+	if (udpSocket) {
+		if (FD_ISSET(udpSocket->fd, wr)) {
+			++handled, --nfds;
+		}
+
 		try {
-			readFromUDPSocket();
+			if (FD_ISSET(udpSocket->fd, rd)) {
+				++handled, --nfds;
+				readFromUDPSocket();
+			}
+			if (FD_ISSET(udpSocket->fd, wr)) {
+				udpSocket->write();
+				if (disconnecting && !udpSocket->hasDataToWrite()) {
+					delete udpSocket;
+					udpSocket = 0;
+				}
+			}
 		}
 		catch (const Exception &e) {
-			sendSignal("/ui/msg/error", "/ui/",
-			           new sig::StringData("UDP socket error: " +
-			                               e.getMessage()));
-		}
-	}
-
-
-	/* Write to UDP socket */
-	if (FD_ISSET(udpSocket->fd, wr)) {
-		++handled, --nfds;
-		try {
-			udpSocket->write();
-		}
-		catch (const Exception &e) {
+			/* send signal to ourselves that we want to quit */
+			sendSignal("/core/module/quit", moduleName, 0);
+			delete udpSocket;
+			udpSocket = 0;
 			sendSignal("/ui/msg/error", "/ui/",
 			           new sig::StringData("UDP socket error: " +
 			                               e.getMessage()));
@@ -464,8 +475,15 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 
 
 void Network::recievedSignal(const Signal &sig) {
-	if (sig.getType() == "/core/module/quit") {
+	if (disconnecting) {
+		/* ignore all signals */
+
+	} else if (sig.getType() == "/core/module/quit") {
+		delete tcpListeningSocket;
+		tcpListeningSocket = 0;
+
 		disconnecting = true;
+
 		Connections::iterator it(connections.begin()), end(connections.end());
 		for (; it != end; ++it) {
 			if (~(*it)->flags & NetworkConnection::LOCAL_CLOSING) {
@@ -474,8 +492,24 @@ void Network::recievedSignal(const Signal &sig) {
 			}
 		}
 
-	} else if (disconnecting) {
-		/* if we are disconnecting ignore other signals. */
+		if (!udpSocket) {
+			goto finish_quit;
+		}
+
+		if (ourUser.status.state != User::OFFLINE) {
+			ourUser.status.state = User::OFFLINE;
+			sendSignal("/net/status/changed", "/ui/",
+			           new sig::UserData(ourUser, sig::UserData::STATE));
+			send(ppcp::st(ourUser));
+		}
+
+		if (!udpSocket->hasDataToWrite()) {
+			delete udpSocket;
+			udpSocket = 0;
+		}
+
+	finish_quit:
+		sendSignal("/net/conn/disconnecting", "/ui/", 0);
 
 	} else if (sig.getType() == "/net/conn/are-you-connected") {
 		sendSignal("/net/conn/connected", "/ui/", users.get());
@@ -554,7 +588,14 @@ void Network::readFromUDPSocket() {
 		tokenizer.init();
 		tokenizer.feed(data);
 
-		while ((token = tokenizer.nextToken())) {
+		for(;;) {
+			try {
+				token = tokenizer.nextToken();
+			}
+			catch (const xml::Error &e) {
+				break;
+			}
+
 			switch (token.type) {
 			case ppcp::Tokenizer::IGNORE:
 			case ppcp::Tokenizer::PPCP_CLOSE:
