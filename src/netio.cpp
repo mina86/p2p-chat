@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.7 2008/01/01 02:34:50 mina86 Exp $
+ * $Id: netio.cpp,v 1.8 2008/01/01 02:41:48 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -198,16 +198,13 @@ void UDPSocket::write() {
 		if (ret > 0) {
 			/* ok, we sent something -- we don't really know if it was
 			   a whole datagram but lets hope it was */
+			queue.pop();
 		} else if (ret == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
 			return;
-		} else if (errno == EINTR) {
-			continue;
-		} else {
+		} else if (errno != EINTR) {
 			queue.pop();
 			throw IOException("sendto: ", errno);
 		}
-
-		queue.pop();
 	}
 }
 
