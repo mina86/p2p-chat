@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.6 2007/12/31 16:10:04 mina86 Exp $
+ * $Id: netio.cpp,v 1.7 2008/01/01 02:34:50 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -19,8 +19,8 @@ TCPSocket *TCPSocket::connect(Address addr) {
 
 	try {
 		addr.toSockaddr(sockaddr);
-		if (::connect(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr) < 0) {
-			throw IOException("connect: ", errno);
+		while (::connect(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr)<0){
+			if (errno != EINTR) throw IOException("connect: ", errno);
 		}
 		return new TCPSocket(fd, addr);
 	}
@@ -32,17 +32,20 @@ TCPSocket *TCPSocket::connect(Address addr) {
 
 
 std::string TCPSocket::read() {
-	int numbytes = recv(fd, sharedBuffer, sizeof sharedBuffer, 0);
-	if (numbytes > 0) {
-		return std::string(sharedBuffer, numbytes);
-	} else if (numbytes == 0) {
-		eof = true;
-		throw std::string();
-	} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-		return std::string();
-	} else {
-		throw IOException("recv: ", errno);
+	int numbytes;
+
+	while ((numbytes = recv(fd, sharedBuffer, sizeof sharedBuffer, 0)) <= 0) {
+		if (numbytes == 0) {
+			eof = true;
+			throw std::string();
+		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			return std::string();
+		} else if (errno != EINTR) {
+			throw IOException("recv: ", errno);
+		}
 	}
+
+	return std::string(sharedBuffer, numbytes);
 }
 
 
@@ -56,7 +59,7 @@ void TCPSocket::write() {
 			len -= ret;
 		} else if (!ret || errno == EAGAIN || errno == EWOULDBLOCK) {
 			break;
-		} else {
+		} else if (errno != EINTR) {
 			throw IOException("send: ", errno);
 		}
 	}
@@ -108,12 +111,12 @@ TCPListeningSocket *TCPListeningSocket::bind(Address addr) {
 TCPSocket *TCPListeningSocket::accept() {
 	struct sockaddr_in sockaddr;
 	socklen_t size = sizeof sockaddr;
-	const int new_fd = ::accept(fd, (struct sockaddr*)&sockaddr, &size);
+	const int new_fd;
 
-	if (new_fd < 0) {
-		if (errno == EAGAIN || errno==EWOULDBLOCK) {
+	while ((new_fd = ::accept(fd, (struct sockaddr*)&sockaddr, &size)) < 0) {
+		if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			return 0;
-		} else {
+		} else if (errno != ECONNABORTED && errno != EINTR) {
 			throw IOException("accept: ", errno);
 		}
 	}
@@ -164,26 +167,28 @@ UDPSocket* UDPSocket::bind(Address addr) {
 std::string UDPSocket::read(Address &addr) {
 	struct sockaddr_in sockaddr;
 	socklen_t size = sizeof sockaddr;
-	int numbytes = recvfrom(fd, sharedBuffer, sizeof sharedBuffer, 0,
-	                        (struct sockaddr*)&sockaddr, &size);
+	int numbytes;
 
-	if (numbytes > 0) {
-		addr.assign(sockaddr);
-		return std::string(sharedBuffer, numbytes);
-	} else if (numbytes == 0) {
-		throw IOException("Unexpected end of file");
-	} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-		return std::string();
-	} else {
-		throw IOException("recvfrom: ", errno);
+	while ((numbytes = recvfrom(fd, sharedBuffer, sizeof sharedBuffer, 0,
+	                            (struct sockaddr*)&sockaddr, &size)) <= 0) {
+		if (numbytes == 0) {
+			throw IOException("Unexpected end of file");
+		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			return std::string();
+		} else if (errno != EINTR) {
+			throw IOException("recvfrom: ", errno);
+		}
 	}
+
+	addr.assign(sockaddr);
+	return std::string(sharedBuffer, numbytes);
 }
 
 
 void UDPSocket::write() {
 	struct sockaddr_in sockaddr;
 
-	while(!queue.empty()) {
+	while (!queue.empty()) {
 		std::pair<std::string, Address> &pair = queue.front();
 		int ret;
 
@@ -195,6 +200,8 @@ void UDPSocket::write() {
 			   a whole datagram but lets hope it was */
 		} else if (ret == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
 			return;
+		} else if (errno == EINTR) {
+			continue;
 		} else {
 			queue.pop();
 			throw IOException("sendto: ", errno);
