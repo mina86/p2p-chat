@@ -1,6 +1,6 @@
 /** \file
  * A select() test program.
- * $Id: select-test.c,v 1.2 2008/01/01 00:24:35 mina86 Exp $
+ * $Id: select-test.c,v 1.3 2008/01/01 01:07:17 mina86 Exp $
  */
 
 #define _POSIX_SOURCE 1
@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 
 
 typedef void Sigfunc(int);
