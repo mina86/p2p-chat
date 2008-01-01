@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.8 2008/01/01 02:41:48 mina86 Exp $
+ * $Id: netio.cpp,v 1.9 2008/01/01 03:01:33 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -111,7 +111,7 @@ TCPListeningSocket *TCPListeningSocket::bind(Address addr) {
 TCPSocket *TCPListeningSocket::accept() {
 	struct sockaddr_in sockaddr;
 	socklen_t size = sizeof sockaddr;
-	const int new_fd;
+	int new_fd;
 
 	while ((new_fd = ::accept(fd, (struct sockaddr*)&sockaddr, &size)) < 0) {
 		if (errno == EAGAIN || errno == EWOULDBLOCK) {
