@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.11 2007/12/31 19:27:43 mina86 Exp $
+ * $Id: signal.hpp,v 1.12 2008/01/01 02:34:09 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -90,7 +90,9 @@ struct Module;
  *     be send to user; it's argument is sig::rMessageData
  *     object.</li>
  *   <li>\c /net/msg/sent sent by network module to all \c /ui/
- *     modules when message has been sent; it's argument is
+ *     modules when message has been sent (the truth is that it
+ *     doesn't really mean that the message was sent but only that it
+ *     was added to buffer of pendig data); it's argument is
  *     sig::MessageData object.</li>
  *   <li>\c /net/conn/connect sent to core module to create new
  *     network object which will be connected to network specified in
@@ -103,6 +105,12 @@ struct Module;
  *     network module (that is connected) recieves taht signel it
  *     replies with a \c /net/conn/connected signal to sender; it has
  *     no argument.</li>
+ *   <li>\c /net/conn/disconnecting sent by netowrk module to all \c
+ *     /ui/ modules when module starts disconnecting from network --
+ *     from this point network module will ignore most of (all)
+ *     signals and won't send any packets but may send some signals
+ *     (like /net/status/changed or /net/msg/got); it has no
+ *     arguments.</li>
  * </ul>
  *
  * It may be tempting to use pointers or references when passing data
