@@ -1,13 +1,11 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.13 2008/01/01 19:30:35 mina86 Exp $
+ * $Id: application.cpp,v 1.14 2008/01/01 21:29:20 mina86 Exp $
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
-
-#include <limits>
 
 #include "application.hpp"
 
@@ -19,18 +17,24 @@ char sharedBuffer[1024];
 
 unsigned long Core::ticks = 0;
 
+/** Stores number of times each unix signal was delivered. */
+static volatile sig_atomic_t sigarr[32];
+
+
 /**
- * Signal handler which does nothing.
+ * Signal handler which counts signals.
  * \param signum signal number.
  */
 static void gotsig(int signum) {
-	signal(signum, gotsig);
+	++sigarr[0];
+	++sigarr[signum];
 }
 
 
 
 int Core::run() {
-	struct timeval tv = { 1, 0 };
+	struct sigaction act, oldact[32];
+	sigset_t oldsigset;
 
 	if (modules.size() == 1) {
 		return 0;
@@ -39,23 +43,31 @@ int Core::run() {
 	}
 
 
-#if SIGHUP
-	signal(SIGHUP , gotsig);
+	sigfillset(&act.sa_mask);
+	sigdelset(&act.sa_mask, SIGKILL);
+	sigdelset(&act.sa_mask, SIGSTOP);
+
+	sigprocmask(SIG_BLOCK, &act.sa_mask, &oldsigset);
+	act.sa_handler = gotsig;
+	act.sa_flags = 0;
+#if SA_INTERRUPT
+	act.sa_flags |= SA_INTERRUPT;
 #endif
-#if SIGINT
-	signal(SIGINT , gotsig);
-#endif
-#if SIGQUIT
-	signal(SIGQUIT, gotsig);
-#endif
-#if SIGTERM
-	signal(SIGTERM, gotsig);
+#if SA_RESTART
+	act.sa_flags |= SA_RESTART;
 #endif
 
+	for (int i = 1; i < 32; ++i) {
+		sigaction(SIGHUP , &act, oldact + SIGHUP);
+	}
 
+
+	alarm(1);
 	while (modules.size() > 1) {
 		fd_set rd, wr, ex;
 		int nfds = 0;
+
+		deliverSignals();
 
 		FD_ZERO(&rd);
 		FD_ZERO(&wr);
@@ -67,42 +79,27 @@ int Core::run() {
 			if (n > nfds) nfds = n;
 		}
 
-		nfds = select(nfds, &rd, &wr, &ex, &tv);
+		nfds = pselect(nfds, &rd, &wr, &ex, 0, &oldsigset);
 		if (nfds > 0) {
 			for (Modules::iterator it = modules.begin(), end = modules.end();
 			     it!=end && nfds > 0; ++it) {
 				nfds -= it->second->doFDs(nfds, &rd, &wr, &ex);
 			}
 		} else if (nfds == 0) {
-			sendSignal("/core/tick", "/", 0);
-			tv.tv_sec = 1;
-			tv.tv_usec = 0;
+			fputs("select: returned 0\n", stderr);
+			break;
 		} else if (errno != EINTR) {
 			perror("select");
 			break;
 		} else {
-			sendSignal("/ui/msg/notice", "/ui/",
-			           new sig::StringData("Recieved signal, terminating."));
-			sendSignal("/core/module/kill", moduleName, 0);
+			handleUnixSignals();
 		}
-
-		deliverSignals();
 	}
 
-
-#if SIGHUP
-	signal(SIGHUP, SIG_DFL);
-#endif
-#if SIGINT
-	signal(SIGINT, SIG_DFL);
-#endif
-#if SIGQUIT
-	signal(SIGQUIT, SIG_DFL);
-#endif
-#if SIGTERM
-	signal(SIGTERM, SIG_DFL);
-#endif
-
+	for (int i = 1; i < 32; ++i) {
+		sigaction(i, oldact + i, 0);
+	}
+	sigprocmask(SIG_SETMASK, &oldsigset, 0);
 
 	if (modules.size() > 1) {
 		Modules::iterator it = modules.begin(), end = modules.end();
@@ -123,7 +120,6 @@ int Core::run() {
 }
 
 
-
 void Core::deliverSignals() {
 	for (; !signals.empty(); signals.front().clear(), signals.pop()) {
 		std::pair<Modules::iterator, Modules::iterator> it
@@ -135,7 +131,6 @@ void Core::deliverSignals() {
 }
 
 
-
 std::pair<Module::Modules::iterator, Module::Modules::iterator>
 Core::matchingModules(const std::string &reciever) {
 	const std::string::size_type length = reciever.length();
@@ -145,9 +140,7 @@ Core::matchingModules(const std::string &reciever) {
 		return std::make_pair(end, end);
 	} else if (length == 1) {
 		return std::make_pair(modules.begin(), end);
-	}
-
-	if (reciever[length - 1] != '/') {
+	} else if (reciever[length - 1] != '/') {
 		Modules::iterator it = modules.find(reciever), last = it;
 		if (it == end) {
 			return std::make_pair(end, end);
@@ -163,6 +156,36 @@ Core::matchingModules(const std::string &reciever) {
 		}
 		return std::make_pair(first, last);
 	}
+}
+
+
+
+void Core::handleUnixSignals() {
+	int i = 1;
+
+	sigarr[0] -= sigarr[SIGALRM];
+	while (sigarr[SIGALRM] > 0) {
+		sendSignal("/core/tick", "/", 0);
+		--sigarr[SIGALRM];
+	}
+
+	while (sigarr[0] > 0) {
+		while (sigarr[i] == 0 && i < 32) ++i;
+		if (i == 32) {
+			break;
+		}
+
+		int j = sigarr[i];
+		sigarr[0] -= j;
+		sigarr[i] = 0;
+		sprintf(sharedBuffer, "/core/sig/%d", i);
+		std::string sigType(sharedBuffer);
+		do {
+			sendSignal(sigType, "/", 0);
+		} while (--j);
+	}
+
+	sigarr[0] = 0; /* just to be on the safe side */
 }
 
 
@@ -195,14 +218,11 @@ int Core::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 	return 0;
 }
 
-
-
 int Core::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
                 const fd_set *ex) {
 	(void)nfds; (void)rd; (void)wr; (void)ex;
 	return 0;
 }
-
 
 
 void Core::recievedSignal(const Signal &sig) {
