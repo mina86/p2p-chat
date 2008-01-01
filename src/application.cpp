@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.12 2008/01/01 03:22:55 mina86 Exp $
+ * $Id: application.cpp,v 1.13 2008/01/01 19:30:35 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -34,11 +34,8 @@ int Core::run() {
 
 	if (modules.size() == 1) {
 		return 0;
-	} else if (ui_modules) {
-		dieDueTime = std::numeric_limits<unsigned long>::max();
-	} else {
-		dieDueTime = Core::getTicks() + 60;
-		sendSignal("/core/module/quit", "/", 0);
+	} else if (!ui_modules) {
+		sendSignal("/core/module/kill", moduleName, 0);
 	}
 
 
@@ -77,7 +74,6 @@ int Core::run() {
 				nfds -= it->second->doFDs(nfds, &rd, &wr, &ex);
 			}
 		} else if (nfds == 0) {
-			if (++ticks >= dieDueTime) break;
 			sendSignal("/core/tick", "/", 0);
 			tv.tv_sec = 1;
 			tv.tv_usec = 0;
@@ -85,11 +81,9 @@ int Core::run() {
 			perror("select");
 			break;
 		} else {
-			unsigned long newDueTime = Core::getTicks() + 60;
-			dieDueTime = newDueTime > dieDueTime ? newDueTime : dieDueTime;
 			sendSignal("/ui/msg/notice", "/ui/",
 			           new sig::StringData("Recieved signal, terminating."));
-			sendSignal("/core/module/quit", "/", 0);
+			sendSignal("/core/module/kill", moduleName, 0);
 		}
 
 		deliverSignals();
@@ -117,6 +111,7 @@ int Core::run() {
 		}
 		modules.clear();
 		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
+		prevToKill = nextToKill = this;
 	}
 
 	while (!signals.empty()) {
@@ -128,38 +123,65 @@ int Core::run() {
 }
 
 
+
 void Core::deliverSignals() {
 	for (; !signals.empty(); signals.front().clear(), signals.pop()) {
-		const std::string &rec = signals.fron().getReciever();
-		const std::string::size_type length = rec.length();
-		if (!length) continue;
-
-		Modules::iterator it = modules.lower_bound(rec);
-		const Modules::iterator end = modules.end();
-		if (it==end) continue;
-
-		if (rec[length - 1] != '/') {
-			if (it->second->moduleName == rec) {
-				it->second->recievedSignal(signals.front());
-			}
-			continue;
-		}
-
-		while (it!=end && it->second->moduleName.length() > length &&
-		       !memcmp(rec.data(), it->second->moduleName.data(), length)) {
-			it->second->recievedSignal(signals.front());
-			++it;
+		std::pair<Modules::iterator, Modules::iterator> it
+			= matchingModules(signals.front().getReciever());
+		for (; it.first != it.second; ++it.first) {
+			it.first->second->recievedSignal(signals.front());
 		}
 	}
 }
 
 
+
+std::pair<Module::Modules::iterator, Module::Modules::iterator>
+Core::matchingModules(const std::string &reciever) {
+	const std::string::size_type length = reciever.length();
+	const Modules::iterator end = modules.end();
+
+	if (!length || reciever[0] != '/') {
+		return std::make_pair(end, end);
+	} else if (length == 1) {
+		return std::make_pair(modules.begin(), end);
+	}
+
+	if (reciever[length - 1] != '/') {
+		Modules::iterator it = modules.find(reciever), last = it;
+		if (it == end) {
+			return std::make_pair(end, end);
+		} else {
+			return std::make_pair(it, ++last);
+		}
+	} else {
+		Modules::iterator first = modules.lower_bound(reciever), last = first;
+		while (last!=end && last->second->moduleName.length() > length &&
+		       !memcmp(reciever.data(), last->second->moduleName.data(),
+		               length)) {
+			++last;
+		}
+		return std::make_pair(first, last);
+	}
+}
+
+
+
 bool Core::addModule(Module &module) {
+	if (module.moduleName.empty() || module.moduleName[0] != '/' ||
+	    module.moduleName[module.moduleName.length() - 1] == '/') {
+		return false;
+	}
+
 	std::pair<Modules::iterator, bool> ret =
 		modules.insert(std::make_pair(module.moduleName, &module));
 	if (ret.second) {
 		ui_modules += module.moduleName.length() > 4 &&
 			!memcmp(module.moduleName.data(), "/ui/", 4);
+
+		module.dieDueTime = std::numeric_limits<unsigned long>::max();
+		module.prevToKill = module.nextToKill = 0;
+
 		sendSignal("/core/module/new", "/",
 		           new sig::StringData(module.moduleName));
 	}
@@ -173,6 +195,8 @@ int Core::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 	return 0;
 }
 
+
+
 int Core::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
                 const fd_set *ex) {
 	(void)nfds; (void)rd; (void)wr; (void)ex;
@@ -180,15 +204,37 @@ int Core::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 }
 
 
+
 void Core::recievedSignal(const Signal &sig) {
-	if (sig.getType() == "/core/module/exits") {
+	/* Some modules are due to die? */
+	if (sig.getType() == "/core/tick") {
+		while (nextToKill->dieDueTime <= Core::getTicks()) {
+			Module *m = nextToKill;
+
+			nextToKill->nextToKill->prevToKill = this;
+			nextToKill = nextToKill->nextToKill;
+
+			modules.erase(modules.find(m->moduleName));
+			sendSignal("/core/module/removed", "/",
+			           new sig::StringData(m->moduleName));
+			delete m;
+		}
+
+
+	/* Module exits -- remove from list */
+	} else if (sig.getType() == "/core/module/exits") {
 		Modules::iterator it = modules.find(sig.getSender());
 		if (it == modules.end()) {
 			return;
 		}
 
-		modules.erase(it);
+		if (it->second->prevToKill) {
+			it->second->prevToKill->nextToKill = it->second->nextToKill;
+			it->second->nextToKill->prevToKill = it->second->prevToKill;
+		}
+
 		delete it->second;
+		modules.erase(it);
 		sendSignal("/core/module/removed", "/",
 		           new sig::StringData(sig.getSender()));
 
@@ -199,6 +245,30 @@ void Core::recievedSignal(const Signal &sig) {
 			dieDueTime = Core::getTicks() + 60;
 		}
 
+
+	/* Someone wants someone dead! */
+	} else if (sig.getType() == "/core/module/kill") {
+		const std::string &target = sig.getData()
+			? static_cast<const sig::StringData*>(sig.getData())->data : "/";
+		std::pair<Modules::iterator, Modules::iterator> it =
+			matchingModules(target);
+		unsigned long dueTime = Core::getTicks() + 60;
+
+		sendSignal("/core/module/quit", target, 0);
+
+		for (; it.first != it.second; ++it.first) {
+			if (it.first->second->prevToKill) continue;
+
+			Module &module = *it.first->second;
+			module.dieDueTime = dueTime;
+			module.prevToKill = prevToKill;
+			module.nextToKill = this;
+			prevToKill->nextToKill = &module;
+			prevToKill = &module;
+		}
+
+
+	/* Start a new module */
 	} else if (sig.getType() == "/core/module/start") {
 		/* FIXME: TODO */
 
