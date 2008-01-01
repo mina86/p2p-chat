@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.10 2008/01/01 19:29:42 mina86 Exp $
+ * $Id: application.hpp,v 1.11 2008/01/01 21:03:36 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -258,6 +258,9 @@ private:
 
 	/** Delivers signals to modules. */
 	void deliverSignals();
+
+	/** Handles recieved unix signals. */
+	void handleUnixSignals();
 
 	/**
 	 * Returns pair of [first, last) iterators of modules that match
