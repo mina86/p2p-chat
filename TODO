@@ -49,6 +49,32 @@
    byæ nieblokuj±ce.  Aby by³y takowe warto w konstruktorze struktury
    Socket ustawiæ tryb deskryptora plików na nieblokuj±cy.
 
+   Do zrobienia zosta³o jeszcze odczytywanie portu, pod który gniazdo
+   zosta³o podpiête, je¿eli bind(2)owali¶my pod dowolny port
+   (tzn. port o numerze zero).
+
+** Przerobiæ Core::run(), ¿eby z obecnego select()a u¿ywa³o pselect() [DONE]
+
+   W pliku src/tests/select-test.c jest przyk³ad jak dzia³a pselect().
+   Jak Core::run() ma wygl±daæ opisa³em mniej wiêcej w li¶cie, który
+   wys³a³em do Krzysztofa, wiêc nie bêdê siê powtarza³.
+
+** Obczaiæ dzia³anie asynchronicznych po³±czeñ
+
+   Mianowicie, je¿eli stworzymy gniazdo po czym ustawimy mu flage
+   O_NONBLOCK to funkcja connect(2) (chyba) koñczy dzia³anie od razu.
+   Teraz trzeba obczaiæ co siê dzieje z takim dziwnym (niepo³±czonym
+   jeszcze) gniazdem i jak to wp³ywa na dzia³anie pselect()a --
+   tzn. co siê dzieje, jak po³±czenie ju¿ zostanie nawi±zane lub co
+   siê dzieje, gdy po³±czenie nie zostanie nawi±zane
+
+   Je¿eli wszystko bêdzie wygl±daæ GIT to na koniec nale¿y jeszcze
+   dodaæ ten bajer do obecnej implementacji netio.
+
+   Obczaiæ te¿ co siê dzieje, przy próbie zamkniêcia gniazda TCP
+   otwartego w trybie nieblokuj±cym.  Zarówno, gdy po³±czenie jest
+   aktywne jak i co siê dzieje, gdy trwa ³±czenie.
+
 * mco
 ** Uzgodniæ z Jaruni± interfejs klasy Config
 ** Napisaæ interfejs u¿ytkownika
