@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.10 2007/12/31 21:05:43 mina86 Exp $
+ * $Id: application.cpp,v 1.11 2008/01/01 00:24:16 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -32,7 +32,9 @@ static void gotsig(int signum) {
 int Core::run() {
 	struct timeval tv = { 1, 0 };
 
-	if (ui_modules) {
+	if (modules.size() == 1) {
+		return 0;
+	} else if (ui_modules) {
 		dieDueTime = std::numeric_limits<unsigned long>::max();
 	} else {
 		dieDueTime = Core::getTicks() + 60;
@@ -41,10 +43,10 @@ int Core::run() {
 
 
 #if SIGHUP
-	signal(SIGHUP, gotsig);
+	signal(SIGHUP , gotsig);
 #endif
 #if SIGINT
-	signal(SIGINT, gotsig);
+	signal(SIGINT , gotsig);
 #endif
 #if SIGQUIT
 	signal(SIGQUIT, gotsig);
@@ -161,7 +163,7 @@ bool Core::addModule(Module &module) {
 	std::pair<Modules::iterator, bool> ret =
 		modules.insert(std::make_pair(module.moduleName, &module));
 	if (ret.second) {
-		ui_modules += module.moduleName.length() >= 4 &&
+		ui_modules += module.moduleName.length() > 4 &&
 			!memcmp(module.moduleName.data(), "/ui/", 4);
 		sendSignal("/core/module/new", "/",
 		           new sig::StringData(module.moduleName));
