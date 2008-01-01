@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.13 2008/01/01 03:22:55 mina86 Exp $
+ * $Id: signal.hpp,v 1.14 2008/01/01 19:27:53 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -65,6 +65,12 @@ struct Module;
  *     application exits; it has no argument.</li>
  *   <li>\c /core/module/start sent to core module to create new
  *     module; argument is not yet defined.</li>
+ *   <li>\c /core/module/kill sent to core module to make it "kill"
+ *     module or set of modules.  Killing means that
+ *     a /core/module/quit signal will be sent to that module and if
+ *     it won't exit during one minute it will be deleted; signal's
+ *     argument is a sig::StringData object where data is pattern
+ *     matching modules names.</li>
  * </ul>
  *
  * \c /ui signals include \c /ui/msg/debug, \c /ui/msg/info, \c
