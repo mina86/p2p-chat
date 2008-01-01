@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.9 2007/12/31 19:35:41 mina86 Exp $
+ * $Id: application.hpp,v 1.10 2008/01/01 19:29:42 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -8,8 +8,10 @@
 
 #include <string.h>
 #include <sys/select.h>
+
 #include <map>
 #include <string>
+#include <limits>
 
 #include "shared-buffer.hpp"
 #include "signal.hpp"
@@ -153,6 +155,19 @@ protected:
 
 	/** Returns configuration. */
 	inline const Config &getConfig() const;
+
+private:
+	/** Moment in future that this module shall exit or will be killed. */
+	unsigned long dieDueTime;
+
+	/** Next element in "kill" list. */
+	Module *nextToKill;
+
+	/** Previous element in "kill" list. */
+	Module *prevToKill;
+
+	/* Core needs to modify dieDueTime and nextToKill. */
+	friend struct Core;
 };
 
 
@@ -170,6 +185,8 @@ struct Core : protected Module {
 	Core(Config &cfg)
 		: Module(*this, "/core"), config(cfg) {
 		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
+		prevToKill = nextToKill = this;
+		dieDueTime = std::numeric_limits<unsigned long>::max();
 	}
 
 
@@ -232,9 +249,6 @@ private:
 	/** Application configuration. */
 	Config &config;
 
-	/** Moment in future that we need to kill all modules and exit. */
-	unsigned long dieDueTime;
-
 	/** Number of /ui modules. */
 	unsigned ui_modules;
 
@@ -244,6 +258,19 @@ private:
 
 	/** Delivers signals to modules. */
 	void deliverSignals();
+
+	/**
+	 * Returns pair of [first, last) iterators of modules that match
+	 * given name.  \a reciever is either module's name (in which case
+	 * at moste one module will be returned) or a prefix ending with
+	 * slash (in which case all modules that name begin with given
+	 * prefix are returned).
+	 *
+	 * \param reciever name to match.
+	 */
+	std::pair<Modules::iterator, Modules::iterator>
+	matchingModules(const std::string &reciever);
+
 
 	friend struct Module;
 };
