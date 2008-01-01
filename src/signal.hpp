@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.14 2008/01/01 19:27:53 mina86 Exp $
+ * $Id: signal.hpp,v 1.15 2008/01/01 21:03:24 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -54,6 +54,10 @@ struct Module;
  *   <li>\c /core/module/new sent by core module to all modules when
  *     new module is added; its argument is a sig::StringData
  *     object.</li>
+ *   <li>\c /core/sig/num sent by core module each time unix signal
+ *     number \c num (other then \c SIGALRM) is recieved (\c num in
+ *     signal's name is replaced by signal's number); it has no
+ *     argument.</li>
  *   <li>\c /core/module/removed sent by core module to all modules
  *     when module exits and is removed from list; its argument is
  *     a sig::StringData object.</li>
