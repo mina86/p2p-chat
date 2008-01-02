@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.18 2008/01/01 03:22:55 mina86 Exp $
+ * $Id: network.cpp,v 1.19 2008/01/02 16:23:14 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -388,12 +388,11 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 		}
 		catch (const Exception &e) {
 			/* send signal to ourselves that we want to quit */
-			sendSignal("/core/module/quit", moduleName, 0);
+			sendSignal("/core/module/quit", moduleName);
 			delete tcpListeningSocket;
 			tcpListeningSocket = 0;
 			sendSignal("/ui/msg/error", "/ui/",
-			           new sig::StringData("TCP listening socket error: " +
-			                               e.getMessage()));
+			           "TCP listening socket error: " + e.getMessage());
 		}
 	}
 
@@ -419,12 +418,11 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 		}
 		catch (const Exception &e) {
 			/* send signal to ourselves that we want to quit */
-			sendSignal("/core/module/quit", moduleName, 0);
+			sendSignal("/core/module/quit", moduleName);
 			delete udpSocket;
 			udpSocket = 0;
 			sendSignal("/ui/msg/error", "/ui/",
-			           new sig::StringData("UDP socket error: " +
-			                               e.getMessage()));
+			           "UDP socket error: " + e.getMessage());
 		}
 	}
 
@@ -446,8 +444,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 		}
 		catch (const Exception &e) {
 			sendSignal("/ui/msg/error", "/ui/",
-			           new sig::StringData("TCP socket error: " +
-			                               e.getMessage()));
+			           "TCP socket error: " + e.getMessage());
 			(*it)->flags |= NetworkConnection::BOTH_CLOSED;
 		}
 
@@ -465,7 +462,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	/* Are we disconnecting? */
 	if (disconnecting && connections.empty()) {
 		/* If so send signal to core that we are exiting. */
-		sendSignal("/core/module/exits", "/core", 0);
+		sendSignal("/core/module/exits", "/core");
 	}
 
 
@@ -509,7 +506,7 @@ void Network::recievedSignal(const Signal &sig) {
 		}
 
 	finish_quit:
-		sendSignal("/net/conn/disconnecting", "/ui/", 0);
+		sendSignal("/net/conn/disconnecting", "/ui/");
 
 	} else if (sig.getType() == "/net/conn/are-you-connected") {
 		sendSignal("/net/conn/connected", "/ui/", users.get());
@@ -521,8 +518,7 @@ void Network::recievedSignal(const Signal &sig) {
 		}
 
 	} else if (sig.getType() == "/net/status/change") {
-		const sig::UserData &data =
-			*static_cast<const sig::UserData*>(sig.getData());
+		const sig::UserData &data = *sig.getData<sig::UserData>();
 		if (!data.flags) {
 			return;
 		}
@@ -544,16 +540,14 @@ void Network::recievedSignal(const Signal &sig) {
 		lastStatus = Core::getTicks();
 
 	} else if (sig.getType() == "/net/msg/send") {
-		const sig::MessageData &data =
-			*static_cast<const sig::MessageData*>(sig.getData());
+		const sig::MessageData &data = *sig.getData<sig::MessageData>();
 		send(data.id,
 		     data.flags & sig::MessageData::RAW ? data.data : ppcp::m(data),
 		     data.flags & sig::MessageData::ALLOW_UDP);
 		sendSignal("/net/msg/sent", "/ui/", sig);
 
 	} else if (sig.getType() == "/net/status/rq") {
-		const sig::MessageData &data =
-			*static_cast<const sig::MessageData*>(sig.getData());
+		const sig::MessageData &data = *sig.getData<sig::MessageData>();
 		send(data.id, ppcp::rq(), true);
 	}
 }
@@ -798,8 +792,7 @@ void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 		}
 		catch (const IOException &e) {
 			sendSignal("/ui/msg/error", "/ui/",
-			           new sig::StringData("Error connecting to user: " +
-			                               e.getMessage()));
+			           "Error connecting to user: " + e.getMessage());
 			return;
 		}
 		conn = new NetworkConnection(*sock, ourUser.id.nick);

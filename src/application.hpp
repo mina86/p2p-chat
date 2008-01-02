@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.12 2008/01/02 01:39:34 mina86 Exp $
+ * $Id: application.hpp,v 1.13 2008/01/02 16:23:14 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -137,7 +137,21 @@ protected:
 	 */
 	inline void sendSignal(const std::string &type,
 	                       const std::string &reciever,
-	                       Signal::Data *sigData);
+	                       Signal::Data *sigData = 0);
+
+	/**
+	 * Sends a signal.  Signal is added to core module's signal queue
+	 * and will be delivered later on.  Signal's argument will be an
+	 * sig::StringData object with \a str as it's data.
+	 *
+	 * \param type     signal's type.
+	 * \param reciever signal's reciever.
+	 * \param str      signal's argument data.
+	 */
+	void sendSignal(const std::string &type, const std::string &reciever,
+	                const std::string &str) {
+		sendSignal(type, reciever, new sig::StringData(str));
+	}
 
 	/**
 	 * Sends a signal.  Signal is added to core module's signal queue
@@ -225,7 +239,7 @@ protected:
 
 	/* Those HAVE TO BE OVERWRITTEN, otherwise we're in trouble. */
 	void sendSignal(const std::string &type, const std::string &reciever,
-	                Signal::Data *sigData) {
+	                Signal::Data *sigData = 0) {
 		signals.push(Signal(type, moduleName, reciever, sigData));
 	}
 	void sendSignal(const std::string &type, const std::string &reciever,

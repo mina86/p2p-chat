@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.6 2008/01/01 03:22:55 mina86 Exp $
+ * $Id: ui.cpp,v 1.7 2008/01/02 16:23:14 mina86 Exp $
  */
 
 #include <errno.h>
@@ -34,7 +34,7 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	/* ask network modules if they are connected, we'll get whole
 	   a lot of /net/conn/connected signals if they are connected
 	   signals */
-	sendSignal("/net/conn/are-you-connected", "/net/", 0);
+	sendSignal("/net/conn/are-you-connected", "/net/");
 }
 
 
@@ -78,21 +78,18 @@ void UI::recievedSignal(const Signal &sig) {
 		   connected ot it have jsut disconnected, it's all in data.
 		   You may (shoul) identify network which sent information by
 		   sig.getSender(). */
-		const sig::UserData &data =
-			*static_cast<const sig::UserData*>(sig.getData());
+		const sig::UserData &data = *sig.getData<sig::UserData>();
 		(void)data; /* to silence warning for the time being */
 
 
 	} else if (sig.getType() == "/net/msg/got") {
 		/* we have recieved a message (display it maybe?) */
-		const sig::MessageData &data =
-			*static_cast<const sig::MessageData*>(sig.getData());
+		const sig::MessageData &data = *sig.getData<sig::MessageData>();
 		(void)data; /* to silence warning for the time being */
 
 	} else if (sig.getType() == "/net/msg/sent") {
 		/* a message have been sent (display it maybe?) */
-		const sig::MessageData &data =
-			*static_cast<const sig::MessageData*>(sig.getData());
+		const sig::MessageData &data = *sig.getData<sig::MessageData>();
 		(void)data; /* to silence warning for the time being */
 
 	} else if (sig.getType() == "/net/conn/connected") {
@@ -107,8 +104,7 @@ void UI::recievedSignal(const Signal &sig) {
 		   POINTER ITSELF otherwise data will be deleted when network
 		   object is deleted. */
 
-		const sig::UsersListData *data =
-			static_cast<const sig::UsersListData*>(sig.getData());
+		const sig::UsersListData *data = sig.getData<sig::UsersListData>();
 
 		/* sorry -- couldn't think of better way, the const_cast
 		   is required */
@@ -116,8 +112,7 @@ void UI::recievedSignal(const Signal &sig) {
 
 	} else if (sig.getType() == "/core/module/removed") {
 		/* module have been removed; it might be a network */
-		std::string module_name =
-			static_cast<const sig::StringData*>(sig.getData())->data;
+		std::string module_name = sig.getData<sig::StringData>()->data;
 		networkUsers.erase(networkUsers.find(module_name));
 
 	} else if (!strncmp(sig.getType().c_str(), "/ui/msg/", 8)) {
@@ -125,8 +120,7 @@ void UI::recievedSignal(const Signal &sig) {
 		   /ui/msg/debug, /ui/msg/info, /ui/msg/notice or
 		   /ui/msg/error.  You may choose to display that message
 		   (especially if it's an error */
-		std::string message =
-			static_cast<const sig::StringData*>(sig.getData())->data;
+		std::string message = sig.getData<sig::StringData>()->data;
 		(void)message; /* to silence warning for the time being */
 
 

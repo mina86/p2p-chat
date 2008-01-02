@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.15 2008/01/01 21:03:24 mina86 Exp $
+ * $Id: signal.hpp,v 1.16 2008/01/02 16:23:14 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -168,6 +168,20 @@ struct Signal {
 
 	/** Returns signal's data. */
 	const Data *getData() const { return data.get(); }
+
+	/**
+	 * Returns signal's data cast to given type.  This method simply
+	 * casts what getData() method returns to a pointer to const \a T.
+	 * This comes in handy since casting value returned by getData()
+	 * is common operation and it is simpler to type
+	 * <tt>signal.getData<type>()</tt> then <tt>static_cast<const
+	 * type*>(signal.getData())</tt>.
+	 *
+	 * This method uses a static_cast so it does not check if object
+	 * was cast to valid type.
+	 */
+	template<class T>
+	const T *getData() const { return static_cast<const T*>(data.get()); }
 
 	/** Returns signal's data. */
 	const Data *operator->() const { return data.get(); }

@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.16 2008/01/02 02:12:22 mina86 Exp $
+ * $Id: application.cpp,v 1.17 2008/01/02 16:23:14 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -75,8 +75,8 @@ int Core::run() {
 
 
 	sigemptyset(&act.sa_mask);
-	for (int i = 0; i < sizeof signalNumbers / sizeof *signalNumbers; ++i) {
-		sigaddset(&ac.sa_mask, signalNumbers[i]);
+	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
+		sigaddset(&act.sa_mask, signalNumbers[i]);
 	}
 
 	sigprocmask(SIG_BLOCK, &act.sa_mask, &oldsigset);
@@ -89,7 +89,7 @@ int Core::run() {
 	act.sa_flags |= SA_RESTART;
 #endif
 
-	for (int i = 0; i < sizeof signalNumbers / sizeof *signalNumbers; ++i) {
+	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
 		sigaction(signalNumbers[i], &act, oldact + i);
 	}
 
@@ -134,7 +134,7 @@ int Core::run() {
 	}
 
 
-	for (int i = 0; i < sizeof signalNumbers / sizeof *signalNumbers; ++i) {
+	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
 		sigaction(signalNumbers[i], oldact + i, 0);
 	}
 	sigprocmask(SIG_SETMASK, &oldsigset, 0);
@@ -208,7 +208,7 @@ void Core::handleUnixSignals() {
 
 	sigarr[0] -= sigarr[SIGALRM];
 	while (sigarr[SIGALRM] > 0) {
-		sendSignal("/core/tick", "/", 0);
+		sendSignal("/core/tick", "/");
 		--sigarr[SIGALRM];
 	}
 
@@ -228,7 +228,7 @@ void Core::handleUnixSignals() {
 		sprintf(sharedBuffer, "/core/sig/%d", i);
 		std::string sigType(sharedBuffer);
 		do {
-			sendSignal(sigType, "/", 0);
+			sendSignal(sigType, "/");
 		} while (--j);
 	}
 
@@ -252,8 +252,7 @@ bool Core::addModule(Module &module) {
 		module.dieDueTime = std::numeric_limits<unsigned long>::max();
 		module.prevToKill = module.nextToKill = 0;
 
-		sendSignal("/core/module/new", "/",
-		           new sig::StringData(module.moduleName));
+		sendSignal("/core/module/new", "/", module.moduleName);
 	}
 	return ret.second;
 }
@@ -288,7 +287,7 @@ void Core::recievedSignal(const Signal &sig) {
 
 	/* Someone wants someone dead! */
 	} else if (sig.getType() == "/core/module/kill") {
-		killModules(static_cast<const sig::StringData*>(sig.getData())->data);
+		killModules(sig.getData<sig::StringData>()->data);
 
 	/* Start a new module */
 	} else if (sig.getType() == "/core/module/start") {
@@ -306,7 +305,7 @@ void Core::killModules(const std::string &target) {
 
 	const unsigned long dueTime = Core::getTicks() + 60;
 
-	sendSignal("/core/module/quit", target, 0);
+	sendSignal("/core/module/quit", target);
 
 	for (; it.first != it.second; ++it.first) {
 		if (it.first->second->prevToKill) continue;
@@ -335,7 +334,7 @@ void Core::removeModule(const std::string &name) {
 
 	delete it->second;
 	modules.erase(it);
-	sendSignal("/core/module/removed", "/", new sig::StringData(name));
+	sendSignal("/core/module/removed", "/", name);
 
 	if (name.length()>4 && !memcmp(name.data(), "/ui/", 4) && !--ui_modules) {
 		killModules("/");
