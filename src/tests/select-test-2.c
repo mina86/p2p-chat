@@ -1,8 +1,11 @@
 /** \file
  * A select() test program.
- * $Id: select-test-2.c,v 1.1 2007/12/31 15:38:50 mina86 Exp $
+ * $Id: select-test-2.c,v 1.2 2008/01/02 20:24:49 mina86 Exp $
  */
 
+#define _POSIX_SOURCE 1
+
+#include <errno.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -18,10 +21,9 @@ Sigfunc *signal_(int, Sigfunc*);
 
 struct timeval czas;
 
-int main() {
+int main(void) {
 	fd_set zbior;
 	int fd = STDIN_FILENO;
-	struct sigaction sigact;
 	char buffer[1024];
 	int i;
 
@@ -36,22 +38,26 @@ int main() {
 	for(i=1; i<28; ++i) {
 		signal_(i, sig_handler);
 	}
-	//ustawienie innego sygnalu na alarm
+	/* ustawienie innego sygnalu na alarm */
 	signal_(SIGALRM, sig_alarm);
 
 	alarm(5);
 	while(1) {
 		i = select(STDIN_FILENO+1, &zbior, NULL, NULL, NULL);
-		if( i > 0 ) {
+		if (i > 0) {
 			fgets(buffer, sizeof buffer, stdin);
 			printf("input: %s", buffer);
-		}
-		if ( i < 0 ) continue; //bez tego fgets sie blokuje po sygnale
-		else {
-
+		} else if (i == 0) {
+			fputs("select: returned 0\n", stderr);
+			break;
+		} else if (errno != EINTR) {
+			perror("select");
+			break;
+		} else {
+			/* do nothing */
 		}
 	}
-	return 0;
+	return 1;
 }
 
 void sig_handler(int signo) {
@@ -70,8 +76,8 @@ Sigfunc* signal_(int signo, Sigfunc *func) {
 	struct sigaction act, oact;
 
 	act.sa_handler = func;
-	sigfillset(&act.sa_mask); //wypelnienie zbioru sygnalow
-	sigdelset(&act.sa_mask, SIGKILL); //wyrzucenie z niego sigkill i sigstop
+	sigfillset(&act.sa_mask); /* wypelnienie zbioru sygnalow */
+	sigdelset(&act.sa_mask, SIGKILL); /* wyrzucenie z niego sigkill i sigstop */
 	sigdelset(&act.sa_mask, SIGSTOP);
 	act.sa_flags = 0;
 #ifdef SA_INTERRUPT
@@ -87,6 +93,7 @@ Sigfunc* signal_(int signo, Sigfunc *func) {
 }
 
 void sig_alarm(int signo) {
+	(void)signo;
 	printf("tick\n");
 	alarm(5);
 }
