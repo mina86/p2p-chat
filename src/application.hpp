@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.11 2008/01/01 21:03:36 mina86 Exp $
+ * $Id: application.hpp,v 1.12 2008/01/02 01:39:34 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -261,6 +261,19 @@ private:
 
 	/** Handles recieved unix signals. */
 	void handleUnixSignals();
+
+	/**
+	 * Does the job when \c /core/module/kill signal is recieved.
+	 * \param target pattern of modules to kill
+	 */
+	void killModules(const std::string &target);
+
+	/**
+	 * Removes given module from list.
+	 * \param name module's name.
+	 */
+	void removeModule(const std::string &name);
+
 
 	/**
 	 * Returns pair of [first, last) iterators of modules that match
