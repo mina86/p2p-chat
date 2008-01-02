@@ -1,6 +1,6 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.5 2007/12/29 14:36:31 mina86 Exp $
+## $Id: Makefile,v 1.6 2008/01/02 20:24:39 mina86 Exp $
 ##
 
 CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
@@ -9,10 +9,6 @@ HPP_FILES	:= $(wildcard ../*.hpp)
 EXE_FILES	:= $(basename $(wildcard *.cpp) $(wildcard *.c))
 
 all: $(EXE_FILES)
-
-run: all
-	@echo shared_obj test; exec ./shared-obj
-	@echo XML tokenizer and parser test; exec ./xml-parser <data.xml
 
 ../%.o: ../%.cpp $(HPP_FILES)
 	exec $(MAKE) -C.. $(notdir $@)
@@ -28,6 +24,9 @@ shared-obj: shared-obj.cpp ../shared-obj.hpp
 
 multicast: multicast.c
 	exec $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $<
+
+netio-test: netio-test.o ../netio.o ../application.o
+	exec $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ $^
 
 clean:
 	exec rm -rf -- *.o $(EXE_FILES)
