@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.14 2008/01/01 21:29:20 mina86 Exp $
+ * $Id: application.cpp,v 1.15 2008/01/02 01:40:37 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -38,8 +38,6 @@ int Core::run() {
 
 	if (modules.size() == 1) {
 		return 0;
-	} else if (!ui_modules) {
-		sendSignal("/core/module/kill", moduleName, 0);
 	}
 
 
@@ -62,12 +60,15 @@ int Core::run() {
 	}
 
 
+	if (!ui_modules) {
+		killModules("/");
+	}
+	deliverSignals();
+
 	alarm(1);
 	while (modules.size() > 1) {
 		fd_set rd, wr, ex;
 		int nfds = 0;
-
-		deliverSignals();
 
 		FD_ZERO(&rd);
 		FD_ZERO(&wr);
@@ -86,20 +87,24 @@ int Core::run() {
 				nfds -= it->second->doFDs(nfds, &rd, &wr, &ex);
 			}
 		} else if (nfds == 0) {
-			fputs("select: returned 0\n", stderr);
+			fputs("pselect: returned 0\n", stderr);
 			break;
 		} else if (errno != EINTR) {
-			perror("select");
+			perror("pselect");
 			break;
 		} else {
 			handleUnixSignals();
 		}
+
+		deliverSignals();
 	}
+
 
 	for (int i = 1; i < 32; ++i) {
 		sigaction(i, oldact + i, 0);
 	}
 	sigprocmask(SIG_SETMASK, &oldsigset, 0);
+
 
 	if (modules.size() > 1) {
 		Modules::iterator it = modules.begin(), end = modules.end();
@@ -111,13 +116,16 @@ int Core::run() {
 		prevToKill = nextToKill = this;
 	}
 
+
 	while (!signals.empty()) {
 		signals.front().clear();
 		signals.pop();
 	}
 
+
 	return 0;
 }
+
 
 
 void Core::deliverSignals() {
@@ -129,6 +137,7 @@ void Core::deliverSignals() {
 		}
 	}
 }
+
 
 
 std::pair<Module::Modules::iterator, Module::Modules::iterator>
@@ -167,6 +176,10 @@ void Core::handleUnixSignals() {
 	while (sigarr[SIGALRM] > 0) {
 		sendSignal("/core/tick", "/", 0);
 		--sigarr[SIGALRM];
+	}
+
+	if (sigarr[SIGTERM]) {
+		killModules("/");
 	}
 
 	while (sigarr[0] > 0) {
@@ -218,6 +231,8 @@ int Core::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 	return 0;
 }
 
+
+
 int Core::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
                 const fd_set *ex) {
 	(void)nfds; (void)rd; (void)wr; (void)ex;
@@ -225,68 +240,21 @@ int Core::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 }
 
 
+
 void Core::recievedSignal(const Signal &sig) {
 	/* Some modules are due to die? */
 	if (sig.getType() == "/core/tick") {
 		while (nextToKill->dieDueTime <= Core::getTicks()) {
-			Module *m = nextToKill;
-
-			nextToKill->nextToKill->prevToKill = this;
-			nextToKill = nextToKill->nextToKill;
-
-			modules.erase(modules.find(m->moduleName));
-			sendSignal("/core/module/removed", "/",
-			           new sig::StringData(m->moduleName));
-			delete m;
+			removeModule(nextToKill->moduleName);
 		}
-
 
 	/* Module exits -- remove from list */
 	} else if (sig.getType() == "/core/module/exits") {
-		Modules::iterator it = modules.find(sig.getSender());
-		if (it == modules.end()) {
-			return;
-		}
-
-		if (it->second->prevToKill) {
-			it->second->prevToKill->nextToKill = it->second->nextToKill;
-			it->second->nextToKill->prevToKill = it->second->prevToKill;
-		}
-
-		delete it->second;
-		modules.erase(it);
-		sendSignal("/core/module/removed", "/",
-		           new sig::StringData(sig.getSender()));
-
-		ui_modules -= sig.getSender().length() >= 4 &&
-			!memcmp(sig.getSender().data(), "/ui/", 4);
-		if (!ui_modules) {
-			sendSignal("/core/module/quit", "/", 0);
-			dieDueTime = Core::getTicks() + 60;
-		}
-
+		removeModule(sig.getSender());
 
 	/* Someone wants someone dead! */
 	} else if (sig.getType() == "/core/module/kill") {
-		const std::string &target = sig.getData()
-			? static_cast<const sig::StringData*>(sig.getData())->data : "/";
-		std::pair<Modules::iterator, Modules::iterator> it =
-			matchingModules(target);
-		unsigned long dueTime = Core::getTicks() + 60;
-
-		sendSignal("/core/module/quit", target, 0);
-
-		for (; it.first != it.second; ++it.first) {
-			if (it.first->second->prevToKill) continue;
-
-			Module &module = *it.first->second;
-			module.dieDueTime = dueTime;
-			module.prevToKill = prevToKill;
-			module.nextToKill = this;
-			prevToKill->nextToKill = &module;
-			prevToKill = &module;
-		}
-
+		killModules(static_cast<const sig::StringData*>(sig.getData())->data);
 
 	/* Start a new module */
 	} else if (sig.getType() == "/core/module/start") {
@@ -294,6 +262,52 @@ void Core::recievedSignal(const Signal &sig) {
 
 	}
 }
+
+
+
+void Core::killModules(const std::string &target) {
+	std::pair<Modules::iterator, Modules::iterator> it =
+		matchingModules(target);
+	if (it.first == it.second) return;
+
+	unsigned long dueTime = Core::getTicks() + 60;
+
+	sendSignal("/core/module/quit", target, 0);
+
+	for (; it.first != it.second; ++it.first) {
+		if (it.first->second->prevToKill) continue;
+
+		Module &module = *it.first->second;
+		module.dieDueTime = dueTime;
+		module.prevToKill = prevToKill;
+		module.nextToKill = this;
+		prevToKill->nextToKill = &module;
+		prevToKill = &module;
+	}
+}
+
+
+
+void Core::removeModule(const std::string &name) {
+	Modules::iterator it = modules.find(name);
+	if (it == modules.end()) {
+		return;
+	}
+
+	if (it->second->prevToKill) {
+		it->second->prevToKill->nextToKill = it->second->nextToKill;
+		it->second->nextToKill->prevToKill = it->second->prevToKill;
+	}
+
+	delete it->second;
+	modules.erase(it);
+	sendSignal("/core/module/removed", "/", new sig::StringData(name));
+
+	if (name.length()>4 && !memcmp(name.data(), "/ui/", 4) && !--ui_modules) {
+		killModules("/");
+	}
+}
+
 
 
 }
