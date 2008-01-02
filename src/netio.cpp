@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.9 2008/01/01 03:01:33 mina86 Exp $
+ * $Id: netio.cpp,v 1.10 2008/01/02 16:31:25 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -82,8 +82,11 @@ static void common_bind_part(int fd, Address &addr) {
 	}
 
 	if (addr.port == 0) {
-		/* TODO: addr.port may be zero.  Need to get the information at
-		   what part we are really listening. */
+		socklen_t addrlen = sizeof sockaddr;
+		if (getsockname(fd, (struct sockaddr*)&sockaddr, &addrlen) < 0) {
+			throw IOException("getsockname: ", errno);
+		}
+		addr.port = ntohs(sockaddr.sin_port);
 	}
 }
 
