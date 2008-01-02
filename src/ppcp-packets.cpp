@@ -1,6 +1,6 @@
 /** \file
  * Methods generating ppcp packets.
- * $Id: ppcp-packets.cpp,v 1.3 2007/12/29 02:36:35 mina86 Exp $
+ * $Id: ppcp-packets.cpp,v 1.4 2008/01/02 18:24:01 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -12,7 +12,7 @@ namespace ppcp {
 
 
 std::string ppcpOpen(const User &user) {
-	sprintf(sharedBuffer, "\" p=\"%u\">", user.id.address.port);
+	sprintf(sharedBuffer, "\" p=\"%u\">", user.id.address.port.host());
 	return "<ppcp n=\"" +
 		xml::escape(User::nickFromName(user.name) == user.id.nick
 		            ? user.name : user.id.nick) + sharedBuffer;
@@ -24,7 +24,7 @@ std::string ppcpOpen(const User &user, const std::string &to, bool neg) {
 	        !to.empty() ? neg ? "\" p=\"%u\" to:neg=\"neg\" to:n=\""
 	                          : "\" p=\"%u\" to:n=\""
 	                   : "\" p=\"%u\">",
-	        user.id.address.port);
+	        user.id.address.port.host());
 
 	std::string packet = "<ppcp n=\"" +
 		xml::escape(User::nickFromName(user.name) == user.id.nick

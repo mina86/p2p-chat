@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.19 2008/01/02 16:23:14 mina86 Exp $
+ * $Id: network.cpp,v 1.20 2008/01/02 18:24:01 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -314,8 +314,8 @@ static unsigned long seq = 0;
 Network::Network(Core &c, Address addr, const std::string &nick)
 	: Module(c, "/net/ppc/", seq++), address(addr),
 	  lastStatus(Core::getTicks()), ourUser(users->ourUser) {
-	tcpListeningSocket = TCPListeningSocket::bind(Address());
-	udpSocket = UDPSocket::bind(addr);
+	tcpListeningSocket = new TCPListeningSocket(Address());
+	udpSocket = new UDPSocket(addr);
 	users = new sig::UsersListData(nick, tcpListeningSocket->address.port);
 	sendSignal("/net/conn/connected", "/ui/", users.get());
 }
@@ -788,7 +788,7 @@ void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 	} else {
 		TCPSocket *sock;
 		try {
-			sock = TCPSocket::connect(user.id.address);
+			sock = new TCPSocket(user.id.address);
 		}
 		catch (const IOException &e) {
 			sendSignal("/ui/msg/error", "/ui/",
