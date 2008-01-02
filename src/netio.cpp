@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.10 2008/01/02 16:31:25 mina86 Exp $
+ * $Id: netio.cpp,v 1.11 2008/01/02 18:23:44 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -10,7 +10,7 @@
 namespace ppc {
 
 
-TCPSocket *TCPSocket::connect(Address addr) {
+int TCPSocket::connect(Address addr) {
 	struct sockaddr_in sockaddr;
 	const int fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -22,12 +22,13 @@ TCPSocket *TCPSocket::connect(Address addr) {
 		while (::connect(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr)<0){
 			if (errno != EINTR) throw IOException("connect: ", errno);
 		}
-		return new TCPSocket(fd, addr);
 	}
 	catch (...) {
 		close(fd);
 		throw;
 	}
+
+	return fd;
 }
 
 
@@ -37,7 +38,7 @@ std::string TCPSocket::read() {
 	while ((numbytes = recv(fd, sharedBuffer, sizeof sharedBuffer, 0)) <= 0) {
 		if (numbytes == 0) {
 			eof = true;
-			throw std::string();
+			return std::string();
 		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			return std::string();
 		} else if (errno != EINTR) {
@@ -91,7 +92,7 @@ static void common_bind_part(int fd, Address &addr) {
 }
 
 
-TCPListeningSocket *TCPListeningSocket::bind(Address addr) {
+std::pair<int, Address> TCPListeningSocket::bind(Address addr) {
 	const int fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
 		throw IOException("socket: ", errno);
@@ -102,12 +103,13 @@ TCPListeningSocket *TCPListeningSocket::bind(Address addr) {
 		if (listen(fd, 16) < 0) {
 			throw IOException("listen: ", errno);
 		}
-		return new TCPListeningSocket(fd, addr);
 	}
 	catch (...) {
 		close(fd);
 		throw;
 	}
+
+	return std::make_pair(fd, addr);
 }
 
 
@@ -134,7 +136,7 @@ TCPSocket *TCPListeningSocket::accept() {
 }
 
 
-UDPSocket* UDPSocket::bind(Address addr) {
+std::pair<int, Address> UDPSocket::bind(Address addr) {
 	const int fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
 		throw IOException("socket: ", errno);
@@ -147,7 +149,7 @@ UDPSocket* UDPSocket::bind(Address addr) {
 		}
 		common_bind_part(fd, addr);
 
-		if ((addr.ip & 0xf8000000) == 0x08000000) {
+		if (addr.ip.isMulticast()) {
 			struct ip_mreq mreq;
 			mreq.imr_multiaddr.s_addr = addr.ip;
 			mreq.imr_interface.s_addr = 0;
@@ -156,14 +158,13 @@ UDPSocket* UDPSocket::bind(Address addr) {
 				throw IOException("setsockopt: add membership: ", errno);
 			}
 		}
-
-		return new UDPSocket(fd, addr);
 	}
 	catch (...) {
 		close(fd);
 		throw;
 	}
 
+	return std::make_pair(fd, addr);
 }
 
 
@@ -183,7 +184,7 @@ std::string UDPSocket::read(Address &addr) {
 		}
 	}
 
-	addr.assign(sockaddr);
+	addr = sockaddr;
 	return std::string(sharedBuffer, numbytes);
 }
 

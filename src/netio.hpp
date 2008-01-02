@@ -1,11 +1,12 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.7 2007/12/30 15:16:00 mina86 Exp $
+ * $Id: netio.hpp,v 1.8 2008/01/02 18:23:44 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
 #define H_NETIO_HPP
 
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -23,10 +24,73 @@ namespace ppc {
 
 
 /** Type representing IP address. */
-typedef unsigned long IP;
+struct IP {
+	IP(unsigned long val = 0) : value(val) { }
+	IP(struct in_addr addr) : value(ntoh(addr.s_addr)) { }
+	IP(struct sockaddr_in addr) : value(ntoh(addr.sin_addr.s_addr)) { }
+
+	bool isMulticast() const {
+		return value & 0xf8000000 == 0x08000000;
+	}
+
+	unsigned long host     () const { return      value ; }
+	unsigned long network  () const { return hton(value); }
+	operator unsigned long () const { return      value ; }
+	operator struct in_addr() const {
+		struct in_addr addr;
+		addr.s_addr = network();
+		return addr;
+	}
+
+	IP &operator=(unsigned long val) {
+		value = val;
+		return *this;
+	}
+
+	IP &operator=(struct in_addr addr) {
+		value = ntoh(addr.s_addr);
+		return *this;
+	}
+
+	IP &operator=(struct sockaddr_in addr) {
+		value = ntoh(addr.sin_addr.s_addr);
+		return *this;
+	}
+
+	static unsigned long ntoh(unsigned long val) { return ntohl(val); }
+	static unsigned long hton(unsigned long val) { return htonl(val); }
+
+private:
+	unsigned long value;
+};
+
 
 /** Type representing TCP/UDP port number. */
-typedef unsigned short Port;
+struct Port {
+	Port(unsigned short val = 0) : value(val) { }
+	Port(struct sockaddr_in addr) : value(ntoh(addr.sin_port)) { }
+
+	unsigned short host     () const { return      value ; }
+	unsigned short network  () const { return hton(value); }
+	operator unsigned short () const { return      value ; }
+
+	Port &operator=(unsigned short val) {
+		value = val;
+		return *this;
+	}
+
+	Port &operator=(struct sockaddr_in addr) {
+		value = ntoh(addr.sin_port);
+		return *this;
+	}
+
+	static unsigned short ntoh(unsigned short val) { return ntohs(val); }
+	static unsigned short hton(unsigned short val) { return htons(val); }
+
+private:
+	unsigned short value;
+};
+
 
 /** A network half-association (IP address, port number). */
 struct Address {
@@ -46,24 +110,24 @@ struct Address {
 	 * Constructs Address from a sockaddr_in structure.
 	 * \param addr address.
 	 */
-	explicit Address(const struct sockaddr_in &addr)
-		: ip(ntohl(addr.sin_addr.s_addr)), port(ntohs(addr.sin_port)) { }
+	explicit Address(const struct sockaddr_in &addr) : ip(addr), port(addr) {}
 
 
 	/**
 	 * Copies values from a sockaddr_in structure.
 	 * \param addr address.
 	 */
-	void assign(const struct sockaddr_in &addr) {
-		ip = ntohl(addr.sin_addr.s_addr);
-		port = ntohs(addr.sin_port);
+	Address &operator=(const struct sockaddr_in &addr) {
+		ip = addr;
+		port = addr;
+		return *this;
 	}
 
 
 	/** Returns Address as a string. */
 	std::string toString() const {
-		sprintf(sharedBuffer, "%lu:%u", ip, port);
-		return sharedBuffer;
+		int ret = sprintf(sharedBuffer, "%s:%u", inet_ntoa(ip), port.host());
+		return std::string(sharedBuffer, ret);
 	}
 
 
@@ -73,8 +137,8 @@ struct Address {
 	 */
 	void toSockaddr(struct sockaddr_in &addr) {
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons(port);
-		addr.sin_addr.s_addr = htonl(ip);
+		addr.sin_port = port.network();
+		addr.sin_addr.s_addr = ip.network();
 		memset(addr.sin_zero, 0, sizeof addr.sin_zero);
 	}
 };
@@ -91,11 +155,22 @@ struct Socket : public NonBlockingFD {
 
 protected:
 	/**
-	 * Creates socket by setting file descriptor and address.
+	 * Creates socket by setting file descriptor and address.  File
+	 * descriptor's O_NONBLOCK flag is set.
+	 *
 	 * \param sock socket's file descriptor number.
 	 * \param addr address associated with socket.
 	 */
 	Socket(int sock, Address addr) : NonBlockingFD(sock), address(addr) {}
+
+	/**
+	 * Creates socket by setting file descriptor and address.  File
+	 * descriptor's O_NONBLOCK flag is set.
+	 *
+	 * \param info socket's file descriptor number and address.
+	 */
+	explicit Socket(std::pair<int, Address> info)
+		: NonBlockingFD(info.first), address(info.second) {}
 };
 
 
@@ -106,11 +181,9 @@ struct TCPSocket : public Socket {
 	 * Creats new TCP socket and connects to given address.
 	 *
 	 * \param addr address to connect to.
-	 * \return new TCP socket.
 	 * \throw IOException if error occured.
 	 */
-	static TCPSocket *connect(Address addr);
-
+	TCPSocket(Address addr) : Socket(connect(addr), addr) { }
 
 	/**
 	 * Pushes data to buffer to send it later on.
@@ -153,6 +226,14 @@ private:
 	bool eof;
 
 	/**
+	 * Creates TCP socket and connects to given address.
+	 * \param addr address to connected to.
+	 * \return socket file descriptor number.
+	 * \throw IOException if error occured.
+	 */
+	static int connect(Address addr);
+
+	/**
 	 * Initialises TCPSocket.
 	 * \param sock socket number.
 	 * \param addr address we are connected to.
@@ -172,14 +253,12 @@ struct TCPListeningSocket : public Socket {
 	 * Creats new TCP listening socket and binds to given address.  IP
 	 * address withing \a addr may be zero which means to bind to all
 	 * IP addresses.  Also port number may be zero which means that we
-	 * can bind to any port number.  If port was zero method must
-	 * later fill it with accual port number.
+	 * can bind to any port number.
 	 *
 	 * \param addr address to bind to.
-	 * \return new TCP listening socket.
 	 * \throw IOException if error occured.
 	 */
-	static TCPListeningSocket *bind(Address addr);
+	TCPListeningSocket(Address addr) : Socket(bind(addr)) { };
 
 
 	/**
@@ -196,14 +275,20 @@ struct TCPListeningSocket : public Socket {
 	 */
 	TCPSocket *accept();
 
-
 private:
 	/**
-	 * Initialises TCPListeningSocket.
-	 * \param sock socket number.
-	 * \param addr address we are bound to.
+	 * Creats new TCP listening socket and binds to given address.  IP
+	 * address withing \a addr may be zero which means to bind to all
+	 * IP addresses.  Also port number may be zero which means that we
+	 * can bind to any port number.
+	 *
+	 * \param addr address to bind to.
+	 * \return a socket file descriptor number and address socket is
+	 *         bound to pair (IP address of returned address may be
+	 *         zero but port number will never be zero).
+	 * \throw IOException if error occured.
 	 */
-	TCPListeningSocket(int sock, Address addr): Socket(sock, addr) {}
+	static std::pair<int, Address> bind(Address addr);
 };
 
 
@@ -218,10 +303,9 @@ struct UDPSocket : public Socket {
 	 * required by given class of addresses.
 	 *
 	 * \param addr address to bind to.
-	 * \return new UDP socket.
 	 * \throw IOException if error occured.
 	 */
-	static UDPSocket *bind(Address addr);
+	UDPSocket(Address addr) : Socket(bind(addr)) { };
 
 
 	/**
@@ -262,12 +346,21 @@ private:
 	std::queue< std::pair<std::string, Address>,
 	            std::vector< std::pair<std::string, Address> > > queue;
 
+
 	/**
-	 * Initialises UDPSocket.
-	 * \param sock socket number.
-	 * \param addr address we are bound to.
+	 * Creats new UDP socket.  If \a addr is not a zero address (that
+	 * is address having both IP and port number zero) also binds
+	 * socket to given address.  IP address may be a broadcast or
+	 * multicast address in which case method takes apropriate actions
+	 * required by given class of addresses.
+	 *
+	 * \param addr address to bind to.
+	 * \return a socket file descriptor number and address socket is
+	 *         bound to pair (IP address of returned address may be
+	 *         zero but port number will never be zero).
+	 * \throw IOException if error occured.
 	 */
-	UDPSocket(int sock, Address addr): Socket(sock, addr), queue() {}
+	static std::pair<int, Address> bind(Address addr);
 };
 
 
