@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.8 2008/01/02 18:23:44 mina86 Exp $
+ * $Id: netio.hpp,v 1.9 2008/01/02 20:24:17 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
@@ -25,69 +25,157 @@ namespace ppc {
 
 /** Type representing IP address. */
 struct IP {
+	/**
+	 * Sets IP address from address in host byte order.
+	 * \param val IP address in host byte order.
+	 */
 	IP(unsigned long val = 0) : value(val) { }
-	IP(struct in_addr addr) : value(ntoh(addr.s_addr)) { }
-	IP(struct sockaddr_in addr) : value(ntoh(addr.sin_addr.s_addr)) { }
 
+	/**
+	 * Sets IP address from \c in_addr structure.
+	 * \param addr \c in_addr structure holding ip address in network
+	 *             byte order.
+	 */
+	IP(struct in_addr addr) : value(ntoh(addr.s_addr)) { }
+
+	/**
+	 * Sets IP address from \c sockaddr_in structure.
+	 * \param addr \c sockaddr_in structure holding ip address in network
+	 *             byte order.
+	 */
+	IP(const struct sockaddr_in &addr) : value(ntoh(addr.sin_addr.s_addr)) { }
+
+
+	/** Returns \c true if IP address is a multicast address (class D). */
 	bool isMulticast() const {
 		return value & 0xf8000000 == 0x08000000;
 	}
 
+
+	/** Returns IP address in host byte order. */
 	unsigned long host     () const { return      value ; }
+
+	/** Returns IP address in network byte order. */
 	unsigned long network  () const { return hton(value); }
+
+	/** Returns IP address in host byte order. */
 	operator unsigned long () const { return      value ; }
+
+	/** Returns IP address in network byte order in \c in_addr structure. */
 	operator struct in_addr() const {
 		struct in_addr addr;
 		addr.s_addr = network();
 		return addr;
 	}
 
+
+	/**
+	 * Sets IP address from address in host byte order.
+	 * \param val IP address in host byte order.
+	 */
 	IP &operator=(unsigned long val) {
 		value = val;
 		return *this;
 	}
 
+	/**
+	 * Sets IP address from \c in_addr structure.
+	 * \param addr \c in_addr structure holding ip address in network
+	 *             byte order.
+	 */
 	IP &operator=(struct in_addr addr) {
 		value = ntoh(addr.s_addr);
 		return *this;
 	}
 
+	/**
+	 * Sets IP address from \c sockaddr_in structure.
+	 * \param addr \c sockaddr_in structure holding ip address in network
+	 *             byte order.
+	 */
 	IP &operator=(struct sockaddr_in addr) {
 		value = ntoh(addr.sin_addr.s_addr);
 		return *this;
 	}
 
+	/**
+	 * Convers IP address in network byte order to host byte order.
+	 * \param val IP address in network byte order.
+	 */
 	static unsigned long ntoh(unsigned long val) { return ntohl(val); }
+
+	/**
+	 * Convers IP address in host byte order to network byte order.
+	 * \param val IP address in host byte order.
+	 */
 	static unsigned long hton(unsigned long val) { return htonl(val); }
 
 private:
+	/** IP address in host byte order. */
 	unsigned long value;
 };
 
 
 /** Type representing TCP/UDP port number. */
 struct Port {
+	/**
+	 * Sets port number from numer in host byte order.
+	 * \param val port number in host byte order.
+	 */
 	Port(unsigned short val = 0) : value(val) { }
+
+	/**
+	 * Sets IP address from \c sockaddr_in structure.
+	 * \param addr \c sockaddr_in structure holding port number in
+	 *             network byte order.
+	 */
 	Port(struct sockaddr_in addr) : value(ntoh(addr.sin_port)) { }
 
+
+	/** Returns port number in host byte order. */
 	unsigned short host     () const { return      value ; }
+
+	/** Returns port number in network byte order. */
 	unsigned short network  () const { return hton(value); }
+
+	/** Returns port number in host byte order. */
 	operator unsigned short () const { return      value ; }
 
+
+	/**
+	 * Sets port number from numer in host byte order.
+	 * \param val port number in host byte order.
+	 */
 	Port &operator=(unsigned short val) {
 		value = val;
 		return *this;
 	}
 
+	/**
+	 * Sets IP address from \c sockaddr_in structure.
+	 * \param addr \c sockaddr_in structure holding port number in
+	 *             network byte order.
+	 */
 	Port &operator=(struct sockaddr_in addr) {
 		value = ntoh(addr.sin_port);
 		return *this;
 	}
 
+
+	/**
+	 * Convers port number in network byte order to host byte order.
+	 * \param val port number in network byte order.
+	 */
 	static unsigned short ntoh(unsigned short val) { return ntohs(val); }
+
+	/**
+	 * Convers port number in host byte order to network byte order.
+	 * \param val port number in host byte order.
+	 */
 	static unsigned short hton(unsigned short val) { return htons(val); }
 
 private:
+	/** Port number in host byte order. */
 	unsigned short value;
 };
 
