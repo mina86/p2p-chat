@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.15 2008/01/02 01:40:37 mina86 Exp $
+ * $Id: application.cpp,v 1.16 2008/01/02 02:12:22 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -31,9 +31,42 @@ static void gotsig(int signum) {
 }
 
 
+/** Array of signal numbers we are going to catch. */
+static const int signalNumbers[] = {
+#if SIGHUP
+	SIGHUP,
+#endif
+#if SIGINT
+	SIGINT,
+#endif
+#if SIGQUIT
+	SIGQUIT,
+#endif
+#if SIGPIPE
+	SIGPIPE,
+#endif
+#if SIGTERM
+	SIGTERM,
+#endif
+#if SIGUSR1
+	SIGUSR1,
+#endif
+#if SIGUSR2
+	SIGUSR2,
+#endif
+#if SIGCHLD
+	SIGCHLD,
+#endif
+#if SIGWINCH
+	SIGWINCH,
+#endif
+	SIGALRM
+};
+
+
 
 int Core::run() {
-	struct sigaction act, oldact[32];
+	struct sigaction act, oldact[sizeof signalNumbers/sizeof *signalNumbers];
 	sigset_t oldsigset;
 
 	if (modules.size() == 1) {
@@ -41,9 +74,10 @@ int Core::run() {
 	}
 
 
-	sigfillset(&act.sa_mask);
-	sigdelset(&act.sa_mask, SIGKILL);
-	sigdelset(&act.sa_mask, SIGSTOP);
+	sigemptyset(&act.sa_mask);
+	for (int i = 0; i < sizeof signalNumbers / sizeof *signalNumbers; ++i) {
+		sigaddset(&ac.sa_mask, signalNumbers[i]);
+	}
 
 	sigprocmask(SIG_BLOCK, &act.sa_mask, &oldsigset);
 	act.sa_handler = gotsig;
@@ -55,8 +89,8 @@ int Core::run() {
 	act.sa_flags |= SA_RESTART;
 #endif
 
-	for (int i = 1; i < 32; ++i) {
-		sigaction(SIGHUP , &act, oldact + SIGHUP);
+	for (int i = 0; i < sizeof signalNumbers / sizeof *signalNumbers; ++i) {
+		sigaction(signalNumbers[i], &act, oldact + i);
 	}
 
 
@@ -100,8 +134,8 @@ int Core::run() {
 	}
 
 
-	for (int i = 1; i < 32; ++i) {
-		sigaction(i, oldact + i, 0);
+	for (int i = 0; i < sizeof signalNumbers / sizeof *signalNumbers; ++i) {
+		sigaction(signalNumbers[i], oldact + i, 0);
 	}
 	sigprocmask(SIG_SETMASK, &oldsigset, 0);
 
@@ -270,7 +304,7 @@ void Core::killModules(const std::string &target) {
 		matchingModules(target);
 	if (it.first == it.second) return;
 
-	unsigned long dueTime = Core::getTicks() + 60;
+	const unsigned long dueTime = Core::getTicks() + 60;
 
 	sendSignal("/core/module/quit", target, 0);
 
