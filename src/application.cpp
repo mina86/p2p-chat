@@ -1,7 +1,9 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.18 2008/01/03 01:58:01 mina86 Exp $
+ * $Id: application.cpp,v 1.19 2008/01/03 02:59:08 mina86 Exp $
  */
+
+#include <assert.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +16,8 @@ namespace ppc {
 
 
 char sharedBuffer[1024];
+
+const std::string Core::coreName("/core");
 
 unsigned long Core::ticks = 0;
 
@@ -74,12 +78,19 @@ int Core::run() {
 	}
 
 
-	sigemptyset(&act.sa_mask);
+	if (sigemptyset(&act.sa_mask)) {
+		assert(0);
+	}
 	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
-		sigaddset(&act.sa_mask, signalNumbers[i]);
+		assert(signalNumbers[i] < sizeof sigarr / sizeof *sigarr);
+		if (sigaddset(&act.sa_mask, signalNumbers[i])) {
+			assert(0);
+		}
 	}
 
-	sigprocmask(SIG_BLOCK, &act.sa_mask, &oldsigset);
+	if (sigprocmask(SIG_BLOCK, &act.sa_mask, &oldsigset)) {
+		assert(0);
+	}
 	act.sa_handler = gotsig;
 	act.sa_flags = 0;
 #if SA_INTERRUPT
@@ -90,7 +101,9 @@ int Core::run() {
 #endif
 
 	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
-		sigaction(signalNumbers[i], &act, oldact + i);
+		if (sigaction(signalNumbers[i], &act, oldact + i)) {
+			assert(0);
+		}
 	}
 
 
@@ -120,7 +133,9 @@ int Core::run() {
 			     it!=end && nfds > 0; ++it) {
 				nfds -= it->second->doFDs(nfds, &rd, &wr, &ex);
 			}
+			assert(nfds == 0);
 		} else if (nfds == 0) {
+			assert(0);
 			fputs("pselect: returned 0\n", stderr);
 			break;
 		} else if (errno != EINTR) {
@@ -135,9 +150,13 @@ int Core::run() {
 
 
 	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
-		sigaction(signalNumbers[i], oldact + i, 0);
+		if (sigaction(signalNumbers[i], oldact + i, 0)) {
+			assert(0);
+		}
 	}
-	sigprocmask(SIG_SETMASK, &oldsigset, 0);
+	if (sigprocmask(SIG_SETMASK, &oldsigset, 0)) {
+		assert(0);
+	}
 
 
 	if (modules.size() > 1) {
@@ -146,8 +165,7 @@ int Core::run() {
 			if (it->first != moduleName) delete it->second;
 		}
 		modules.clear();
-		modules[moduleName] = this;
-		prevToKill = nextToKill = this;
+		modules[moduleName] = prevToKill = nextToKill = this;
 	}
 
 
@@ -219,6 +237,8 @@ void Core::handleUnixSignals() {
 	while (sigarr[0] > 0) {
 		while (sigarr[i] == 0 && i < 32) ++i;
 		if (i == 32) {
+			/* we should never get here as sigarr[0] should be 0 */
+			assert(0);
 			break;
 		}
 
@@ -232,6 +252,7 @@ void Core::handleUnixSignals() {
 		} while (--j);
 	}
 
+	assert(sigarr[0] == 0);
 	sigarr[0] = 0; /* just to be on the safe side */
 }
 
