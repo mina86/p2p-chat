@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.19 2008/01/03 02:59:08 mina86 Exp $
+ * $Id: application.cpp,v 1.20 2008/01/03 18:38:24 mina86 Exp $
  */
 
 #include <assert.h>
@@ -82,7 +82,7 @@ int Core::run() {
 		assert(0);
 	}
 	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
-		assert(signalNumbers[i] < sizeof sigarr / sizeof *sigarr);
+		assert((unsigned)signalNumbers[i] < sizeof sigarr / sizeof *sigarr);
 		if (sigaddset(&act.sa_mask, signalNumbers[i])) {
 			assert(0);
 		}
