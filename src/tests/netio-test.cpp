@@ -1,11 +1,12 @@
 /** \file
  * A netio library test.
- * $Id: netio-test.cpp,v 1.1 2008/01/02 20:24:39 mina86 Exp $
+ * $Id: netio-test.cpp,v 1.2 2008/01/03 18:44:23 mina86 Exp $
  */
 
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <iostream>
 #include <vector>
@@ -15,9 +16,6 @@
 
 
 namespace test {
-
-
-const ppc::Port port = 8888;
 
 
 struct Clients {
@@ -80,7 +78,7 @@ std::ostream &operator<<(std::ostream &out, ppc::Address addr) {
 }
 
 
-int server(void) {
+int server(ppc::Port port) {
 	ppc::TCPListeningSocket listener(ppc::Address(0, port));
 	Clients clients;
 	int ret = 0;
@@ -168,14 +166,16 @@ int server(void) {
 
 
 
-int client(void) {
-	ppc::TCPSocket sock(ppc::Address(0x7f000001, port));
+int client(ppc::IP ip, ppc::Port port) {
+	ppc::TCPSocket sock(ppc::Address(ip, port));
 	int ret = 0;
 
 	for(;;) {
 		int nfds;
 		fd_set rd, wr;
 
+		FD_ZERO(&rd);
+		FD_ZERO(&wr);
 		FD_SET(0, &rd);
 		FD_SET(sock.fd, &rd);
 		if (sock.hasDataToWrite()) {
@@ -238,9 +238,20 @@ int client(void) {
 
 
 int main(int argc, char **argv) {
-	(void)argv;
+	ppc::Port port = 8888;
+	int opt;
+
+	while ((opt = getopt(argc, argv, "p:"))!=EOF) {
+		switch (opt) {
+		case 'p': port = atoi(optarg); break;
+		default: return 1;
+		}
+	}
+
 	try {
-		return argc == 1 ? test::server() : test::client();
+		return optind != argc
+			? test::client(ppc::IP::ntoh(inet_addr(argv[optind])), port)
+			: test::server(port);
 	}
 	catch (const ppc::IOException &e) {
 		std::cerr << "Caught IOException(" << e.getMessage() << ")\n";
