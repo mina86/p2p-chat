@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.9 2008/01/02 20:24:17 mina86 Exp $
+ * $Id: netio.hpp,v 1.10 2008/01/03 18:39:10 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
@@ -234,7 +234,7 @@ struct Address {
 
 
 /** Base class for TCP and UDP sockets. */
-struct Socket : public NonBlockingFD {
+struct Socket : public FileDescriptor {
 	/**
 	 * Socket address.  Depending on socket's type this may be either
 	 * address it is connected to or bound to.
@@ -248,17 +248,24 @@ protected:
 	 *
 	 * \param sock socket's file descriptor number.
 	 * \param addr address associated with socket.
+	 * \param nonBlocking if \c true a \c O_NONBLOCK flag is set on
+	 *        this descriptor (idea behind this argument is that if
+	 *        socket is already in non-blocking mode this mode does
+	 *        not need to be set again).
 	 */
-	Socket(int sock, Address addr) : NonBlockingFD(sock), address(addr) {}
+	Socket(int sock, Address addr, bool nonBlocking = true)
+		: FileDescriptor(sock, nonBlocking), address(addr) {}
 
 	/**
 	 * Creates socket by setting file descriptor and address.  File
 	 * descriptor's O_NONBLOCK flag is set.
 	 *
 	 * \param info socket's file descriptor number and address.
+	 * \param nonBlocking if \c true a \c O_NONBLOCK flag is set on
+	 *        this descriptor.
 	 */
-	explicit Socket(std::pair<int, Address> info)
-		: NonBlockingFD(info.first), address(info.second) {}
+	explicit Socket(std::pair<int, Address> info, bool nonBlocking = true)
+		: FileDescriptor(info.first, nonBlocking), address(info.second) {}
 };
 
 
@@ -268,10 +275,16 @@ struct TCPSocket : public Socket {
 	/**
 	 * Creats new TCP socket and connects to given address.
 	 *
-	 * \param addr address to connect to.
+	 * \param addr  address to connect to.
+	 * \param dummy just a dirty hack, don't worry about this argument
+	 *              it does nothing.
 	 * \throw IOException if error occured.
 	 */
-	TCPSocket(Address addr) : Socket(connect(addr), addr) { }
+	explicit TCPSocket(Address addr, bool dummy = false) :
+		/* dirty hack -- dummy will be set to value of inProgress */
+		Socket(connect(addr, dummy), addr, false) {
+		flags = dummy ? 2 : 0;
+	}
 
 	/**
 	 * Pushes data to buffer to send it later on.
@@ -280,7 +293,13 @@ struct TCPSocket : public Socket {
 	void push(const std::string &str) { data += str; }
 
 	/** Returns whether there is any data to send. */
-	bool hasDataToWrite() { return !data.empty(); }
+	bool hasDataToWrite() {
+		/* When INPROGRESS flag is set we don't necceserly have any
+		   data to write but anyhow we need to poll descriptor for
+		   writing to get error code when connection is established or
+		   not. */
+		return (flags & 2) || !data.empty();
+	}
 
 	/**
 	 * Reads data from socket.  This method must not block!  If there
@@ -302,7 +321,7 @@ struct TCPSocket : public Socket {
 
 	/** Returns value of end of file flag. */
 	bool isEOF() const {
-		return eof;
+		return flags & 1;
 	}
 
 
@@ -310,23 +329,30 @@ private:
 	/** Buffered data to send. */
 	std::string data;
 
-	/** Flag set if there was an end of file. */
-	bool eof;
+	/** Socket flags. */
+	unsigned char flags;
 
 	/**
 	 * Creates TCP socket and connects to given address.
 	 * \param addr address to connected to.
+	 * \param inProgress output variable which is set to \c true if
+	 *                   connecting is in progress and to \c false
+	 *                   otherwise (if method throws an exception
+	 *                   value is unspecified).
 	 * \return socket file descriptor number.
 	 * \throw IOException if error occured.
 	 */
-	static int connect(Address addr);
+	static int connect(Address addr, bool &inProgress);
 
 	/**
 	 * Initialises TCPSocket.
 	 * \param sock socket number.
 	 * \param addr address we are connected to.
+	 * \param nonBlocking if \c true a \c O_NONBLOCK flag is set on
+	 *        this descriptor.
 	 */
-	TCPSocket(int sock, Address addr) : Socket(sock, addr) { }
+	TCPSocket(int sock, Address addr, bool nonBlocking = true) :
+		Socket(sock, addr, nonBlocking), flags(0) { }
 
 	/* TCPListeningSocket needs to create TCPSocket objects when it
 	   accepts connection */
@@ -346,7 +372,7 @@ struct TCPListeningSocket : public Socket {
 	 * \param addr address to bind to.
 	 * \throw IOException if error occured.
 	 */
-	TCPListeningSocket(Address addr) : Socket(bind(addr)) { };
+	TCPListeningSocket(Address addr) : Socket(bind(addr), true) { };
 
 
 	/**
@@ -391,9 +417,11 @@ struct UDPSocket : public Socket {
 	 * required by given class of addresses.
 	 *
 	 * \param addr address to bind to.
+	 * \param nonBlocking if \c true a \c O_NONBLOCK flag is set on
+	 *        this descriptor.
 	 * \throw IOException if error occured.
 	 */
-	UDPSocket(Address addr) : Socket(bind(addr)) { };
+	UDPSocket(Address addr) : Socket(bind(addr), true) { };
 
 
 	/**

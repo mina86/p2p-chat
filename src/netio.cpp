@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.11 2008/01/02 18:23:44 mina86 Exp $
+ * $Id: netio.cpp,v 1.12 2008/01/03 18:39:10 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -10,7 +10,7 @@
 namespace ppc {
 
 
-int TCPSocket::connect(Address addr) {
+int TCPSocket::connect(Address addr, bool &inProgress) {
 	struct sockaddr_in sockaddr;
 	const int fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -18,8 +18,15 @@ int TCPSocket::connect(Address addr) {
 	}
 
 	try {
+		FileDescriptor::setNonBlocking(fd);
+
+		inProgress = false;
 		addr.toSockaddr(sockaddr);
 		while (::connect(fd, (struct sockaddr*)&sockaddr, sizeof sockaddr)<0){
+			if (errno == EINPROGRESS) {
+				inProgress = true;
+				break;
+			}
 			if (errno != EINTR) throw IOException("connect: ", errno);
 		}
 	}
@@ -37,7 +44,7 @@ std::string TCPSocket::read() {
 
 	while ((numbytes = recv(fd, sharedBuffer, sizeof sharedBuffer, 0)) <= 0) {
 		if (numbytes == 0) {
-			eof = true;
+			flags |= 1;
 			return std::string();
 		} else if (errno == EAGAIN || errno == EWOULDBLOCK) {
 			return std::string();
@@ -51,8 +58,26 @@ std::string TCPSocket::read() {
 
 
 void TCPSocket::write() {
-	int pos = 0, len = data.length(), ret;
-	const char *buf = data.data();
+	int pos, len = data.length(), ret;
+
+	if (flags & 2) {
+		socklen_t optlen = sizeof pos;
+		ret = getsockopt(fd, SOL_SOCKET, SO_ERROR, &pos, &optlen);
+		if (ret < 0) {
+			throw IOException("getsockopt: ", errno);
+		}
+		if (pos) {
+			throw IOException("connect: ", pos);
+		}
+		flags &= ~2;
+	}
+
+	if (!len) {
+		return;
+	}
+
+	pos = 0;
+	const char *const buf = data.data();
 	while (len > 0) {
 		ret = send(fd, buf + pos, len, MSG_NOSIGNAL);
 		if (ret > 0) {
