@@ -1,9 +1,12 @@
 /** \file
  * An unordered vector definition and implementation.
- * $Id: unordered-vector.hpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
+ * $Id: unordered-vector.hpp,v 1.3 2008/01/03 03:00:07 mina86 Exp $
  */
+
 #ifndef H_UNORDERED_VECTOR_HPP
 #define H_UNORDERED_VECTOR_HPP
+
+#include <assert.h>
 
 #include <vector>
 
@@ -192,7 +195,10 @@ struct unordered_vector {
 	 *  a valid range.  For a non-empty %unordered_vector, data() ==
 	 *  &front().
 	 */
-	pointer                data    ()       { return storage.data    (); }
+	pointer                data    ()       {
+		assert(!empty());
+		return storage.data    ();
+	}
 	/**
 	 *  Returns a pointer such that [data(), data() + size()) is
 	 *  a valid range.  For a non-empty %unordered_vector, data() ==
@@ -299,7 +305,10 @@ struct unordered_vector {
 	 *          accessed.
 	 * \return read/write reference to data.
 	 */
-	reference       operator[](size_type n)       { return storage[n]; }
+	reference       operator[](size_type n)       {
+		assert(n < size());
+		return storage[n];
+	}
 	/**
 	 * Subscript access to the data contained in the %unordered_vector.
 	 * This operator allows for easy, array-style, data access.
@@ -312,7 +321,10 @@ struct unordered_vector {
 	 *          accessed.
 	 * \return read-only (constant) reference to data.
 	 */
-	const_reference operator[](size_type n) const { return storage[n]; }
+	const_reference operator[](size_type n) const {
+		assert(n < size());
+		return storage[n];
+	}
 	/**
 	 * Provides access to the data contained in the %unordered_vector.
 	 * This function provides for safer data access.  The parameter is
@@ -324,7 +336,10 @@ struct unordered_vector {
 	 * \return read/write reference to data.
 	 * \throw std::out_of_range if \a n is an invalid index.
 	 */
-	reference       at        (size_type n)       { return storage.at(n); }
+	reference       at        (size_type n)       {
+		assert(n < size()); /* exception will be thrown but well... */
+		return storage.at(n);
+	}
 	/**
 	 * Provides access to the data contained in the %unordered_vector.
 	 * This function provides for safer data access.  The parameter is
@@ -335,7 +350,10 @@ struct unordered_vector {
 	 *          accessed.
 	 * \return  read-only (constant) reference to data.
 	 */
-	const_reference at        (size_type n) const { return storage.at(n); }
+	const_reference at        (size_type n) const {
+		assert(n < size()); /* exception will be thrown but well... */
+		return storage.at(n);
+	}
 
 	/**
 	 * Add data to the end of the %unordered_vector.

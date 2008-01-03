@@ -1,7 +1,9 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.6 2007/12/27 17:44:11 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.7 2008/01/03 03:00:07 mina86 Exp $
  */
+
+#include <assert.h>
 
 #include <errno.h>
 #include <stdlib.h>
@@ -98,9 +100,16 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		case E_RQ:
 		case E_M: ignore = 1;
 			}
+			break;
+
+		default:
+			assert(0);
 		}
+		break;
+
 
 	case xml::Tokenizer::END: /* dead code, we have handled it ealier */
+		assert(0);
 		break;
 
 
@@ -123,6 +132,10 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		case E_M:
 			if (xToken.data == "msg") attribute = A_M_MSG;
 			else if (xToken.data == "ac") attribute = A_M_AC;
+			break;
+
+		default:
+			assert(0);
 		}
 		break;
 
@@ -164,6 +177,9 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		case A_M_AC:
 			if (xToken.data == "ac") flags |= Token::M_ACTION;
 			break;
+
+		default:
+			assert(0);
 		}
 		break;
 
@@ -238,7 +254,15 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			token.flags = flags;
 			element = E_PPCP;
 			break;
+
+		default:
+			assert(0);
 		}
+		break;
+
+
+	default:
+		assert(0);
 	}
 
 	return token;

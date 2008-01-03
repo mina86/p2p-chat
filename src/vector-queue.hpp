@@ -1,9 +1,12 @@
 /** \file
  * A queue implementation for vector as underlying container.
- * $Id: vector-queue.hpp,v 1.2 2007/12/03 23:49:19 mina86 Exp $
+ * $Id: vector-queue.hpp,v 1.3 2008/01/03 03:00:07 mina86 Exp $
  */
+
 #ifndef H_VECTOR_QUEUE_HPP
 #define H_VECTOR_QUEUE_HPP
+
+#include <assert.h>
 
 #include <queue>
 #include <vector>
@@ -87,12 +90,7 @@ struct queue<T, vector<T, Alloc> > {
 	 */
 	void push(const value_type &x) {
 		if (c.capacity() == count) {
-			if (first == c.begin()) {
-				c.resize(count > 16 ? count * 2 : 32);
-				first = last = c.begin();
-			} else {
-				moreSpace();
-			}
+			moreSpace();
 		}
 		++count;
 		*last = x;
@@ -111,6 +109,7 @@ struct queue<T, vector<T, Alloc> > {
 	 */
 	void pop() {
 		if (!count) {
+			assert(0);
 			/* nothing */
 		} else if (!--count) {
 			first = last = c.begin();
@@ -141,16 +140,21 @@ private:
 
 	/** Allocates more space. */
 	void moreSpace() {
-		vector_type v(count > 16 ? count * 2: 32);
-		iterator end = c.end(), x = v.begin();
-		for (size_type i = count; i; --i) {
-			*x = *first;
-			++x;
-			if (++first == end) first = c.begin();
+		if (first == c.begin()) {
+			c.resize(count > 16 ? count * 2 : 32);
+			first = last = c.begin();
+		} else {
+			vector_type v(count > 16 ? count * 2 : 32);
+			iterator end = c.end(), x = v.begin();
+			for (size_type i = count; i; --i) {
+				*x = *first;
+				++x;
+				if (++first == end) first = c.begin();
+			}
+			c.swap(v);
+			first = v.begin();
+			last = first + count;
 		}
-		c.swap(v);
-		first = v.begin();
-		last = first + count;
 	}
 };
 

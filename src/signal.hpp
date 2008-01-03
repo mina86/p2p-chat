@@ -1,10 +1,12 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.17 2008/01/03 01:57:40 mina86 Exp $
+ * $Id: signal.hpp,v 1.18 2008/01/03 03:00:07 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
 #define H_SIGNAL_HPP
+
+#include <assert.h>
 
 #include <string>
 #include <algorithm>
@@ -182,7 +184,11 @@ struct Signal {
 	 * dereferencing will cause a \c SIGSEGV.
 	 */
 	template<class T>
-	const T *getData() const { return dynamic_cast<const T*>(data.get()); }
+	const T *getData() const {
+		const T *const ret = dynamic_cast<const T*>(data.get());
+		assert(ret == data.get());
+		return ret;
+	}
 
 	/** Returns signal's data. */
 	const Data *operator->() const { return data.get(); }

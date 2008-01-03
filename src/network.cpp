@@ -1,7 +1,9 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.20 2008/01/02 18:24:01 mina86 Exp $
+ * $Id: network.cpp,v 1.21 2008/01/03 03:00:07 mina86 Exp $
  */
+
+#include <assert.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -226,6 +228,7 @@ struct NetworkConnection {
 	 * \throw IOException if error while writting data from socket occured.
 	 */
 	void write() {
+		assert(tcpSocket.hasDataToWrite());
 		tcpSocket.write();
 		lastAccessed = Core::getTicks();
 	}
@@ -296,7 +299,7 @@ struct NetworkUsersList : sig::UsersListData {
 		std::map<User::ID, User *>::iterator it = users.begin();
 		std::map<User::ID, User *>::iterator end = users.end();
 		for (; it != end; ++it) {
-			delete (NetworkUser*)it->second;
+			delete static_cast<NetworkUser*>(it->second);
 		}
 		users.clear();
 	}
@@ -323,23 +326,23 @@ Network::Network(Core &c, Address addr, const std::string &nick)
 
 
 Network::~Network() {
-	delete tcpListeningSocket;
-	delete udpSocket;
 	Connections::iterator it = connections.begin(), end = connections.end();
 	for (; it != end; ++it) {
 		delete *it;
 	}
 	connections.clear();
+	delete udpSocket;
+	delete tcpListeningSocket;
 	/* NetworkUser objects kept in \a users may reference already
 	   deleted TCP sockets but this doesn't really matter since only
-	   we knew that User object stored there are really
+	   we know that User object stored there are really
 	   NetworkUser objects. */
 }
 
 
 
 int Network::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
-	int max = 0, fd;
+	int max = -1, fd;
 	(void)ex;
 
 	if (tcpListeningSocket) {
@@ -431,15 +434,15 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	Connections::iterator it = connections.begin(), end = connections.end();
 	while (nfds > 0 && it != end) {
 		int fd = (*it)->getFD();
-		if (FD_ISSET(fd, rd)) {
-			++handled, --nfds;
-		}
 		if (FD_ISSET(fd, wr)) {
 			++handled, --nfds;
 		}
 
 		try {
-			if (FD_ISSET(fd, rd)) readFromTCPConnection(**it);
+			if (FD_ISSET(fd, rd)) {
+				++handled, --nfds;
+				readFromTCPConnection(**it);
+			}
 			if (FD_ISSET(fd, wr)) writeToTCPConnection (**it);
 		}
 		catch (const Exception &e) {
@@ -462,7 +465,7 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	/* Are we disconnecting? */
 	if (disconnecting && connections.empty()) {
 		/* If so send signal to core that we are exiting. */
-		sendSignal("/core/module/exits", "/core");
+		sendSignal("/core/module/exits", Core::coreName);
 	}
 
 
@@ -519,7 +522,8 @@ void Network::recievedSignal(const Signal &sig) {
 
 	} else if (sig.getType() == "/net/status/change") {
 		const sig::UserData &data = *sig.getData<sig::UserData>();
-		if (!data.flags) {
+		if (!data.flags & (sig::UserData::STATE | sig::UserData::MESSAGE |
+		                   sig::UserData::NAME)) {
 			return;
 		}
 
@@ -591,6 +595,7 @@ void Network::readFromUDPSocket() {
 			}
 
 			switch (token.type) {
+			case ppcp::Tokenizer::END:
 			case ppcp::Tokenizer::IGNORE:
 			case ppcp::Tokenizer::PPCP_CLOSE:
 				goto nextDatagram;
@@ -599,10 +604,10 @@ void Network::readFromUDPSocket() {
 				user = &getUser(User::ID(token.data,
 				                         Address(addr.ip, token.flags)),
 				                token.data2);
-			case ppcp::Tokenizer::END: /* dead code */
 				break;
 
 			default:
+				assert(user != 0);
 				if (user) handleToken(*user, token);
 			}
 		}
@@ -651,6 +656,7 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 			break;
 
 		default:
+			assert(conn.isAttached());
 			if (conn.isAttached()) handleToken(*conn.getUser(), token);
 		}
 
@@ -699,7 +705,7 @@ void Network::handleToken(NetworkUser &user,
 		break;
 
 	default: /* dead code (we hope) */
-		;
+		assert(0);
 	}
 }
 
@@ -727,12 +733,17 @@ void Network::performTick() {
 	while (c != cend) {
 		if ((*c)->flags & NetworkConnection::LOCAL_CLOSING) {
 			if((*c)->age() < CONNECTION_CLOSING_TIMEOUT) goto next;
+		remove:
 			delete *c;
 			c = connections.erase(c);
 			cend = connections.end();
 			continue;
 		} else {
 			if ((*c)->age() < CONNECTION_MAX_AGE) goto next;
+			/* if we could not send data for more then
+			   CONNECTION_MAX_AGE then we shall remove this connection
+			   immidiatelly. */
+			if (!(*c)->hasDataToWrite()) goto remove;
 			(*c)->flags |= NetworkConnection::LOCAL_CLOSING;
 			(*c)->push(ppcp::ppcpClose());
 		}
@@ -753,11 +764,10 @@ void Network::performTick() {
 
 		sendSignal("/net/usr/changed", "/ui/",
 		           new sig::UserData(user, sig::UserData::DISCONNECTED));
-		User::ID id = user.id;
-		delete u->second;
 		users->users.erase(u);
-		u = users->users.lower_bound(id);
+		u = users->users.lower_bound(user.id);
 		uend = users->users.end();
+		delete &user;
 	}
 }
 
@@ -765,7 +775,7 @@ void Network::performTick() {
 NetworkUser &Network::getUser(const User::ID &id, const std::string &name) {
 	std::pair<sig::UsersListData::Users::iterator, bool> ret;
 	ret = users->users.insert(std::make_pair(id, (User*)0));
-	if (ret.second) {
+	if (!ret.second) {
 		static_cast<NetworkUser*>(ret.first->second)->accessed();
 	} else {
 		ret.first->second = new NetworkUser(id, name);

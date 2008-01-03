@@ -1,7 +1,9 @@
 /** \file
  * Methods generating ppcp packets.
- * $Id: ppcp-packets.cpp,v 1.4 2008/01/02 18:24:01 mina86 Exp $
+ * $Id: ppcp-packets.cpp,v 1.5 2008/01/03 03:00:07 mina86 Exp $
  */
+
+#include <assert.h>
 
 #include <stdio.h>
 
@@ -44,7 +46,8 @@ std::string st(User::State st, const std::string &msg,
 	case User::AWAY   : packet = "<st st=\"away\""; break;
 	case User::XAWAY  : packet = "<st st=\"xa\""  ; break;
 	case User::BUSY   : packet = "<st st=\"dnd\"" ; break;
-	default           : packet = "<st"            ; break;
+	default           : assert(st == User::ONLINE);
+	                    packet = "<st"            ; break;
 	}
 
 	if (!name.empty()) {

@@ -1,7 +1,9 @@
 /** \file
  * XML parser implementation.
- * $Id: xml-parser.cpp,v 1.6 2007/12/29 02:36:35 mina86 Exp $
+ * $Id: xml-parser.cpp,v 1.7 2008/01/03 03:00:07 mina86 Exp $
  */
+
+#include <assert.h>
 
 #include <errno.h>
 #include <stdio.h>
@@ -223,7 +225,7 @@ Tokenizer::Token Tokenizer::nextToken() {
 	state_tag:
 		state = TAG;
 		dataStart = pos = p + 1;
-	case TAG: {
+	case TAG:
 		const char *it = data + pos, *const end = data + buffer.length();
 		if (dataStart == pos && it!=end && *it == '/') ++it;
 		while (it != end && isNameChar(*it)) ++it;
@@ -256,7 +258,6 @@ Tokenizer::Token Tokenizer::nextToken() {
 
 		state = TAG_CLOSING;
 		/* FALL THROU */
-	}
 
 
 		/* It's a cloasing tag or opening after '/' char; waiting for '>'. */
@@ -307,7 +308,7 @@ Tokenizer::Token Tokenizer::nextToken() {
 
 		/* We are reading attribute name */
 	state_attr:
-	case ATTR: {
+	case ATTR:
 		const char *it = data + pos, *const end = data + buffer.length();
 		while (it != end && isNameChar(*it)) ++it;
 		if (it==end) {
@@ -323,7 +324,6 @@ Tokenizer::Token Tokenizer::nextToken() {
 		token.type = ATTR_NAME;
 		token.data.assign(data + dataStart, pos - dataStart);
 		break;
-	}
 
 
 		/* Got attribute name, waiting for '=' */
@@ -377,6 +377,10 @@ Tokenizer::Token Tokenizer::nextToken() {
 		token.data.assign(data + dataStart, p - dataStart);
 		state = TAG_INSIDE;
 		pos = p + 1;
+		break;
+
+	default:
+		assert(0);
 	}
 
 

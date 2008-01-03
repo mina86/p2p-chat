@@ -1,10 +1,12 @@
 /** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.4 2007/12/10 11:55:42 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.5 2008/01/03 03:00:07 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
 #define H_XML_PARSER_HPP
+
+#include <assert.h>
 
 #include <string>
 #include <vector>
@@ -271,6 +273,8 @@ struct TokenConsumer {
 			attrName.clear();
 		case Tokenizer::TAG_CLOSE:
 			break;
+		default:
+			assert(0);
 		}
 
 		return true;
