@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.7 2008/01/02 16:23:14 mina86 Exp $
+ * $Id: ui.cpp,v 1.8 2008/01/03 18:39:31 mina86 Exp $
  */
 
 #include <errno.h>
@@ -27,7 +27,7 @@ static unsigned long seq = 0;
 UI::UI(Core &c, int infd /* some more arguments */)
 	: Module(c, "/ui/mco/", seq++), stdin_fd(infd) {
 
-	NonBlockingFD::setNonBlocking(infd);
+	FileDescriptor::setNonBlocking(infd);
 
 	/* disable all kinds of buffering */
 

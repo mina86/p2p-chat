@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: io.hpp,v 1.2 2007/12/30 18:42:39 mina86 Exp $
+ * $Id: io.hpp,v 1.3 2008/01/03 18:38:44 mina86 Exp $
  */
 
 #ifndef H_IO_HPP
@@ -53,14 +53,14 @@ struct EndOfFile : public IOException {
 /**
  * A base class for file descriptors opened in non-blocking mode.
  */
-struct NonBlockingFD {
+struct FileDescriptor {
 	/** File descriptor number. */
 	const int fd;
 
 	/**
 	 * Closes file descriptor.
 	 */
-	~NonBlockingFD() {
+	~FileDescriptor() {
 		close(fd);
 	}
 
@@ -71,18 +71,32 @@ struct NonBlockingFD {
 	 */
 	static void setNonBlocking(int fd) {
 		int flags = fcntl(fd, F_GETFL);
-		if (flags < 0 || fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+		if (flags < 0 ||
+		    (!(flags & O_NONBLOCK) &&
+		     fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)) {
 			throw IOException("fcntl: ", errno);
 		}
+	}
+
+	/**
+	 * Sets file descriptor into non-blocking mode.
+	 * \throw IOException on error.
+	 */
+	void setNonBlocking() {
+		setNonBlocking(fd);
 	}
 
 protected:
 	/**
 	 * Constructs object.
-	 * \param f file descriptor number
+	 * \param f file descriptor number.
+	 * \param nonBlocking if \c true a \c O_NONBLOCK flag is set on
+	 *        this descriptor.
 	 */
-	NonBlockingFD(int f) : fd(f) {
-		setNonBlocking(f);
+	FileDescriptor(int f, bool nonBlocking = true) : fd(f) {
+		if (nonBlocking) {
+			setNonBlocking(f);
+		}
 	}
 };
 
