@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.16 2008/01/02 16:23:14 mina86 Exp $
+ * $Id: signal.hpp,v 1.17 2008/01/03 01:57:40 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -174,14 +174,15 @@ struct Signal {
 	 * casts what getData() method returns to a pointer to const \a T.
 	 * This comes in handy since casting value returned by getData()
 	 * is common operation and it is simpler to type
-	 * <tt>signal.getData<type>()</tt> then <tt>static_cast<const
+	 * <tt>signal.getData<type>()</tt> then <tt>dynamic_cast<const
 	 * type*>(signal.getData())</tt>.
 	 *
-	 * This method uses a static_cast so it does not check if object
-	 * was cast to valid type.
+	 * This method uses a dynamic_cast so it checks if we are casting
+	 * to object of a proper type.  If not \c NULL is returned thus
+	 * dereferencing will cause a \c SIGSEGV.
 	 */
 	template<class T>
-	const T *getData() const { return static_cast<const T*>(data.get()); }
+	const T *getData() const { return dynamic_cast<const T*>(data.get()); }
 
 	/** Returns signal's data. */
 	const Data *operator->() const { return data.get(); }
