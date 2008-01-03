@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.17 2008/01/02 16:23:14 mina86 Exp $
+ * $Id: application.cpp,v 1.18 2008/01/03 01:58:01 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -146,7 +146,7 @@ int Core::run() {
 			if (it->first != moduleName) delete it->second;
 		}
 		modules.clear();
-		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
+		modules[moduleName] = this;
 		prevToKill = nextToKill = this;
 	}
 

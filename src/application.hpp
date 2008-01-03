@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.13 2008/01/02 16:23:14 mina86 Exp $
+ * $Id: application.hpp,v 1.14 2008/01/03 01:58:01 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -198,7 +198,7 @@ struct Core : protected Module {
 	 */
 	Core(Config &cfg)
 		: Module(*this, "/core"), config(cfg) {
-		modules.insert(std::make_pair(moduleName,static_cast<Module*>(this)));
+		modules[moduleName] = this;
 		prevToKill = nextToKill = this;
 		dieDueTime = std::numeric_limits<unsigned long>::max();
 	}
