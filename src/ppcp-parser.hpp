@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.8 2008/01/04 12:36:44 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.9 2008/01/04 12:39:56 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -208,8 +208,8 @@ struct StandAloneTokenizer {
 
 	/**
 	 * Constructs tokenizer.  This constructor does the same \link
-	 * Tokenizer(const std::string&, Port) \endlink does but takes
-	 * both arguments from an User::ID object.
+	 * StandAloneTokenizer(const std::string&, Port) \endlink does but
+	 * takes both arguments from an User::ID object.
 	 *
 	 * \param id User::ID object including with nick name and port number.
 	 */

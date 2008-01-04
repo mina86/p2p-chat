@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.11 2008/01/04 00:10:28 mina86 Exp $
+ * $Id: netio.hpp,v 1.12 2008/01/04 12:39:56 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
@@ -449,8 +449,6 @@ struct UDPSocket : public Socket {
 	 * required by given class of addresses.
 	 *
 	 * \param addr address to bind to.
-	 * \param nonBlocking if \c true a \c O_NONBLOCK flag is set on
-	 *        this descriptor.
 	 * \throw IOException if error occured.
 	 */
 	UDPSocket(Address addr = Address()) : Socket(bind(addr), true) { };
