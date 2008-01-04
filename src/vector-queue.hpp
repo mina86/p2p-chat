@@ -1,6 +1,6 @@
 /** \file
  * A queue implementation for vector as underlying container.
- * $Id: vector-queue.hpp,v 1.3 2008/01/03 03:00:07 mina86 Exp $
+ * $Id: vector-queue.hpp,v 1.4 2008/01/04 14:01:20 mina86 Exp $
  */
 
 #ifndef H_VECTOR_QUEUE_HPP
@@ -72,13 +72,22 @@ struct queue<T, vector<T, Alloc> > {
 	 * Returns a read/write reference to the data at the last
 	 * element of the %queue.
 	 */
-	reference back() { return *last; }
+	reference back() {
+		typename vector_type::iterator it = (last==c.begin()?c.end():last);
+		--it;
+		return *it;
+	}
 
 	/**
 	 * Returns a read-only (constant) reference to the data at the
 	 * last element of the %queue.
 	 */
-	const_reference back() const { return c.back(); }
+	const_reference back() const {
+		typename vector_type::const_iterator it =
+			(last == c.begin() ? c.end() : last);
+		--it;
+		return *it;
+	}
 
 	/**
 	 * Add data to the end of the %queue.  This is a typical %queue
@@ -125,36 +134,45 @@ protected:
 
 
 private:
-	/** An iterator. */
-	typedef typename vector_type::iterator               iterator;
-
 	/** Number of elements. */
 	size_type count;
 
 	/** First element of the queue. */
-	iterator first;
+	typename vector_type::iterator first;
 
 	/** Last element of the queue. */
-	iterator last;
+	typename vector_type::iterator last;
 
 
 	/** Allocates more space. */
 	void moreSpace() {
+#if 1
+		typename vector_type::size_type pos = first - c.begin();
+		c.resize(count > 16 ? count * 2 : 32);
+		first = c.begin();
+		last = first + count;
+		while (pos) {
+			*last = *first;
+			++first;
+			++last;
+			--pos;
+		}
+#else
 		if (first == c.begin()) {
 			c.resize(count > 16 ? count * 2 : 32);
-			first = last = c.begin();
 		} else {
 			vector_type v(count > 16 ? count * 2 : 32);
-			iterator end = c.end(), x = v.begin();
+			typename vector_type::iterator end = c.end(), x = v.begin();
 			for (size_type i = count; i; --i) {
 				*x = *first;
 				++x;
 				if (++first == end) first = c.begin();
 			}
 			c.swap(v);
-			first = v.begin();
-			last = first + count;
 		}
+		first = c.begin();
+		last = first + count;
+#endif
 	}
 };
 
