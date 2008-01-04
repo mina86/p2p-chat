@@ -1,6 +1,6 @@
 /** \file
  * UPF multicast tester.
- * $Id: multicast.c,v 1.1 2007/12/09 17:09:58 mina86 Exp $
+ * $Id: multicast.c,v 1.2 2008/01/04 11:17:00 mina86 Exp $
  */
 
 
@@ -21,7 +21,7 @@ static const int yes = 1;
 static const char *argv0;
 
 
-static int read_from_stdin(int fd, long group_ip, short group_port);
+static int read_from_stdin(int fd, const struct sockaddr *addr, int size);
 static int recvieve_from_socket(int fd);
 
 
@@ -29,13 +29,13 @@ int main(int argc, char **argv) {
 	struct sockaddr_in addr;
 	unsigned short group_port; /* this is is network byte order */
 	unsigned long group_ip;    /* this is is network byte order */
-	int fd, loop_arg = 1;
+	int fd, ret = 1;
 
 	argv0 = argv[0];
 
 	/* No multicast loop? */
 	if (argc > 1 && !strcmp(argv[1], "-l")) {
-		loop_arg = 0;
+		ret = 0;
 		--argc;
 		++argv;
 	}
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
 	}
 
 	/* Create socket */
-	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	if ((fd = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
 		fprintf(stderr, "%s: %s: %s\n", argv0, "socket", strerror(errno));
 		return 1;
 	}
@@ -91,8 +91,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
-	               &loop_arg, sizeof loop_arg) < 0) {
+	/* Set multicast loop */
+	if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &ret, sizeof ret) < 0) {
 		fprintf(stderr, "%s: %s: %s\n", argv0,
 		        "setsockopt: ip_multicast_loop", strerror(errno));
 		return 1;
@@ -112,9 +112,9 @@ int main(int argc, char **argv) {
 	}
 
 	/* Main loop */
-	for(;;){
+	addr.sin_addr.s_addr = group_ip;
+	do {
 		fd_set rd;
-		int ret;
 
 		FD_ZERO(&rd);
 		FD_SET(0, &rd);
@@ -128,20 +128,22 @@ int main(int argc, char **argv) {
 		}
 
 		if (FD_ISSET(0, &rd)) {
-			ret = read_from_stdin(fd, group_ip, group_port);
-			if (ret <= 0) return -ret;
+			ret = read_from_stdin(fd, (struct sockaddr*)&addr, sizeof addr);
 		}
 
-		if (FD_ISSET(fd, &rd)) {
+		if (ret > 0 && FD_ISSET(fd, &rd)) {
 			if (recvieve_from_socket(fd) < 0) return 1;
 		}
-	}
+	} while (ret > 0);
+
+	/* Finish */
+	close(fd);
+	return -ret;
 }
 
 
 
-static int read_from_stdin(int fd, long group_ip, short group_port) {
-	struct sockaddr_in addr;
+static int read_from_stdin(int fd, const struct sockaddr *addr, int size) {
 	char buffer[4096];
 	ssize_t ret;
 
@@ -161,12 +163,7 @@ static int read_from_stdin(int fd, long group_ip, short group_port) {
 		return 1;
 	}
 
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = group_ip;
-	addr.sin_port = group_port;
-	if (sendto(fd, buffer, ret, 0,
-	           (struct sockaddr *)&addr, sizeof addr) < 0) {
+	if (sendto(fd, buffer, ret, 0, addr, size) < 0) {
 		fprintf(stderr, "%s: %s: %s\n", argv0, "sendto", strerror(errno));
 		return -1;
 	}
