@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.12 2008/01/03 18:39:10 mina86 Exp $
+ * $Id: netio.cpp,v 1.13 2008/01/04 00:10:32 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -222,7 +222,7 @@ void UDPSocket::write() {
 		int ret;
 
 		pair.second.toSockaddr(sockaddr);
-		ret = sendto(fd, pair.first.data(), pair.first.size(), MSG_NOSIGNAL,
+		ret = sendto(fd, pair.first.data(), pair.first.size(), 0,
 		             (struct sockaddr*)&sockaddr, sizeof sockaddr);
 		if (ret > 0) {
 			/* ok, we sent something -- we don't really know if it was

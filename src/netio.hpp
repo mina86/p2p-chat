@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.10 2008/01/03 18:39:10 mina86 Exp $
+ * $Id: netio.hpp,v 1.11 2008/01/04 00:10:28 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
@@ -45,10 +45,23 @@ struct IP {
 	 */
 	IP(const struct sockaddr_in &addr) : value(ntoh(addr.sin_addr.s_addr)) { }
 
+	/**
+	 * Sets IP address from a dot notation string.
+	 * \param addr IP address in dot notation.
+	 */
+	explicit IP(const char *addr) : value(ntoh(inet_addr(addr))) { }
+
+	/**
+	 * Sets IP address from a dot notation string.
+	 * \param addr IP address in dot notation.
+	 */
+	explicit IP(const std::string &addr)
+		: value(ntoh(inet_addr(addr.c_str()))) { }
+
 
 	/** Returns \c true if IP address is a multicast address (class D). */
 	bool isMulticast() const {
-		return value & 0xf8000000 == 0x08000000;
+		return value & 0xf8000000 == 0xf0000000;
 	}
 
 
@@ -97,6 +110,25 @@ struct IP {
 		value = ntoh(addr.sin_addr.s_addr);
 		return *this;
 	}
+
+	/**
+	 * Sets IP address from a dot notation string.
+	 * \param addr IP address in dot notation.
+	 */
+	IP &operator=(const char *addr) {
+		value = ntoh(inet_addr(addr));
+		return *this;
+	}
+
+	/**
+	 * Sets IP address from a dot notation string.
+	 * \param addr IP address in dot notation.
+	 */
+	IP &operator=(const std::string &addr) {
+		value = ntoh(inet_addr(addr.c_str()));
+		return *this;
+	}
+
 
 	/**
 	 * Convers IP address in network byte order to host byte order.
@@ -192,7 +224,7 @@ struct Address {
 	 * \param i IP address.
 	 * \param p port number.
 	 */
-	explicit Address(IP i = 0, Port p = 0) : ip(i), port(p) { }
+	explicit Address(IP i = 0UL, Port p = 0) : ip(i), port(p) { }
 
 	/**
 	 * Constructs Address from a sockaddr_in structure.
@@ -421,7 +453,7 @@ struct UDPSocket : public Socket {
 	 *        this descriptor.
 	 * \throw IOException if error occured.
 	 */
-	UDPSocket(Address addr) : Socket(bind(addr), true) { };
+	UDPSocket(Address addr = Address()) : Socket(bind(addr), true) { };
 
 
 	/**
