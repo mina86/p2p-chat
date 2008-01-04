@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.13 2008/01/04 00:10:32 mina86 Exp $
+ * $Id: netio.cpp,v 1.14 2008/01/04 11:44:00 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -230,6 +230,9 @@ void UDPSocket::write() {
 			queue.pop();
 		} else if (ret == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
 			return;
+		} else if (errno == EMSGSIZE) {
+			/* message too long -- so what can we do about it? */
+			queue.pop();
 		} else if (errno != EINTR) {
 			queue.pop();
 			throw IOException("sendto: ", errno);
