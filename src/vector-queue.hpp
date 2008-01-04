@@ -1,6 +1,6 @@
 /** \file
  * A queue implementation for vector as underlying container.
- * $Id: vector-queue.hpp,v 1.4 2008/01/04 14:01:20 mina86 Exp $
+ * $Id: vector-queue.hpp,v 1.5 2008/01/04 14:30:00 mina86 Exp $
  */
 
 #ifndef H_VECTOR_QUEUE_HPP
@@ -119,8 +119,8 @@ struct queue<T, vector<T, Alloc> > {
 	void pop() {
 		if (!count) {
 			assert(0);
-			/* nothing */
 		} else if (!--count) {
+			if (c.capacity() > 2 * init_size()) c.swap(vector_type());
 			first = last = c.begin();
 		} else if (++first == c.end()) {
 			first = c.begin();
@@ -148,7 +148,7 @@ private:
 	void moreSpace() {
 #if 1
 		typename vector_type::size_type pos = first - c.begin();
-		c.resize(count > 16 ? count * 2 : 32);
+		c.resize((count > init_size() ? count : init_size()) * 2);
 		first = c.begin();
 		last = first + count;
 		while (pos) {
@@ -159,9 +159,9 @@ private:
 		}
 #else
 		if (first == c.begin()) {
-			c.resize(count > 16 ? count * 2 : 32);
+			c.resize((count > init_size() ? count : init_size()) * 2);
 		} else {
-			vector_type v(count > 16 ? count * 2 : 32);
+			vector_type v((count > init_size() ? count : init_size()) * 2);
 			typename vector_type::iterator end = c.end(), x = v.begin();
 			for (size_type i = count; i; --i) {
 				*x = *first;
@@ -173,6 +173,12 @@ private:
 		first = c.begin();
 		last = first + count;
 #endif
+	}
+
+
+	/** Returns intial size of vector. */
+	static typename vector_type::size_type init_size() {
+		return 512 / sizeof T > 8 ? 512 / sizeof T : 8;
 	}
 };
 
