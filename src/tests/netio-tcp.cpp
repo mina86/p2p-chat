@@ -1,6 +1,6 @@
 /** \file
- * A netio library test.
- * $Id: netio-test.cpp,v 1.2 2008/01/03 18:44:23 mina86 Exp $
+ * A netio library TCP comunication test.
+ * $Id: netio-tcp.cpp,v 1.1 2008/01/04 00:12:12 mina86 Exp $
  */
 
 #include <unistd.h>

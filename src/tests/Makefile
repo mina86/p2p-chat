@@ -1,6 +1,6 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.7 2008/01/03 18:38:13 mina86 Exp $
+## $Id: Makefile,v 1.8 2008/01/04 00:12:12 mina86 Exp $
 ##
 
 #CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
@@ -26,7 +26,7 @@ shared-obj: shared-obj.cpp ../shared-obj.hpp
 multicast: multicast.c
 	exec $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $<
 
-netio-test: netio-test.o ../netio.o ../application.o
+netio-%: netio-%.o ../netio.o ../application.o
 	exec $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ $^
 
 clean:

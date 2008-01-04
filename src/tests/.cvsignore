@@ -3,4 +3,6 @@ xml-parser
 multicast
 select-test
 select-test-2
-netio-test
+netio-tcp
+netio-udp
+netio-multicast
