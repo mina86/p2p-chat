@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.7 2008/01/03 03:00:07 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.9 2008/01/04 12:38:51 mina86 Exp $
  */
 
 #include <assert.h>
@@ -190,7 +190,9 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			break;
 		}
 
-		if (data2.empty() || !User::isValidName(data)) {
+		if ((flags & F_PPCP_TO_N &&
+		     (!(flags & F_PPCP_TO_N_OK) == !(flags & F_PPCP_TO_NEG))) ||
+		    data2.empty() || !User::isValidName(data)) {
 			goto ignore_rest;
 		}
 
@@ -204,17 +206,16 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		}
 
 		data = User::nickFromName(data2 = data);
-		if (ignoreSelf && data == ourNick) {
+		if (ourPort == token.flags && data == ourNick) {
 		ignore_rest:
 			token.type = IGNORE;
 			element = E_IGNORE;
-			data.clear();
 			data2.clear();
-			break;
+		} else {
+			token.type = PPCP_OPEN;
+			token.data = data;
+			token.data2 = data2;
 		}
-		token.type = PPCP_OPEN;
-		token.data = data;
-		token.data2 = data2;
 		data.clear();
 		break;
 

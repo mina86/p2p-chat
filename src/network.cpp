@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.21 2008/01/03 03:00:07 mina86 Exp $
+ * $Id: network.cpp,v 1.22 2008/01/04 12:35:57 mina86 Exp $
  */
 
 #include <assert.h>
@@ -571,7 +571,7 @@ void Network::acceptConnections() {
 
 
 void Network::readFromUDPSocket() {
-	ppcp::StandAloneTokenizer tokenizer(ourUser.id.nick, true);
+	ppcp::StandAloneTokenizer tokenizer(ourUser.id);
 	ppcp::Tokenizer::Token token;
 	std::string data;
 	Address addr;
