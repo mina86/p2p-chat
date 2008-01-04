@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.9 2008/01/04 12:38:51 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.8 2008/01/04 12:37:16 mina86 Exp $
  */
 
 #include <assert.h>
@@ -210,12 +210,13 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		ignore_rest:
 			token.type = IGNORE;
 			element = E_IGNORE;
+			data.clear();
 			data2.clear();
-		} else {
-			token.type = PPCP_OPEN;
-			token.data = data;
-			token.data2 = data2;
+			break;
 		}
+		token.type = PPCP_OPEN;
+		token.data = data;
+		token.data2 = data2;
 		data.clear();
 		break;
 
