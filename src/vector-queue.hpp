@@ -1,6 +1,6 @@
 /** \file
  * A queue implementation for vector as underlying container.
- * $Id: vector-queue.hpp,v 1.5 2008/01/04 14:30:00 mina86 Exp $
+ * $Id: vector-queue.hpp,v 1.6 2008/01/04 15:13:51 mina86 Exp $
  */
 
 #ifndef H_VECTOR_QUEUE_HPP
@@ -120,7 +120,10 @@ struct queue<T, vector<T, Alloc> > {
 		if (!count) {
 			assert(0);
 		} else if (!--count) {
-			if (c.capacity() > 2 * init_size()) c.swap(vector_type());
+			if (c.capacity() > 2 * init_size()) {
+				vector_type v;
+				c.swap(v);
+			}
 			first = last = c.begin();
 		} else if (++first == c.end()) {
 			first = c.begin();
@@ -178,7 +181,7 @@ private:
 
 	/** Returns intial size of vector. */
 	static typename vector_type::size_type init_size() {
-		return 512 / sizeof T > 8 ? 512 / sizeof T : 8;
+		return 512 / sizeof(T) > 8 ? 512 / sizeof(T) : 8;
 	}
 };
 
