@@ -1,6 +1,6 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.8 2008/01/04 00:12:12 mina86 Exp $
+## $Id: Makefile,v 1.9 2008/01/04 14:01:04 mina86 Exp $
 ##
 
 #CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
@@ -28,6 +28,9 @@ multicast: multicast.c
 
 netio-%: netio-%.o ../netio.o ../application.o
 	exec $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) -o $@ $^
+
+vector-queue: vector-queue.cpp ../vector-queue.hpp
+	exec $(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $<
 
 clean:
 	exec rm -rf -- *.o $(EXE_FILES)

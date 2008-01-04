@@ -6,3 +6,4 @@ select-test-2
 netio-tcp
 netio-udp
 netio-multicast
+vector-queue
