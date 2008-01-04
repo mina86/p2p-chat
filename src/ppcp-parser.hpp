@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.7 2007/12/27 17:44:11 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.8 2008/01/04 12:36:44 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -106,17 +106,28 @@ struct Tokenizer {
 
 
 	/**
-	 * Default constructor.  \a nick is our nick name.  It's used to
-	 * compare it against a \c to:n attribute of \c ppcp element.
-	 * Moreover, if \a ignoreFromSelf is \c true it is also compared
-	 * with \c n attribute and if both nick mach packet is ignored.
+	 * Constructs tokenizer.  \a nick is our nick name which is
+	 * compared witha \c to:n attribute of \c ppcp element.  Moreover,
+	 * if \a port is non-zero \a nick is compared with \c n attribute
+	 * and \c port with \c p attribute and if they both maches packet
+	 * is ignored.
 	 *
-	 * \param nick           our nick name.
-	 * \param ignoreFromSelf whether we should ignore packets that
-	 *                       nick name maches ours.
+	 * \param nick our nick name.
+	 * \param port port number to compare against \c p attribute.
 	 */
-	Tokenizer(const std::string &nick, bool ignoreFromSelf = false)
-		: ourNick(nick), ignoreSelf(ignoreFromSelf) { }
+	explicit Tokenizer(const std::string &nick, Port port = 0)
+		: ourNick(nick), ourPort(port) { }
+
+
+	/**
+	 * Constructs tokenizer.  This constructor does the same \link
+	 * Tokenizer(const std::string&, Port) \endlink does but takes
+	 * both arguments from an User::ID object.
+	 *
+	 * \param id User::ID object including with nick name and port number.
+	 */
+	explicit Tokenizer(const User::ID &id)
+		: ourNick(id.nick), ourPort(id.address.port) { }
 
 
 
@@ -124,6 +135,16 @@ struct Tokenizer {
 	 * Zeroe's tokenizer state.
 	 */
 	void init();
+
+
+	/**
+	 * Zeroe's tokenizer state and sets our port number.
+	 * \param port port number to compare against \c p attribute.
+	 */
+	void init(Port port) {
+		ourPort = port;
+		init();
+	}
 
 
 	/**
@@ -146,9 +167,8 @@ struct Tokenizer {
 private:
 	/** Our user's nick name. */
 	std::string ourNick;
-
-	/** Should we ignore packets from ourselves. */
-	bool ignoreSelf;
+	/** Our port number to compare agains \c p attribute. */
+	unsigned short ourPort;
 
 	/** Current element. */
 	unsigned char element;
@@ -174,23 +194,41 @@ private:
  */
 struct StandAloneTokenizer {
 	/**
-	 * Default constructor.  \a nick is our nick name.  It's used to
-	 * compare it against a \c to:n attribute of \c ppcp element.
-	 * Moreover, if \a ignoreFromSelf is \c true it is also compared
-	 * with \c n attribute and if both nick mach packet is ignored.
+	 * Constructs tokenizer.  \a nick is our nick name which is
+	 * compared witha \c to:n attribute of \c ppcp element.  Moreover,
+	 * if \a port is non-zero \a nick is compared with \c n attribute
+	 * and \c port with \c p attribute and if they both maches packet
+	 * is ignored.
 	 *
-	 * \param nick           our nick name.
-	 * \param ignoreFromSelf whether we should ignore packets that
-	 *                       nick name maches ours.
+	 * \param nick our nick name.
+	 * \param port port number to compare against \c p attribute.
 	 */
-	StandAloneTokenizer(const std::string &nick, bool ignoreFromSelf = false)
-		: ppcpTokenizer(nick, ignoreFromSelf), xmlTokenizer() { }
+	explicit StandAloneTokenizer(const std::string &nick, Port port = 0)
+		: ppcpTokenizer(nick, port) { }
+
+	/**
+	 * Constructs tokenizer.  This constructor does the same \link
+	 * Tokenizer(const std::string&, Port) \endlink does but takes
+	 * both arguments from an User::ID object.
+	 *
+	 * \param id User::ID object including with nick name and port number.
+	 */
+	explicit StandAloneTokenizer(const User::ID &id) : ppcpTokenizer(id) { }
 
 	/**
 	 * Zeroe's tokenizer state.
 	 */
 	void init() {
 		ppcpTokenizer.init();
+		xmlTokenizer.init();
+	}
+
+	/**
+	 * Zeroe's tokenizer state and sets our port number.
+	 * \param port port number to compare against \c p attribute.
+	 */
+	void init(Port port) {
+		ppcpTokenizer.init(port);
 		xmlTokenizer.init();
 	}
 
