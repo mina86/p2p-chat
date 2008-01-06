@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.12 2008/01/04 12:39:56 mina86 Exp $
+ * $Id: netio.hpp,v 1.13 2008/01/06 15:25:19 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
@@ -61,7 +61,7 @@ struct IP {
 
 	/** Returns \c true if IP address is a multicast address (class D). */
 	bool isMulticast() const {
-		return value & 0xf8000000 == 0xf0000000;
+		return value & 0xf0000000 == 0xe0000000;
 	}
 
 
@@ -71,8 +71,11 @@ struct IP {
 	/** Returns IP address in network byte order. */
 	unsigned long network  () const { return hton(value); }
 
-	/** Returns IP address in host byte order. */
-	operator unsigned long () const { return      value ; }
+	/** Returns \c true iff address is non-zero. */
+	operator bool () const { return value; }
+
+	/** Returns \c true iff address is zero. */
+	bool operator!() const { return !value; }
 
 	/** Returns IP address in network byte order in \c in_addr structure. */
 	operator struct in_addr() const {
@@ -170,9 +173,11 @@ struct Port {
 	/** Returns port number in network byte order. */
 	unsigned short network  () const { return hton(value); }
 
-	/** Returns port number in host byte order. */
-	operator unsigned short () const { return      value ; }
+	/** Returns \c true iff port number is non-zero. */
+	operator bool () const { return value; }
 
+	/** Returns \c true iff port number is zero. */
+	bool operator!() const { return !value; }
 
 	/**
 	 * Sets port number from numer in host byte order.
@@ -509,6 +514,126 @@ private:
 	static std::pair<int, Address> bind(Address addr);
 };
 
+
+
+
+/**
+ * Returns \c true iff both addresses are equal.
+ * \param a first IP address.
+ * \param b second IP address.
+ */
+inline bool operator==(const IP &a, const IP &b) {
+	return a.host() == b.host();
+}
+
+/**
+ * Returns \c false iff both addresses are equal.
+ * \param a first IP address.
+ * \param b second IP address.
+ */
+inline bool operator!=(const IP &a, const IP &b) {
+	return a.host() != b.host();
+}
+
+/**
+ * Returns \c true iff the first addresses is greater then the second.
+ * Compares host representations of both addresses.
+ * \param a first IP address.
+ * \param b second IP address.
+ */
+inline bool operator> (const IP &a, const IP &b) {
+	return a.host() >  b.host();
+}
+
+/**
+ * Returns \c true iff the first addresses is less then the second.
+ * Compares host representations of both addresses.
+ * \param a first IP address.
+ * \param b second IP address.
+ */
+inline bool operator< (const IP &a, const IP &b) {
+	return a.host() <  b.host();
+}
+
+/**
+ * Returns \c true iff the first addresses is greater or equal then
+ * the second.  Compares host representations of both addresses.
+ * \param a first IP address.
+ * \param b second IP address.
+ */
+inline bool operator>=(const IP &a, const IP &b) {
+	return a.host() >= b.host();
+}
+
+/**
+ * Returns \c true iff the first addresses is less then or equal to
+ * the second.  Compares host representations of both addresses.
+ * \param a first IP address.
+ * \param b second IP address.
+ */
+inline bool operator<=(const IP &a, const IP &b) {
+	return a.host() <= b.host();
+}
+
+
+
+/**
+ * Returns \c true iff both port numbers are equal.
+ * \param a first port number.
+ * \param b second port number.
+ */
+inline bool operator==(const Port &a, const Port &b) {
+	return a.host() == b.host();
+}
+
+/**
+ * Returns \c false iff both port numbers are equal.
+ * \param a first port number.
+ * \param b second port number.
+ */
+inline bool operator!=(const Port &a, const Port &b) {
+	return a.host() != b.host();
+}
+
+/**
+ * Returns \c true iff the first port numbers is greater then the second.
+ * Compares host representations of both port numbers.
+ * \param a first port number.
+ * \param b second port number.
+ */
+inline bool operator> (const Port &a, const Port &b) {
+	return a.host() >  b.host();
+}
+
+/**
+ * Returns \c true iff the first port numbers is less then the second.
+ * Compares host representations of both port numbers.
+ * \param a first port number.
+ * \param b second port number.
+ */
+inline bool operator< (const Port &a, const Port &b) {
+	return a.host() <  b.host();
+}
+
+/**
+ * Returns \c true iff the first port numbers is greater or equal then
+ * the second.  Compares host representations of both port numbers.
+ * \param a first port number.
+ * \param b second port number.
+ */
+inline bool operator>=(const Port &a, const Port &b) {
+	return a.host() >= b.host();
+}
+
+/**
+ * Returns \c true iff the first port numbers is less then or equal to
+ * the second.  Compares host representations of both port numbers.
+ * \param a first port number.
+ * \param b second port number.
+ */
+inline bool operator<=(const Port &a, const Port &b) {
+	return a.host() <= b.host();
+}
 
 
 
