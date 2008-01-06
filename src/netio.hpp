@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.hpp,v 1.13 2008/01/06 15:25:19 mina86 Exp $
+ * $Id: netio.hpp,v 1.14 2008/01/06 21:45:21 mina86 Exp $
  */
 
 #ifndef H_NETIO_HPP
@@ -61,7 +61,7 @@ struct IP {
 
 	/** Returns \c true if IP address is a multicast address (class D). */
 	bool isMulticast() const {
-		return value & 0xf0000000 == 0xe0000000;
+		return (value & 0xf0000000) == 0xe0000000;
 	}
 
 
