@@ -1,12 +1,15 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.4 2008/01/06 19:59:24 mco Exp $
+ * $Id: ui.hpp,v 1.5 2008/01/06 21:43:22 mco Exp $
  */
 
 #ifndef H_UI_HPP
 #define H_UI_HPP
 
+#define UI_HISTORY_SIZE		100
+
 #include <map>
+#include <list>
 
 #include "application.hpp"
 
@@ -67,11 +70,15 @@ private:
 	std::pair<std::string::size_type, std::string::size_type>
 	nextToken(const std::string &str, std::string::size_type pos = 0);
 
-	/** command buffer */
-	std::string cbuffer;
-
 	/** redraw the command window */
 	void winCommandRedraw();
+
+	/**
+	 * commands history buffer
+	 * first entry is current command buffer
+	 */
+	std::list<std::string> history;
+	std::list<std::string>::iterator historyIterator;
 };
 
 

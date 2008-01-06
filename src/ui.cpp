@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.10 2008/01/06 19:59:24 mco Exp $
+ * $Id: ui.cpp,v 1.11 2008/01/06 21:43:22 mco Exp $
  */
 
 #include <errno.h>
@@ -41,7 +41,9 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	keypad(stdscr, true);
 	nodelay(stdscr, TRUE);
 
-
+	/* initialize history buffers */
+	history.push_front(std::string(""));
+	historyIterator = history.begin();
 
 	/* ask network modules if they are connected, we'll get whole
 	   a lot of /net/conn/connected signals if they are connected
@@ -57,6 +59,7 @@ UI::UI(Core &c, int infd /* some more arguments */)
 
 
 UI::~UI() {
+	history.clear();
 	/* whatever needed */
 	endwin();
 	printf("UI exiting\n");
@@ -159,37 +162,59 @@ void UI::recievedSignal(const Signal &sig) {
 }
 
 void UI::handleCharacter(int c) {
+	std::list<std::string>::iterator tmpHistoryIterator;
 	switch(c) {
 		/* enter key */
 		case '\n':
 		case '\r': 
 		case KEY_ENTER:
-			handleCommand(cbuffer);
-			cbuffer.erase();
+			if(historyIterator != history.begin()) {
+				*history.begin() = *historyIterator;
+			}
+			handleCommand(*history.begin());
+			history.push_front(std::string(""));
+			historyIterator = history.begin();
+			if(history.size() > UI_HISTORY_SIZE) {
+				history.pop_back();
+			}
 			winCommandRedraw();
 			break;
 		/* backspace key */
 		case 0x07:
 		case 0x08:
 		case KEY_BACKSPACE:
-			if(cbuffer.length()) {
-				cbuffer.erase(cbuffer.length()-1, cbuffer.length());
+			if(historyIterator->length()) {
+				historyIterator->erase(historyIterator->length()-1,
+				                       historyIterator->length());
+				winCommandRedraw();
+			}
+			break;
+		case KEY_UP:
+			tmpHistoryIterator = historyIterator;
+			++tmpHistoryIterator;
+			if(tmpHistoryIterator != history.end()) {
+				historyIterator=tmpHistoryIterator;
+				winCommandRedraw();
+			}
+			break;
+		case KEY_DOWN:
+			if(historyIterator != history.begin()) {
+				--historyIterator;
 				winCommandRedraw();
 			}
 			break;
 		case KEY_LEFT:
 		case KEY_RIGHT:
-		case KEY_UP:
-		case KEY_DOWN:
 			break;
 		default:
-			cbuffer.push_back(c);
+			historyIterator->push_back(c);
 			winCommandRedraw();
 			break;
 	}
 }
 
 void UI::handleCommand(const std::string &command) {
+
 	std::pair<std::string::size_type, std::string::size_type> pos
 		= nextToken(command);
 	std::string::size_type len = pos.second - pos.first;
@@ -201,15 +226,27 @@ void UI::handleCommand(const std::string &command) {
 	}
 
 	std::string data(command, pos.first, len);
+	/*
 	if (command[pos.first] != '/') {
 		pos.second = pos.first;
 		goto message;
 	}
+	*/
 
 	if (len == 5 && (data == "/quit" || data == "/exit")) {
 		sendSignal("/core/module/exits", Core::coreName);
 		return;
 	}
+
+	if (len == 2 && data == "ll") {
+		std::list<std::string>::iterator i;
+		int j;
+		for(i=history.begin(), j=0; i!=history.end(); ++i, ++j) {
+			wprintw(stdscr, "[%3d]: %s\n", j, i->c_str());
+		}
+	}
+
+	return;
 
 	if (len == 1 || (len == 4 && data == "/msg") ||
 	    (len == 3 && data == "/me")) {
@@ -296,7 +333,7 @@ UI::nextToken(const std::string &str, std::string::size_type pos) {
 void UI::winCommandRedraw() {
 	int y,x;
 	getyx(stdscr, y, x);
-	mvwaddstr(stdscr, y, 0, cbuffer.c_str());
+	mvwaddstr(stdscr, y, 0, historyIterator->c_str());
 	wclrtoeol(stdscr);
 	wnoutrefresh(stdscr);
 	doupdate();
