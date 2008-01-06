@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.8 2008/01/03 18:39:31 mina86 Exp $
+ * $Id: ui.cpp,v 1.9 2008/01/06 15:26:07 mina86 Exp $
  */
 
 #include <errno.h>
@@ -35,11 +35,13 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	   a lot of /net/conn/connected signals if they are connected
 	   signals */
 	sendSignal("/net/conn/are-you-connected", "/net/");
+	printf("Hello from User Interface on fd=%d\n", infd);
 }
 
 
 UI::~UI() {
 	/* whatever needed */
+	printf("UI exiting\n");
 }
 
 
@@ -61,9 +63,12 @@ int UI::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	/* read the data from stdin_fd and put it inside data.  If user
 	   typed enter you do the rest of the method otherwise you return
 	   from it.  */
-	std::string data = "command user typed in";
-	handleCommand(data);
-
+	/* std::string data = "command user typed in"; */
+	/*	std::string data;
+	scanf("%s", data.c_str());
+	*/
+	char buffer[1024];
+	handleCommand(fgets(buffer, sizeof buffer, stdin) ? buffer : "q");
 	return 1;
 }
 
@@ -135,6 +140,16 @@ void UI::handleCommand(const std::string &command) {
 	std::pair<std::string::size_type, std::string::size_type> pos
 		= nextToken(command);
 	std::string::size_type len = pos.second - pos.first;
+
+	if (command[0] == 'q') {
+		sendSignal("/core/module/exits", Core::coreName);
+		return;
+	}
+
+	if (1) {
+		printf("UI::handleCommand(%s)\n", command.data());
+		return;
+	}
 
 	if (!len) {
 		return;
