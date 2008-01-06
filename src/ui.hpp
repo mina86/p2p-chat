@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.5 2008/01/06 21:43:22 mco Exp $
+ * $Id: ui.hpp,v 1.6 2008/01/06 23:07:46 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -10,6 +10,7 @@
 
 #include <map>
 #include <list>
+#include <ncurses.h>
 
 #include "application.hpp"
 
@@ -79,6 +80,19 @@ private:
 	 */
 	std::list<std::string> history;
 	std::list<std::string>::iterator historyIterator;
+
+	/** command history cursor position */
+	unsigned int commandCurPos;
+
+	/** command window identifier */
+	WINDOW *commandW;
+
+	/** status window identifier */
+	WINDOW *statusW;
+
+	/** message window identifier */
+	WINDOW *messageW;
+
 };
 
 

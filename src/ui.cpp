@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.12 2008/01/06 21:49:25 mco Exp $
+ * $Id: ui.cpp,v 1.13 2008/01/06 23:07:46 mco Exp $
  */
 
 #include <errno.h>
@@ -8,7 +8,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <ncurses.h>
 
 #include "io.hpp"
 #include "ui.hpp"
@@ -37,29 +36,47 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	cbreak();
 	noecho();
 
+	/* create windows */
+	int x, y;
+	getmaxyx(stdscr, y, x);
+	messageW = newwin(y-2, x,   0, 0);
+	statusW =  newwin(  1, x, y-2, 0);
+	commandW = newwin(  1, x, y-1, 0);
+
 	/* enable special characters */
-	keypad(stdscr, true);
-	nodelay(stdscr, TRUE);
+	keypad(commandW, true);
+	nodelay(commandW, TRUE);
 
 	/* initialize history buffers */
 	history.push_front(std::string(""));
 	historyIterator = history.begin();
+	commandCurPos = 0;
 
 	/* ask network modules if they are connected, we'll get whole
 	   a lot of /net/conn/connected signals if they are connected
 	   signals */
 	sendSignal("/net/conn/are-you-connected", "/net/");
-	wprintw(stdscr, "Hello from User Interface on fd=%d\n", infd);
-	wprintw(stdscr, "Enter: %d, %d, %d\n", '\n', '\r', KEY_ENTER);
-	wprintw(stdscr, "backspace, delchar, erasechar: %d, %d, %d, \n", KEY_BACKSPACE, KEY_DC, erasechar());
-	wprintw(stdscr, "UP, DOWN, LEFT, RIGHT: %d %d %d %d\n", KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
+	wprintw(messageW, "Hello from User Interface on fd=%d\n", infd);
+	wprintw(messageW, "Enter: %d, %d, %d\n", '\n', '\r', KEY_ENTER);
+	wprintw(messageW, "backspace, delchar, erasechar: %d, %d, %d, \n", KEY_BACKSPACE, KEY_DC, erasechar());
+	wprintw(messageW, "UP, DOWN, LEFT, RIGHT: %d %d %d %d\n", KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
+	wprintw(statusW, "W trakcie tworzenia");
 	wnoutrefresh(stdscr);
+	wnoutrefresh(messageW);
+	wnoutrefresh(statusW);
+	wnoutrefresh(commandW);
 	doupdate();
 }
 
 
 UI::~UI() {
+	/* clear command history */
 	history.clear();
+	/* destroy windows */
+	delwin(messageW);
+	delwin(statusW);
+	delwin(commandW);
+
 	/* whatever needed */
 	endwin();
 	printf("UI exiting\n");
@@ -90,7 +107,7 @@ int UI::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	*/
 
 	int c;
-	if((c = wgetch(stdscr)) == ERR) {
+	if((c = wgetch(commandW)) == ERR) {
 		return -1;
 	}
 
@@ -174,6 +191,7 @@ void UI::handleCharacter(int c) {
 			handleCommand(*history.begin());
 			history.push_front(std::string(""));
 			historyIterator = history.begin();
+			commandCurPos = 0;
 			if(history.size() > UI_HISTORY_SIZE) {
 				history.pop_back();
 			}
@@ -190,6 +208,7 @@ void UI::handleCharacter(int c) {
 			if(historyIterator->length()) {
 				historyIterator->erase(historyIterator->length()-1,
 				                       historyIterator->length());
+				--commandCurPos;
 				winCommandRedraw();
 			}
 			break;
@@ -208,7 +227,24 @@ void UI::handleCharacter(int c) {
 			}
 			break;
 		case KEY_LEFT:
+			if(commandCurPos>0) {
+				--commandCurPos;
+			}
+			winCommandRedraw();
+			break;
 		case KEY_RIGHT:
+			if(commandCurPos < historyIterator->size()) {
+				++commandCurPos;
+			}
+			winCommandRedraw();
+			break;
+		case KEY_HOME:
+			commandCurPos = 0;
+			winCommandRedraw();
+			break;
+		case KEY_END:
+			commandCurPos = historyIterator->size();
+			winCommandRedraw();
 			break;
 		default:
 			if(historyIterator != history.begin()) {
@@ -216,6 +252,7 @@ void UI::handleCharacter(int c) {
 				historyIterator = history.begin();
 			}
 			historyIterator->push_back(c);
+			++commandCurPos;
 			winCommandRedraw();
 			break;
 	}
@@ -227,7 +264,8 @@ void UI::handleCommand(const std::string &command) {
 		= nextToken(command);
 	std::string::size_type len = pos.second - pos.first;
 
-	wprintw(stdscr,"UI::handleCommand(%s)\n", command.data());
+	wprintw(messageW,"UI::handleCommand(%s)\n", command.data());
+	wnoutrefresh(messageW);
 
 	if (!len) {
 		return;
@@ -250,7 +288,8 @@ void UI::handleCommand(const std::string &command) {
 		std::list<std::string>::iterator i;
 		int j;
 		for(i=history.begin(), j=0; i!=history.end(); ++i, ++j) {
-			wprintw(stdscr, "[%3d]: %s\n", j, i->c_str());
+			wprintw(messageW, "[%3d]: %s\n", j, i->c_str());
+			wnoutrefresh(messageW);
 		}
 	}
 
@@ -340,12 +379,12 @@ UI::nextToken(const std::string &str, std::string::size_type pos) {
 
 void UI::winCommandRedraw() {
 	int y,x;
-	getyx(stdscr, y, x);
-	mvwaddstr(stdscr, y, 0, historyIterator->c_str());
-	wclrtoeol(stdscr);
-	wnoutrefresh(stdscr);
+	getyx(commandW, y, x);
+	mvwaddstr(commandW, y, 0, historyIterator->c_str());
+	wclrtoeol(commandW);
+	wmove(commandW, y, commandCurPos);
+	wnoutrefresh(commandW);
 	doupdate();
 }
-
 
 }
