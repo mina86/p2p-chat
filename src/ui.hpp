@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.3 2007/12/29 14:40:40 mina86 Exp $
+ * $Id: ui.hpp,v 1.4 2008/01/06 19:59:24 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -44,6 +44,12 @@ private:
 	NetworkUsers networkUsers;
 
 	/**
+	 * Handles every single character received from user
+	 * \param c character received
+	 */
+	void handleCharacter(int c);
+
+	/**
 	 * Handles a command user enterd.
 	 * \param command command user entered.
 	 */
@@ -60,6 +66,12 @@ private:
 	 */
 	std::pair<std::string::size_type, std::string::size_type>
 	nextToken(const std::string &str, std::string::size_type pos = 0);
+
+	/** command buffer */
+	std::string cbuffer;
+
+	/** redraw the command window */
+	void winCommandRedraw();
 };
 
 

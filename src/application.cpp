@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.21 2008/01/06 15:23:21 mina86 Exp $
+ * $Id: application.cpp,v 1.22 2008/01/06 19:59:24 mco Exp $
  */
 
 #include <assert.h>
@@ -127,7 +127,6 @@ int Core::run() {
 			if (n > nfds) nfds = n;
 		}
 
-		printf("Starting pselect\n");
 		nfds = pselect(nfds + 1, &rd, &wr, &ex, 0, &oldsigset);
 		if (nfds > 0) {
 			for (Modules::iterator it = modules.begin(), end = modules.end();
@@ -183,9 +182,6 @@ int Core::run() {
 
 void Core::deliverSignals() {
 	for (; !signals.empty(); signals.front().clear(), signals.pop()) {
-		printf("%s from %s to %s\n", signals.front().getType().c_str(),
-		       signals.front().getSender().c_str(),
-		       signals.front().getReciever().c_str());
 
 		/* /core/modules/exits needs special handling */
 		if (signals.front().getType() == "/core/module/exits") {

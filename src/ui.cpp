@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.9 2008/01/06 15:26:07 mina86 Exp $
+ * $Id: ui.cpp,v 1.10 2008/01/06 19:59:24 mco Exp $
  */
 
 #include <errno.h>
@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <ncurses.h>
 
 #include "io.hpp"
 #include "ui.hpp"
@@ -29,18 +30,35 @@ UI::UI(Core &c, int infd /* some more arguments */)
 
 	FileDescriptor::setNonBlocking(infd);
 
+	/* enable windowed mode */
+	initscr();
+
 	/* disable all kinds of buffering */
+	cbreak();
+	noecho();
+
+	/* enable special characters */
+	keypad(stdscr, true);
+	nodelay(stdscr, TRUE);
+
+
 
 	/* ask network modules if they are connected, we'll get whole
 	   a lot of /net/conn/connected signals if they are connected
 	   signals */
 	sendSignal("/net/conn/are-you-connected", "/net/");
-	printf("Hello from User Interface on fd=%d\n", infd);
+	wprintw(stdscr, "Hello from User Interface on fd=%d\n", infd);
+	wprintw(stdscr, "Enter: %d, %d, %d\n", '\n', '\r', KEY_ENTER);
+	wprintw(stdscr, "backspace, delchar, erasechar: %d, %d, %d, \n", KEY_BACKSPACE, KEY_DC, erasechar());
+	wprintw(stdscr, "UP, DOWN, LEFT, RIGHT: %d %d %d %d\n", KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
+	wnoutrefresh(stdscr);
+	doupdate();
 }
 
 
 UI::~UI() {
 	/* whatever needed */
+	endwin();
 	printf("UI exiting\n");
 }
 
@@ -67,8 +85,13 @@ int UI::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	/*	std::string data;
 	scanf("%s", data.c_str());
 	*/
-	char buffer[1024];
-	handleCommand(fgets(buffer, sizeof buffer, stdin) ? buffer : "q");
+
+	int c;
+	if((c = wgetch(stdscr)) == ERR) {
+		return -1;
+	}
+
+	handleCharacter(c);
 	return 1;
 }
 
@@ -135,21 +158,43 @@ void UI::recievedSignal(const Signal &sig) {
 	}
 }
 
+void UI::handleCharacter(int c) {
+	switch(c) {
+		/* enter key */
+		case '\n':
+		case '\r': 
+		case KEY_ENTER:
+			handleCommand(cbuffer);
+			cbuffer.erase();
+			winCommandRedraw();
+			break;
+		/* backspace key */
+		case 0x07:
+		case 0x08:
+		case KEY_BACKSPACE:
+			if(cbuffer.length()) {
+				cbuffer.erase(cbuffer.length()-1, cbuffer.length());
+				winCommandRedraw();
+			}
+			break;
+		case KEY_LEFT:
+		case KEY_RIGHT:
+		case KEY_UP:
+		case KEY_DOWN:
+			break;
+		default:
+			cbuffer.push_back(c);
+			winCommandRedraw();
+			break;
+	}
+}
 
 void UI::handleCommand(const std::string &command) {
 	std::pair<std::string::size_type, std::string::size_type> pos
 		= nextToken(command);
 	std::string::size_type len = pos.second - pos.first;
 
-	if (command[0] == 'q') {
-		sendSignal("/core/module/exits", Core::coreName);
-		return;
-	}
-
-	if (1) {
-		printf("UI::handleCommand(%s)\n", command.data());
-		return;
-	}
+	wprintw(stdscr,"UI::handleCommand(%s)\n", command.data());
 
 	if (!len) {
 		return;
@@ -159,6 +204,11 @@ void UI::handleCommand(const std::string &command) {
 	if (command[pos.first] != '/') {
 		pos.second = pos.first;
 		goto message;
+	}
+
+	if (len == 5 && (data == "/quit" || data == "/exit")) {
+		sendSignal("/core/module/exits", Core::coreName);
+		return;
 	}
 
 	if (len == 1 || (len == 4 && data == "/msg") ||
@@ -226,8 +276,6 @@ void UI::handleCommand(const std::string &command) {
 	}
 }
 
-
-
 std::pair<std::string::size_type, std::string::size_type>
 UI::nextToken(const std::string &str, std::string::size_type pos) {
 	std::string::size_type start, end = std::string::npos;
@@ -245,6 +293,14 @@ UI::nextToken(const std::string &str, std::string::size_type pos) {
 	return std::make_pair(start, end);
 }
 
+void UI::winCommandRedraw() {
+	int y,x;
+	getyx(stdscr, y, x);
+	mvwaddstr(stdscr, y, 0, cbuffer.c_str());
+	wclrtoeol(stdscr);
+	wnoutrefresh(stdscr);
+	doupdate();
+}
 
 
 }
