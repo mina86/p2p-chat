@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.14 2008/01/04 11:44:00 mina86 Exp $
+ * $Id: netio.cpp,v 1.15 2008/01/06 15:24:42 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -107,7 +107,7 @@ static void common_bind_part(int fd, Address &addr) {
 		throw IOException("bind: ", errno);
 	}
 
-	if (addr.port == 0) {
+	if (!addr.port) {
 		socklen_t addrlen = sizeof sockaddr;
 		if (getsockname(fd, (struct sockaddr*)&sockaddr, &addrlen) < 0) {
 			throw IOException("getsockname: ", errno);
@@ -175,8 +175,15 @@ std::pair<int, Address> UDPSocket::bind(Address addr) {
 		common_bind_part(fd, addr);
 
 		if (addr.ip.isMulticast()) {
+			const int yes = 1;
 			struct ip_mreq mreq;
-			mreq.imr_multiaddr.s_addr = addr.ip;
+
+			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
+			               &yes, sizeof yes) < 0) {
+				throw IOException("setsockopt: multicast loop: ", errno);
+			}
+
+			mreq.imr_multiaddr.s_addr = addr.ip.network();
 			mreq.imr_interface.s_addr = 0;
 			if (setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			               &mreq, sizeof(mreq)) < 0) {
