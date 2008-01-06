@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.11 2008/01/06 21:43:22 mco Exp $
+ * $Id: ui.cpp,v 1.12 2008/01/06 21:49:25 mco Exp $
  */
 
 #include <errno.h>
@@ -183,6 +183,10 @@ void UI::handleCharacter(int c) {
 		case 0x07:
 		case 0x08:
 		case KEY_BACKSPACE:
+			if(historyIterator != history.begin()) {
+				*history.begin() = *historyIterator;
+				historyIterator = history.begin();
+			}
 			if(historyIterator->length()) {
 				historyIterator->erase(historyIterator->length()-1,
 				                       historyIterator->length());
@@ -207,6 +211,10 @@ void UI::handleCharacter(int c) {
 		case KEY_RIGHT:
 			break;
 		default:
+			if(historyIterator != history.begin()) {
+				*history.begin() = *historyIterator;
+				historyIterator = history.begin();
+			}
 			historyIterator->push_back(c);
 			winCommandRedraw();
 			break;
