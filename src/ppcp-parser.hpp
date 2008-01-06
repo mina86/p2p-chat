@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.9 2008/01/04 12:39:56 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.10 2008/01/06 15:25:41 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -168,7 +168,7 @@ private:
 	/** Our user's nick name. */
 	std::string ourNick;
 	/** Our port number to compare agains \c p attribute. */
-	unsigned short ourPort;
+	Port ourPort;
 
 	/** Current element. */
 	unsigned char element;
