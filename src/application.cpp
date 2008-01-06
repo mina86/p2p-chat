@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.20 2008/01/03 18:38:24 mina86 Exp $
+ * $Id: application.cpp,v 1.21 2008/01/06 15:23:21 mina86 Exp $
  */
 
 #include <assert.h>
@@ -127,7 +127,8 @@ int Core::run() {
 			if (n > nfds) nfds = n;
 		}
 
-		nfds = pselect(nfds, &rd, &wr, &ex, 0, &oldsigset);
+		printf("Starting pselect\n");
+		nfds = pselect(nfds + 1, &rd, &wr, &ex, 0, &oldsigset);
 		if (nfds > 0) {
 			for (Modules::iterator it = modules.begin(), end = modules.end();
 			     it!=end && nfds > 0; ++it) {
@@ -182,10 +183,19 @@ int Core::run() {
 
 void Core::deliverSignals() {
 	for (; !signals.empty(); signals.front().clear(), signals.pop()) {
-		std::pair<Modules::iterator, Modules::iterator> it
-			= matchingModules(signals.front().getReciever());
-		for (; it.first != it.second; ++it.first) {
-			it.first->second->recievedSignal(signals.front());
+		printf("%s from %s to %s\n", signals.front().getType().c_str(),
+		       signals.front().getSender().c_str(),
+		       signals.front().getReciever().c_str());
+
+		/* /core/modules/exits needs special handling */
+		if (signals.front().getType() == "/core/module/exits") {
+			removeModule(signals.front().getSender());
+		} else {
+			std::pair<Modules::iterator, Modules::iterator> it
+				= matchingModules(signals.front().getReciever());
+			for (; it.first != it.second; ++it.first) {
+				it.first->second->recievedSignal(signals.front());
+			}
 		}
 	}
 }
@@ -301,10 +311,6 @@ void Core::recievedSignal(const Signal &sig) {
 		while (nextToKill->dieDueTime <= Core::getTicks()) {
 			removeModule(nextToKill->moduleName);
 		}
-
-	/* Module exits -- remove from list */
-	} else if (sig.getType() == "/core/module/exits") {
-		removeModule(sig.getSender());
 
 	/* Someone wants someone dead! */
 	} else if (sig.getType() == "/core/module/kill") {
