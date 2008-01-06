@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.15 2008/01/03 02:59:07 mina86 Exp $
+ * $Id: application.hpp,v 1.16 2008/01/06 15:23:53 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -197,14 +197,20 @@ struct Core : protected Module {
 	 * \param cfg  application configuration.
 	 */
 	Core(Config &cfg)
-		: Module(*this, Core::coreName), config(cfg) {
+		: Module(*this, Core::coreName), config(cfg), ui_modules(0) {
 		modules[moduleName] = prevToKill = nextToKill = this;
 		dieDueTime = std::numeric_limits<unsigned long>::max();
 	}
 
 
 	/**
-	 * Adds module to modules list.
+	 * Adds module to modules list.  \a module must be a reference to
+	 * Module object which was newed!  It may not be a static or
+	 * automatic object!  The fact that method takes reference and not
+	 * a pointer only means that it cannot be passed a \c NULL
+	 * pointer.  When run() method finishes all added modules will be
+	 * deleted.
+	 *
 	 * \param module Module to add.
 	 * \return \c true iff module with given name does not yet exist.
 	 */
@@ -240,18 +246,24 @@ protected:
 	                  const fd_set *ex);
 	virtual void recievedSignal(const Signal &sig);
 
-	/* Those HAVE TO BE OVERWRITTEN, otherwise we're in trouble. */
+	/* Overwritten just to optimize for speed -- no need to reference
+	   through core field */
 	void sendSignal(const std::string &type, const std::string &reciever,
-	                Signal::Data *sigData = 0) {
+                        Signal::Data *sigData = 0) {
 		signals.push(Signal(type, moduleName, reciever, sigData));
 	}
 	void sendSignal(const std::string &type, const std::string &reciever,
-	                const Signal &sig) {
+                        const Signal &sig) {
 		signals.push(Signal(type, moduleName, reciever, sig));
 	}
-	const Modules getModules() const { return modules; }
-	const Config &getConfig() const { return config; }
 
+	const Modules getModules() const {
+		return modules;
+	}
+
+	const Config &getConfig() const {
+		return config;
+	}
 
 private:
 	/** Signals queue. */
@@ -309,7 +321,8 @@ private:
 };
 
 
-
+struct Config {
+};
 
 
 /* Those method below work because compiler knows core is object of
@@ -318,19 +331,19 @@ private:
 
 void Module::sendSignal(const std::string &type, const std::string &reciever,
                         Signal::Data *sigData) {
-	core.sendSignal(type, reciever, sigData);
+	core.signals.push(Signal(type, moduleName, reciever, sigData));
 }
 void Module::sendSignal(const std::string &type, const std::string &reciever,
                         const Signal &sig) {
-	core.sendSignal(type, reciever, sig);
+	core.signals.push(Signal(type, moduleName, reciever, sig));
 }
 
 const Module::Modules Module::getModules() const {
-	return core.getModules();
+	return core.modules;
 }
 
 const Config &Module::getConfig() const {
-	return core.getConfig();
+	return core.config;
 }
 
 
