@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.18 2008/01/03 03:00:07 mina86 Exp $
+ * $Id: signal.hpp,v 1.19 2008/01/06 15:25:59 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -64,7 +64,11 @@ struct Module;
  *     when module exits and is removed from list; its argument is
  *     a sig::StringData object.</li>
  *   <li>\c /core/module/exits sent to core module when sender exits
- *     and should be removed from list; it has no argument.</li>
+ *     and should be removed from list. Note that this signal is sort
+ *     of magic -- it doesn't matter who you address it to it will
+ *     always be handled by \c /core (but still address it properly to
+ *     \c /core as this (invalid) behaviour may change); it has no
+ *     argument.</li>
  *   <li>\c /core/module/quit sent to inform module to exit.  It is
  *     mostly used to (i) disconnect from given network (then signal
  *     is sent to given network) or to (ii) stop all modules before
