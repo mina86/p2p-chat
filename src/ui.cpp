@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.13 2008/01/06 23:07:46 mco Exp $
+ * $Id: ui.cpp,v 1.14 2008/01/07 09:25:56 mina86 Exp $
  */
 
 #include <errno.h>
@@ -168,8 +168,10 @@ void UI::recievedSignal(const Signal &sig) {
 		   /ui/msg/debug, /ui/msg/info, /ui/msg/notice or
 		   /ui/msg/error.  You may choose to display that message
 		   (especially if it's an error */
-		std::string message = sig.getData<sig::StringData>()->data;
-		(void)message; /* to silence warning for the time being */
+		wprintw(messageW, "[%s] %s\n", sig.getType().c_str() + 8,
+		        sig.getData<sig::StringData>()->data.c_str());
+		wnoutrefresh(messageW);
+		winCommandRedraw();
 
 
 	} else if (sig.getType() == "/core/module/quit") {
@@ -183,7 +185,7 @@ void UI::handleCharacter(int c) {
 	switch(c) {
 		/* enter key */
 		case '\n':
-		case '\r': 
+		case '\r':
 		case KEY_ENTER:
 			if(historyIterator != history.begin()) {
 				*history.begin() = *historyIterator;
