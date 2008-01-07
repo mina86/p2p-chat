@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.22 2008/01/06 19:59:24 mco Exp $
+ * $Id: application.cpp,v 1.23 2008/01/07 09:24:30 mina86 Exp $
  */
 
 #include <assert.h>
@@ -74,6 +74,7 @@ int Core::run() {
 	sigset_t oldsigset;
 
 	if (modules.size() == 1) {
+		assert(0);
 		return 0;
 	}
 
@@ -182,6 +183,20 @@ int Core::run() {
 
 void Core::deliverSignals() {
 	for (; !signals.empty(); signals.front().clear(), signals.pop()) {
+		/* FIXME: Shall be removed in production code */
+		{
+			sprintf(sharedBuffer, "%3lu: ", Core::getTicks());
+			std::string message = sharedBuffer + signals.front().getType() + " from " +
+				signals.front().getSender() + " to " +
+				signals.front().getReciever();
+			Signal sig("/ui/msg/debug", moduleName, "/ui/",
+			           new sig::StringData(message));
+			std::pair<Modules::iterator, Modules::iterator> it
+				= matchingModules(sig.getReciever());
+			for (; it.first != it.second; ++it.first) {
+				it.first->second->recievedSignal(sig);
+			}
+		}
 
 		/* /core/modules/exits needs special handling */
 		if (signals.front().getType() == "/core/module/exits") {
@@ -232,6 +247,7 @@ void Core::handleUnixSignals() {
 
 	sigarr[0] -= sigarr[SIGALRM];
 	while (sigarr[SIGALRM] > 0) {
+		alarm(1);
 		sendSignal("/core/tick", "/");
 		--sigarr[SIGALRM];
 	}
@@ -304,6 +320,7 @@ int Core::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 void Core::recievedSignal(const Signal &sig) {
 	/* Some modules are due to die? */
 	if (sig.getType() == "/core/tick") {
+		++Core::ticks;
 		while (nextToKill->dieDueTime <= Core::getTicks()) {
 			removeModule(nextToKill->moduleName);
 		}
