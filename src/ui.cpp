@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.15 2008/01/07 09:27:59 mina86 Exp $
+ * $Id: ui.cpp,v 1.16 2008/01/07 23:46:11 mco Exp $
  */
 
 #include <errno.h>
@@ -37,15 +37,13 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	noecho();
 
 	/* create windows */
-	int x, y;
-	getmaxyx(stdscr, y, x);
-	messageW = newwin(y-2, x,   0, 0);
-	statusW =  newwin(  1, x, y-2, 0);
-	commandW = newwin(  1, x, y-1, 0);
+	getmaxyx(stdscr, maxY, maxX);
+	messageW =                 newwin(maxY-2, maxX,      0, 0);
+	statusW =                  newwin(     1, maxX, maxY-2, 0);
+	commandW = new CommandWindow(this,     1, maxX, maxY-1, 0);
 
-	/* enable special characters */
-	keypad(commandW, true);
-	nodelay(commandW, TRUE);
+	keypad(stdscr, true);
+	nodelay(stdscr, true);
 
 	/* initialize history buffers */
 	history.push_front(std::string(""));
@@ -64,7 +62,7 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	wnoutrefresh(stdscr);
 	wnoutrefresh(messageW);
 	wnoutrefresh(statusW);
-	wnoutrefresh(commandW);
+	commandW->refresh();
 	doupdate();
 }
 
@@ -75,7 +73,7 @@ UI::~UI() {
 	/* destroy windows */
 	delwin(messageW);
 	delwin(statusW);
-	delwin(commandW);
+	delete commandW;
 
 	/* whatever needed */
 	endwin();
@@ -107,7 +105,7 @@ int UI::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	*/
 
 	int c;
-	if((c = wgetch(commandW)) == ERR) {
+	if((c = getch()) == ERR) {
 		return -1;
 	}
 
@@ -171,7 +169,7 @@ void UI::recievedSignal(const Signal &sig) {
 		wprintw(messageW, "[%s] %s\n", sig.getType().c_str() + 8,
 		        sig.getData<sig::StringData>()->data.c_str());
 		wnoutrefresh(messageW);
-		winCommandRedraw();
+		commandW->redraw();
 
 
 	} else if (sig.getType() == "/core/module/quit") {
@@ -181,6 +179,10 @@ void UI::recievedSignal(const Signal &sig) {
 }
 
 void UI::handleCharacter(int c) {
+	mvwprintw(statusW, 0, 0, "Entered character: [O:%o] [D:%d] [H:%x]", c, c, c);
+	wclrtoeol(statusW);
+	wnoutrefresh(statusW);
+	doupdate();
 	std::list<std::string>::iterator tmpHistoryIterator;
 	switch(c) {
 		/* enter key */
@@ -197,7 +199,7 @@ void UI::handleCharacter(int c) {
 			if(history.size() > UI_HISTORY_SIZE) {
 				history.pop_back();
 			}
-			winCommandRedraw();
+			commandW->redraw();
 			break;
 		/* backspace key */
 		case 0x07:
@@ -207,55 +209,77 @@ void UI::handleCharacter(int c) {
 				*history.begin() = *historyIterator;
 				historyIterator = history.begin();
 			}
-			if(historyIterator->length()) {
-				historyIterator->erase(historyIterator->length()-1,
-				                       historyIterator->length());
+			if(commandCurPos > 0 && commandCurPos <= historyIterator->length()) {
+				historyIterator->erase(commandCurPos-1, 1);
 				--commandCurPos;
-				winCommandRedraw();
+				commandW->redraw();
 			}
 			break;
+		/* delete key */
+		case 0x04:
+		case KEY_DC:
+			if(commandCurPos < historyIterator->length()) {
+				historyIterator->erase(commandCurPos, 1);
+				commandW->redraw();
+			}
+			break;
+		case 0x10:
 		case KEY_UP:
 			tmpHistoryIterator = historyIterator;
 			++tmpHistoryIterator;
 			if(tmpHistoryIterator != history.end()) {
 				historyIterator=tmpHistoryIterator;
-				winCommandRedraw();
+				commandCurPos = historyIterator->length();
+				commandW->redraw();
 			}
 			break;
+		case 0x0e:
 		case KEY_DOWN:
 			if(historyIterator != history.begin()) {
 				--historyIterator;
-				winCommandRedraw();
+				commandCurPos = historyIterator->length();
+				commandW->redraw();
 			}
 			break;
+		case 0x02:
 		case KEY_LEFT:
 			if(commandCurPos>0) {
 				--commandCurPos;
 			}
-			winCommandRedraw();
+			commandW->redraw();
 			break;
+		case 0x06:
 		case KEY_RIGHT:
 			if(commandCurPos < historyIterator->size()) {
 				++commandCurPos;
 			}
-			winCommandRedraw();
+			commandW->redraw();
 			break;
+		case 0x01:
 		case KEY_HOME:
 			commandCurPos = 0;
-			winCommandRedraw();
+			commandW->redraw();
 			break;
+		case 0x05:
 		case KEY_END:
 			commandCurPos = historyIterator->size();
-			winCommandRedraw();
+			commandW->redraw();
 			break;
 		default:
+			if(commandCurPos == maxX) {
+				mvwprintw(statusW, 0, 0, "No ziomal, krutsze som te polecenia Yo");
+				wclrtoeol(statusW);
+				wnoutrefresh(statusW);
+				doupdate();
+				break;
+			}
 			if(historyIterator != history.begin()) {
 				*history.begin() = *historyIterator;
 				historyIterator = history.begin();
 			}
-			historyIterator->push_back(c);
+			historyIterator->insert(commandCurPos, 1, c);
 			++commandCurPos;
-			winCommandRedraw();
+			commandW->redraw();
 			break;
 	}
 }
@@ -379,14 +403,42 @@ UI::nextToken(const std::string &str, std::string::size_type pos) {
 	return std::make_pair(start, end);
 }
 
-void UI::winCommandRedraw() {
-	int y,x;
-	getyx(commandW, y, x);
-	mvwaddstr(commandW, y, 0, historyIterator->c_str());
-	wclrtoeol(commandW);
-	wmove(commandW, y, commandCurPos);
-	wnoutrefresh(commandW);
+UI::Window::Window(UI *assocUI, int nlines, int ncols, int starty,
+	int startx)
+	: nlines(nlines), ncols(ncols), starty(starty), startx(startx),
+	  ui(assocUI), cY(0), cX(0) {
+	
+	wp = newwin(nlines, ncols, starty, startx);
+}
+
+UI::Window::~Window() {
+	delwin(wp);
+}
+
+void UI::Window::redraw() {
+	mvwaddstr(wp, cY, 0, ui->historyIterator->c_str());
+	wclrtoeol(wp);
+	wmove(wp, cY, ui->commandCurPos);
+	wnoutrefresh(wp);
 	doupdate();
+}
+
+void UI::Window::refresh(int update) {
+	wnoutrefresh(wp);
+	if (update) {
+		doupdate();
+	}
+}
+
+UI::CommandWindow::CommandWindow(UI *assocUI, int nlines, int ncols,
+	int starty, int startx)
+	: Window(assocUI, nlines, ncols, starty, startx) {
+
+	/* enable special characters */
+	/*
+	keypad(wp, true);
+	nodelay(wp, true);
+	*/
 }
 
 }

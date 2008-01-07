@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.23 2008/01/07 09:24:30 mina86 Exp $
+ * $Id: application.cpp,v 1.24 2008/01/07 23:46:11 mco Exp $
  */
 
 #include <assert.h>
@@ -11,6 +11,7 @@
 
 #include "application.hpp"
 
+#define PPC_CORE_DEBUG_SIGNALS 0
 
 namespace ppc {
 
@@ -184,7 +185,7 @@ int Core::run() {
 void Core::deliverSignals() {
 	for (; !signals.empty(); signals.front().clear(), signals.pop()) {
 		/* FIXME: Shall be removed in production code */
-		{
+		if(PPC_CORE_DEBUG_SIGNALS) {
 			sprintf(sharedBuffer, "%3lu: ", Core::getTicks());
 			std::string message = sharedBuffer + signals.front().getType() + " from " +
 				signals.front().getSender() + " to " +

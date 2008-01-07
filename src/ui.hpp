@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.6 2008/01/06 23:07:46 mco Exp $
+ * $Id: ui.hpp,v 1.7 2008/01/07 23:46:11 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -38,6 +38,8 @@ struct UI : public Module {
 
 
 private:
+	struct Window;
+	struct CommandWindow;
 	/** A list of users in each network. */
 	typedef std::map<std::string,shared_obj<sig::UsersListData> >NetworkUsers;
 
@@ -71,9 +73,6 @@ private:
 	std::pair<std::string::size_type, std::string::size_type>
 	nextToken(const std::string &str, std::string::size_type pos = 0);
 
-	/** redraw the command window */
-	void winCommandRedraw();
-
 	/**
 	 * commands history buffer
 	 * first entry is current command buffer
@@ -81,17 +80,52 @@ private:
 	std::list<std::string> history;
 	std::list<std::string>::iterator historyIterator;
 
-	/** command history cursor position */
 	unsigned int commandCurPos;
 
+	/** screen size */
+	int maxY;
+	int maxX;
+
 	/** command window identifier */
-	WINDOW *commandW;
+	Window *commandW;
 
 	/** status window identifier */
 	WINDOW *statusW;
 
 	/** message window identifier */
 	WINDOW *messageW;
+
+	struct Window {
+
+		Window(UI *assocUI, int nlines, int ncols, int starty, int startx);
+		~Window();
+
+		/** clears the window and writes (part of) command buffer */
+		void redraw();
+
+		/** refreshes window */
+		void refresh(int update=0);
+
+	protected:
+		/** assiociated UI object */
+		UI *ui;
+
+		/** this window's ncurses window pointer */
+		WINDOW *wp;
+
+		/** geometry of windows, similar to ncurses' newwin */
+		int starty, startx;
+		int nlines, ncols;
+
+		/** position of cursor */
+		int cY;
+		int cX; /* unused, see ui->commandCurPos */
+	};
+
+	struct CommandWindow : Window {
+
+		CommandWindow(UI *assocUI, int nlines, int ncols, int starty, int startx);
+	};
 
 };
 
