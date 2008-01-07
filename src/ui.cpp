@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.14 2008/01/07 09:25:56 mina86 Exp $
+ * $Id: ui.cpp,v 1.15 2008/01/07 09:27:59 mina86 Exp $
  */
 
 #include <errno.h>
@@ -175,7 +175,7 @@ void UI::recievedSignal(const Signal &sig) {
 
 
 	} else if (sig.getType() == "/core/module/quit") {
-		/* we shall exit */
+		sendSignal("/core/module/exits", Core::coreName);
 
 	}
 }
