@@ -1,6 +1,6 @@
 /** \file
  * Shared object definition.
- * $Id: shared-obj.hpp,v 1.3 2007/12/29 14:40:40 mina86 Exp $
+ * $Id: shared-obj.hpp,v 1.4 2008/01/07 09:25:01 mina86 Exp $
  */
 
 #ifndef H_SHARED_OBJ_HPP
@@ -103,6 +103,14 @@ struct shared_obj<const T> {
 
 	/**
 	 * Copy constructor.
+	 * \param ptr shared pointer to copy.
+	 */
+	shared_obj(const shared_obj &ptr) : pointer(ptr.pointer) {
+		if (pointer) pointer->increase_references();
+	}
+
+	/**
+	 * Templated copy constructor.
 	 * \param ptr shared pointer to copy.
 	 */
 	template<class T2>
