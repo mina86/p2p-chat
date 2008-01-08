@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.7 2008/01/07 23:46:11 mco Exp $
+ * $Id: ui.hpp,v 1.8 2008/01/08 03:15:06 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -40,6 +40,8 @@ struct UI : public Module {
 private:
 	struct Window;
 	struct CommandWindow;
+	struct OutputWindow;
+
 	/** A list of users in each network. */
 	typedef std::map<std::string,shared_obj<sig::UsersListData> >NetworkUsers;
 
@@ -95,6 +97,9 @@ private:
 	/** message window identifier */
 	WINDOW *messageW;
 
+	/** test window */
+	OutputWindow *testW;
+
 	struct Window {
 
 		Window(UI *assocUI, int nlines, int ncols, int starty, int startx);
@@ -125,6 +130,21 @@ private:
 	struct CommandWindow : Window {
 
 		CommandWindow(UI *assocUI, int nlines, int ncols, int starty, int startx);
+	};
+
+	struct OutputWindow : Window {
+
+		OutputWindow(UI *assocUI, int nlines, int ncols, int starty, int startx);
+		~OutputWindow();
+
+		/* printf-like function to output characters in a controlled manner */
+		int printf(WINDOW *wm, const char *format, ...);
+
+	protected:
+		/* internal buffer */
+		char *buffer;
+		size_t buffersize;
+
 	};
 
 };

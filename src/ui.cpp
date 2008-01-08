@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.16 2008/01/07 23:46:11 mco Exp $
+ * $Id: ui.cpp,v 1.17 2008/01/08 03:15:06 mco Exp $
  */
 
 #include <errno.h>
@@ -12,6 +12,7 @@
 #include "io.hpp"
 #include "ui.hpp"
 
+#define PPC_UI_OUTPUTWINDOW_BUFFERSIZE	4096
 
 namespace ppc {
 
@@ -38,9 +39,10 @@ UI::UI(Core &c, int infd /* some more arguments */)
 
 	/* create windows */
 	getmaxyx(stdscr, maxY, maxX);
-	messageW =                 newwin(maxY-2, maxX,      0, 0);
-	statusW =                  newwin(     1, maxX, maxY-2, 0);
-	commandW = new CommandWindow(this,     1, maxX, maxY-1, 0);
+	messageW =                 newwin(maxY-12, maxX,       0, 0);
+	statusW =                  newwin(      1, maxX, maxY- 2, 0);
+	commandW = new CommandWindow(this,      1, maxX, maxY- 1, 0);
+	testW = new OutputWindow(    this,     10,    8, maxY-12, 0);
 
 	keypad(stdscr, true);
 	nodelay(stdscr, true);
@@ -74,6 +76,7 @@ UI::~UI() {
 	delwin(messageW);
 	delwin(statusW);
 	delete commandW;
+	delete testW;
 
 	/* whatever needed */
 	endwin();
@@ -319,6 +322,15 @@ void UI::handleCommand(const std::string &command) {
 		}
 	}
 
+	if (len == 3 && data == "/dp") {
+		pos = nextToken(command, pos.second);
+		wprintw(messageW, "Doing DP on [%s]\n", command.substr(pos.first).c_str());
+		wnoutrefresh(messageW);
+		doupdate();
+		testW->printf(messageW, command.substr(pos.first).c_str());
+		testW->refresh(1);
+	}
+
 	return;
 
 	if (len == 1 || (len == 4 && data == "/msg") ||
@@ -403,6 +415,12 @@ UI::nextToken(const std::string &str, std::string::size_type pos) {
 	return std::make_pair(start, end);
 }
 
+/*
+ * --------------------------------------------------------------------------
+ *  UI::Window
+ * --------------------------------------------------------------------------
+ */
+
 UI::Window::Window(UI *assocUI, int nlines, int ncols, int starty,
 	int startx)
 	: nlines(nlines), ncols(ncols), starty(starty), startx(startx),
@@ -430,15 +448,133 @@ void UI::Window::refresh(int update) {
 	}
 }
 
+/*
+ * --------------------------------------------------------------------------
+ *  UI::CommandWindow
+ * --------------------------------------------------------------------------
+ */
+
 UI::CommandWindow::CommandWindow(UI *assocUI, int nlines, int ncols,
 	int starty, int startx)
 	: Window(assocUI, nlines, ncols, starty, startx) {
 
-	/* enable special characters */
-	/*
-	keypad(wp, true);
-	nodelay(wp, true);
-	*/
 }
+
+/*
+ * --------------------------------------------------------------------------
+ *  UI::OutputWindow
+ * --------------------------------------------------------------------------
+ */
+
+UI::OutputWindow::OutputWindow(UI *assocUI, int nlines, int ncols,
+	int starty, int startx)
+	: Window(assocUI, nlines, ncols, starty, startx) {
+
+	buffersize = PPC_UI_OUTPUTWINDOW_BUFFERSIZE;
+	buffer = new char [buffersize];
+}
+
+UI::OutputWindow::~OutputWindow() {
+	delete buffer;
+}
+
+int UI::OutputWindow::printf(WINDOW *wm, const char *format, ...) {
+	
+	va_list ap;
+	int result;
+	char *start, *end;
+
+	va_start(ap, format);
+	result = vsnprintf(buffer, buffersize, format, ap);
+	va_end(ap);
+
+	if (result < 0) {
+		/* FIXME: better error reporting */
+		wprintw(wp, "Error in vsnprintf\n");
+	}
+
+	/* TODO: test this one */
+	/* this fixes the potential bug, where the string itself fits the width
+	 * of the window, but the ending newline does not
+	 */
+	if (buffer[strlen(buffer)-1] == '\n') {
+		buffer[strlen(buffer)-1] = '\0';
+	}
+
+	/* find how many characters are before newline or end of string */
+	std::list<std::pair<char*, int> > v;
+	start = buffer;
+	/* end = strchr(start, '\n'); */
+	end = strchr(start, 'N');
+	while(end != NULL) {
+		v.push_back(std::make_pair(start, (int)(end-start)));
+		start = end+1;
+		end = strchr(start, 'N');
+	}
+	v.push_back(std::make_pair(start, strlen(start)));
+
+	std::list<std::pair<char*, int> >::iterator i;
+	int j;
+
+	i=v.begin();
+
+	if(i->second > ncols-cX) {
+		v.insert(i, 1, std::make_pair(i->first, ncols-cX));
+		i->first += ncols-cX;
+		i->second -= ncols-cX;
+	}
+
+	for(i=v.begin(); i!=v.end(); ++i) {
+
+		while(i->second > ncols) {
+			v.insert(i, 1, std::make_pair(i->first, ncols));
+			i->first += ncols;
+			i->second -= ncols;
+		}
+	}
+
+	/*
+	 * now we know that we need v.size() lines to print, each element
+	 * of the list contains pointer of the beginning of the line
+	 * and number of characters to print in that line
+	 */
+
+	if (v.size() >= nlines) {
+		int linesToDelete = v.size() - nlines;
+		while(linesToDelete) {
+			v.pop_front();
+			--linesToDelete;
+		}
+		wclear(wp);
+		for(i=v.begin(), j=0; i!=v.end(); ++i, ++j) {
+			mvwaddnstr(wp, j, 0, i->first, i->second);
+		}
+	} else {
+		int size = v.size();
+		int linesleft = nlines-cY;
+		if (size > linesleft) {
+			wscrl(wp, size - linesleft);
+			cY -= size - linesleft;
+		}
+		wmove(wp, cY, cX);
+		i=v.begin();
+		waddnstr(wp, i->first, i->second);
+		wclrtoeol(wp);
+		while(++i!=v.end()) {
+			mvwaddnstr(wp, ++cY, 0, i->first, i->second);
+			wclrtoeol(wp);
+		}
+	}
+
+	getyx(wp, cY, cX);
+
+	if(result >= buffersize) {
+		/* FIXME: better error reporting */
+		wprintw(wp, "Warning! Output truncated!\n");
+	}
+
+	return 0;
+}
+
 
 }
