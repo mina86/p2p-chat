@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.17 2008/01/08 03:15:06 mco Exp $
+ * $Id: ui.cpp,v 1.18 2008/01/08 14:55:15 mco Exp $
  */
 
 #include <errno.h>
@@ -39,10 +39,9 @@ UI::UI(Core &c, int infd /* some more arguments */)
 
 	/* create windows */
 	getmaxyx(stdscr, maxY, maxX);
-	messageW =                 newwin(maxY-12, maxX,       0, 0);
+	messageW = new OutputWindow( this, maxY-2, maxX,       0, 0);
 	statusW =                  newwin(      1, maxX, maxY- 2, 0);
 	commandW = new CommandWindow(this,      1, maxX, maxY- 1, 0);
-	testW = new OutputWindow(    this,     10,    8, maxY-12, 0);
 
 	keypad(stdscr, true);
 	nodelay(stdscr, true);
@@ -56,13 +55,13 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	   a lot of /net/conn/connected signals if they are connected
 	   signals */
 	sendSignal("/net/conn/are-you-connected", "/net/");
-	wprintw(messageW, "Hello from User Interface on fd=%d\n", infd);
-	wprintw(messageW, "Enter: %d, %d, %d\n", '\n', '\r', KEY_ENTER);
-	wprintw(messageW, "backspace, delchar, erasechar: %d, %d, %d, \n", KEY_BACKSPACE, KEY_DC, erasechar());
-	wprintw(messageW, "UP, DOWN, LEFT, RIGHT: %d %d %d %d\n", KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
+	messageW->printf("Hello from User Interface on fd=%d\n", infd);
+	messageW->printf("Enter: %d, %d, %d\n", '\n', '\r', KEY_ENTER);
+	messageW->printf("backspace, delchar, erasechar: %d, %d, %d, \n", KEY_BACKSPACE, KEY_DC, erasechar());
+	messageW->printf("UP, DOWN, LEFT, RIGHT: %d %d %d %d\n", KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
 	wprintw(statusW, "W trakcie tworzenia");
 	wnoutrefresh(stdscr);
-	wnoutrefresh(messageW);
+	messageW->refresh();
 	wnoutrefresh(statusW);
 	commandW->refresh();
 	doupdate();
@@ -73,10 +72,9 @@ UI::~UI() {
 	/* clear command history */
 	history.clear();
 	/* destroy windows */
-	delwin(messageW);
+	delete messageW;
 	delwin(statusW);
 	delete commandW;
-	delete testW;
 
 	/* whatever needed */
 	endwin();
@@ -169,9 +167,9 @@ void UI::recievedSignal(const Signal &sig) {
 		   /ui/msg/debug, /ui/msg/info, /ui/msg/notice or
 		   /ui/msg/error.  You may choose to display that message
 		   (especially if it's an error */
-		wprintw(messageW, "[%s] %s\n", sig.getType().c_str() + 8,
+		messageW->printf("[%s] %s\n", sig.getType().c_str() + 8,
 		        sig.getData<sig::StringData>()->data.c_str());
-		wnoutrefresh(messageW);
+		messageW->refresh();
 		commandW->redraw();
 
 
@@ -192,6 +190,9 @@ void UI::handleCharacter(int c) {
 		case '\n':
 		case '\r':
 		case KEY_ENTER:
+			if(historyIterator->length() == 0) {
+				break;
+			}
 			if(historyIterator != history.begin()) {
 				*history.begin() = *historyIterator;
 			}
@@ -293,8 +294,8 @@ void UI::handleCommand(const std::string &command) {
 		= nextToken(command);
 	std::string::size_type len = pos.second - pos.first;
 
-	wprintw(messageW,"UI::handleCommand(%s)\n", command.data());
-	wnoutrefresh(messageW);
+	messageW->printf("UI::handleCommand(%s)\n", command.data());
+	messageW->refresh();
 
 	if (!len) {
 		return;
@@ -317,18 +318,9 @@ void UI::handleCommand(const std::string &command) {
 		std::list<std::string>::iterator i;
 		int j;
 		for(i=history.begin(), j=0; i!=history.end(); ++i, ++j) {
-			wprintw(messageW, "[%3d]: %s\n", j, i->c_str());
-			wnoutrefresh(messageW);
+			messageW->printf("[%3d]: %s\n", j, i->c_str());
+			messageW->refresh();
 		}
-	}
-
-	if (len == 3 && data == "/dp") {
-		pos = nextToken(command, pos.second);
-		wprintw(messageW, "Doing DP on [%s]\n", command.substr(pos.first).c_str());
-		wnoutrefresh(messageW);
-		doupdate();
-		testW->printf(messageW, command.substr(pos.first).c_str());
-		testW->refresh(1);
 	}
 
 	return;
@@ -472,17 +464,20 @@ UI::OutputWindow::OutputWindow(UI *assocUI, int nlines, int ncols,
 
 	buffersize = PPC_UI_OUTPUTWINDOW_BUFFERSIZE;
 	buffer = new char [buffersize];
+
+	scrollok(wp, true);
 }
 
 UI::OutputWindow::~OutputWindow() {
 	delete buffer;
 }
 
-int UI::OutputWindow::printf(WINDOW *wm, const char *format, ...) {
+int UI::OutputWindow::printf(const char *format, ...) {
 	
 	va_list ap;
 	int result;
 	char *start, *end;
+	bool endOfLineEndOfScreen = false;
 
 	va_start(ap, format);
 	result = vsnprintf(buffer, buffersize, format, ap);
@@ -494,11 +489,15 @@ int UI::OutputWindow::printf(WINDOW *wm, const char *format, ...) {
 	}
 
 	/* TODO: test this one */
-	/* this fixes the potential bug, where the string itself fits the width
-	 * of the window, but the ending newline does not
+	/* 
+	 * This fixes the potential bug, where the string itself fits the width
+	 * of the window, but the ending newline does not.
+	 * This issue may only appear in the last line printed
 	 */
-	if (buffer[strlen(buffer)-1] == '\n') {
-		buffer[strlen(buffer)-1] = '\0';
+	int buflen = strlen(buffer);
+	if (buflen > 0 && buffer[buflen-1] == 'N') {
+		buffer[buflen-1] = '\0';
+		endOfLineEndOfScreen = true;
 	}
 
 	/* find how many characters are before newline or end of string */
@@ -552,6 +551,8 @@ int UI::OutputWindow::printf(WINDOW *wm, const char *format, ...) {
 	} else {
 		int size = v.size();
 		int linesleft = nlines-cY;
+		char *ifirst;
+		int isecond;
 		if (size > linesleft) {
 			wscrl(wp, size - linesleft);
 			cY -= size - linesleft;
@@ -566,7 +567,13 @@ int UI::OutputWindow::printf(WINDOW *wm, const char *format, ...) {
 		}
 	}
 
-	getyx(wp, cY, cX);
+	if (endOfLineEndOfScreen) {
+		cY = nlines;
+		cX = ncols;
+		wmove(wp, cY, cX);
+	} else {
+		getyx(wp, cY, cX);
+	}
 
 	if(result >= buffersize) {
 		/* FIXME: better error reporting */

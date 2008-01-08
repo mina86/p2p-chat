@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.8 2008/01/08 03:15:06 mco Exp $
+ * $Id: ui.hpp,v 1.9 2008/01/08 14:55:15 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -95,10 +95,7 @@ private:
 	WINDOW *statusW;
 
 	/** message window identifier */
-	WINDOW *messageW;
-
-	/** test window */
-	OutputWindow *testW;
+	OutputWindow *messageW;
 
 	struct Window {
 
@@ -138,7 +135,7 @@ private:
 		~OutputWindow();
 
 		/* printf-like function to output characters in a controlled manner */
-		int printf(WINDOW *wm, const char *format, ...);
+		int printf(const char *format, ...);
 
 	protected:
 		/* internal buffer */

@@ -1,6 +1,7 @@
 shared-obj
 xml-parser
 multicast
+multicast_kris
 select-test
 select-test-2
 netio-tcp
