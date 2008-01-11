@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.18 2008/01/08 14:55:15 mco Exp $
+ * $Id: ui.cpp,v 1.19 2008/01/11 23:47:05 mco Exp $
  */
 
 #include <errno.h>
@@ -13,6 +13,7 @@
 #include "ui.hpp"
 
 #define PPC_UI_OUTPUTWINDOW_BUFFERSIZE	4096
+#define PPC_UI_COMPLETIONMENUSIZE 10
 
 namespace ppc {
 
@@ -85,7 +86,7 @@ UI::~UI() {
 int UI::setFDSets(fd_set *rd, fd_set *wr, fd_set *ex) {
 	(void)wr; (void)ex;
 	FD_SET(stdin_fd, rd);
-	return stdin_fd;
+	return stdin_fd+1;
 }
 
 
@@ -132,12 +133,20 @@ void UI::recievedSignal(const Signal &sig) {
 	} else if (sig.getType() == "/net/msg/got") {
 		/* we have recieved a message (display it maybe?) */
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
-		(void)data; /* to silence warning for the time being */
+		if(data.flags & sig::MessageData::ACTION != 0) {
+			messageW->printf(" * %s %s\n", data.id.toString.c_str(), data.data.c_str());
+		} else if(data.flags & sig::MessageData::MESSAGE != 0) {
+			messageW->printf("<%s> %s\n", data.id.toString.c_str(), data.data.c_str());
+		}
 
 	} else if (sig.getType() == "/net/msg/sent") {
 		/* a message have been sent (display it maybe?) */
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
-		(void)data; /* to silence warning for the time being */
+		if(data.flags & sig::MessageData::ACTION != 0) {
+			messageW->printf(" * %s %s\n", data.id.toString.c_str(), data.data.c_str());
+		} else if(data.flags & sig::MessageData::MESSAGE != 0) {
+			messageW->printf("<%s> %s\n", data.id.toString.c_str(), data.data.c_str());
+		}
 
 	} else if (sig.getType() == "/net/conn/connected") {
 		/* wow! a new network :) and it sents us its user list.
@@ -294,8 +303,10 @@ void UI::handleCommand(const std::string &command) {
 		= nextToken(command);
 	std::string::size_type len = pos.second - pos.first;
 
+	/*
 	messageW->printf("UI::handleCommand(%s)\n", command.data());
 	messageW->refresh();
+	*/
 
 	if (!len) {
 		return;
@@ -314,21 +325,36 @@ void UI::handleCommand(const std::string &command) {
 		return;
 	}
 
-	if (len == 2 && data == "ll") {
-		std::list<std::string>::iterator i;
-		int j;
-		for(i=history.begin(), j=0; i!=history.end(); ++i, ++j) {
-			messageW->printf("[%3d]: %s\n", j, i->c_str());
-			messageW->refresh();
+	if (len == 2 && (data == "/n" || data == ":n")) {
+		/* /names command */
+		if (networkUsers.empty()) {
+			messageW->printf("There are no connected networks\n");
+		} else {
+			std::map<std::string,shared_obj<sig::UsersListData> >::iterator nuit;
+			std::map<User::ID, User *>::iterator uit;
+			for(nuit=networkUsers.begin(); nuit!=networkUsers.end(); ++nuit) {
+				if (nuit->second->users.empty()) {
+					messageW->printf("Network %s has no connected users\n",
+					                 nuit->first.c_str());
+				} else {
+					messageW->printf("Connected users in network %s:\n",
+					                 nuit->first.c_str());
+					for(uit=nuit->second->users.begin();
+					    uit!=nuit->second->users.end();
+					    ++uit) {
+						messageW->printf("%s\n", uit->first.toString().c_str());
+
+					}
+				}
+			}
 		}
 	}
-
-	return;
 
 	if (len == 1 || (len == 4 && data == "/msg") ||
 	    (len == 3 && data == "/me")) {
 		/* if len == 0 then data == "/" */
 	message:
+
 		/* trim */
 		pos = nextToken(command, pos.second);
 		if (pos.first == std::string::npos) {
@@ -336,13 +362,41 @@ void UI::handleCommand(const std::string &command) {
 			return;
 		}
 
-		/* somhow identify network and user you want to send data to. */
-		std::string net = "/net/ppcp/0";
-		User *user = 0;
-		sendSignal("/net/msg/send", net,
-		           new sig::MessageData(user->id,
+		std::string userString(command, pos.first, pos.second-pos.first);
+		pos = nextToken(command, pos.second);
+		if (pos.first == std::string::npos) {
+			/* no message? */
+			return;
+		}
+		std::string msgString(command, pos.first, pos.second-pos.first);
+
+		messageW->printf("Message [%s] to user [%s] not sent\n",
+					     msgString.c_str(),
+		                 userString.c_str());
+
+
+		int usersfound;
+		User **up = new User* [PPC_UI_COMPLETIONMENUSIZE];
+		usersfound = findUsers(userString, up, PPC_UI_COMPLETIONMENUSIZE);
+		if(usersfound == 0) {
+			messageW->printf("No users found\n");
+		} else if(usersfound > 1) {
+			int iii;
+			messageW->printf("Ambiguous user '%s', possible matches:\n",
+							 userString.c_str());
+			for(iii=0; iii<usersfound; ++iii) {
+				messageW->printf("[#%d] %s\n", iii,
+						up[iii]->id.toString().c_str());
+			}
+		} else {
+
+			/* somhow identify network and user you want to send data to. */
+			std::string net = "/net/ppcp/0";
+			sendSignal("/net/msg/send", net,
+					   new sig::MessageData(up[0]->id,
 		                                std::string(command, pos.first),
 		                                len==3?sig::MessageData::ACTION:0));
+		}
 
 	} else if (len == 3 && data == "/aw") {
 		/* dirty trick */
@@ -405,6 +459,28 @@ UI::nextToken(const std::string &str, std::string::size_type pos) {
 	}
 
 	return std::make_pair(start, end);
+}
+
+int UI::findUsers(const std::string &uri, User **up, int n) {
+
+	std::string::size_type len = uri.length();
+	int found = 0;
+	std::map<std::string,shared_obj<sig::UsersListData> >::iterator nuit;
+	std::map<User::ID, User *>::iterator uit;
+	for(nuit=networkUsers.begin(); nuit!=networkUsers.end(); ++nuit) {
+		for(uit=nuit->second->users.begin();
+			uit!=nuit->second->users.end();
+			++uit) {
+			if(uit->first.toString().compare(0, len, uri) == 0) {
+				if(found < n) {
+					up[found] = uit->second;
+				}
+				++found;
+			}
+		}
+	}
+
+	return found;
 }
 
 /*
@@ -487,6 +563,9 @@ int UI::OutputWindow::printf(const char *format, ...) {
 		/* FIXME: better error reporting */
 		wprintw(wp, "Error in vsnprintf\n");
 	}
+	
+	waddstr(wp, buffer);
+	return 0;
 
 	/* TODO: test this one */
 	/* 
@@ -495,7 +574,7 @@ int UI::OutputWindow::printf(const char *format, ...) {
 	 * This issue may only appear in the last line printed
 	 */
 	int buflen = strlen(buffer);
-	if (buflen > 0 && buffer[buflen-1] == 'N') {
+	if (buflen > 0 && buffer[buflen-1] == '\n') {
 		buffer[buflen-1] = '\0';
 		endOfLineEndOfScreen = true;
 	}
@@ -503,12 +582,11 @@ int UI::OutputWindow::printf(const char *format, ...) {
 	/* find how many characters are before newline or end of string */
 	std::list<std::pair<char*, int> > v;
 	start = buffer;
-	/* end = strchr(start, '\n'); */
-	end = strchr(start, 'N');
-	while(end != NULL) {
+	end = strchr(start, '\n');
+	while(end != 0) {
 		v.push_back(std::make_pair(start, (int)(end-start)));
 		start = end+1;
-		end = strchr(start, 'N');
+		end = strchr(start, '\n');
 	}
 	v.push_back(std::make_pair(start, strlen(start)));
 

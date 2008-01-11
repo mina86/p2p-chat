@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.9 2008/01/08 14:55:15 mco Exp $
+ * $Id: ui.hpp,v 1.10 2008/01/11 23:47:05 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -50,6 +50,15 @@ private:
 
 	/** A list of users in each network. */
 	NetworkUsers networkUsers;
+
+	/**
+	 * Finds user by given URI
+	 * \param uri user uri (or starting part of it)
+	 * \param up array of pointers to User
+	 * \param n find at most that many users
+	 * \return number of users found (it could be more than n)
+	 */
+	int findUsers(const std::string &uri, User **up, int n);
 
 	/**
 	 * Handles every single character received from user

@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.6 2007/12/27 17:45:44 mina86 Exp $
+ * $Id: user.hpp,v 1.7 2008/01/11 23:47:05 mco Exp $
  */
 
 #ifndef H_USER_HPP
@@ -110,7 +110,7 @@ struct User {
 
 		/** User's nick name. */
 		std::string nick;
-		/** Users IP address. */
+		/** Users IP address and port number. */
 		Address address;
 	};
 
@@ -118,7 +118,7 @@ struct User {
 	/**
 	 * Checks if given string is valid nick name.  Valid nick name
 	 * consists of US-ASCII characters with codes from 48 to 127
-	 * expect for upper-case characters.
+	 * except for upper-case characters.
 	 * \param nick nick name.
 	 * \return whether nick name is valid.
 	 */
