@@ -1,6 +1,6 @@
 /** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.5 2008/01/03 03:00:07 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.6 2008/01/11 15:57:41 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
@@ -268,10 +268,11 @@ struct TokenConsumer {
 		case Tokenizer::TEXT:          cdata(token.data); break;
 		case Tokenizer::ELEMENT_CLOSE: close(token.data); break;
 		case Tokenizer::ATTR_NAME: attrName= token.data ; break;
+		case Tokenizer::TAG_CLOSE:     open_end();        break;
 		case Tokenizer::ATTR_VALUE:
+			assert(attrName.length());
 			attribute(attrName, token.data);
 			attrName.clear();
-		case Tokenizer::TAG_CLOSE:
 			break;
 		default:
 			assert(0);
