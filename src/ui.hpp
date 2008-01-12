@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.10 2008/01/11 23:47:05 mco Exp $
+ * $Id: ui.hpp,v 1.11 2008/01/12 02:16:42 mina86 Exp $
  */
 
 #ifndef H_UI_HPP
@@ -85,17 +85,18 @@ private:
 	nextToken(const std::string &str, std::string::size_type pos = 0);
 
 	/**
-	 * commands history buffer
-	 * first entry is current command buffer
+	 * Commands history buffer.
+	 * First entry is current command buffer.
 	 */
 	std::list<std::string> history;
 	std::list<std::string>::iterator historyIterator;
 
 	unsigned int commandCurPos;
 
-	/** screen size */
-	int maxY;
-	int maxX;
+	/** Screen height. */
+	unsigned maxY;
+	/** Screen width. */
+	unsigned maxX;
 
 	/** command window identifier */
 	Window *commandW;
@@ -108,14 +109,21 @@ private:
 
 	struct Window {
 
-		Window(UI *assocUI, int nlines, int ncols, int starty, int startx);
-		~Window();
+		Window(UI *assocUI, unsigned lines, unsigned cols,
+		       unsigned starty, unsigned startx)
+			: ui(assocUI), nlines(lines), ncols(cols), cY(0), cX(0) {
+			wp = newwin(nlines, ncols, starty, startx);
+		}
+
+		~Window() {
+			delwin(wp);
+		}
 
 		/** clears the window and writes (part of) command buffer */
 		void redraw();
 
 		/** refreshes window */
-		void refresh(int update=0);
+		void refresh(int update = 0);
 
 	protected:
 		/** assiociated UI object */
@@ -124,9 +132,10 @@ private:
 		/** this window's ncurses window pointer */
 		WINDOW *wp;
 
-		/** geometry of windows, similar to ncurses' newwin */
-		int starty, startx;
-		int nlines, ncols;
+		/** Window height. */
+		unsigned nlines;
+		/** Window's width. */
+		unsigned ncols;
 
 		/** position of cursor */
 		int cY;
@@ -135,21 +144,26 @@ private:
 
 	struct CommandWindow : Window {
 
-		CommandWindow(UI *assocUI, int nlines, int ncols, int starty, int startx);
+		CommandWindow(UI *assocUI, unsigned lines, unsigned cols,
+		              unsigned starty, unsigned startx)
+			: Window(assocUI, lines, cols, starty, startx) { }
 	};
 
 	struct OutputWindow : Window {
 
-		OutputWindow(UI *assocUI, int nlines, int ncols, int starty, int startx);
-		~OutputWindow();
+		OutputWindow(UI *assocUI, unsigned nlines, unsigned ncols,
+		             unsigned starty, unsigned startx);
+		~OutputWindow() {
+			delete buffer;
+		}
 
 		/* printf-like function to output characters in a controlled manner */
 		int printf(const char *format, ...);
 
 	protected:
 		/* internal buffer */
-		char *buffer;
 		size_t buffersize;
+		char *buffer;
 
 	};
 

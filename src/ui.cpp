@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.19 2008/01/11 23:47:05 mco Exp $
+ * $Id: ui.cpp,v 1.20 2008/01/12 02:16:42 mina86 Exp $
  */
 
 #include <errno.h>
@@ -131,22 +131,28 @@ void UI::recievedSignal(const Signal &sig) {
 
 
 	} else if (sig.getType() == "/net/msg/got") {
-		/* we have recieved a message (display it maybe?) */
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
-		if(data.flags & sig::MessageData::ACTION != 0) {
-			messageW->printf(" * %s %s\n", data.id.toString.c_str(), data.data.c_str());
-		} else if(data.flags & sig::MessageData::MESSAGE != 0) {
-			messageW->printf("<%s> %s\n", data.id.toString.c_str(), data.data.c_str());
-		}
+		messageW->printf(data.flags & sig::MessageData::ACTION
+		                 ? " * %s %s\n" : " <%s> %s\n",
+		                 data.id.toString().c_str(),
+		                 data.data.c_str());
+		/* FIXME: sig::MessageData::RAW is not handled */
 
 	} else if (sig.getType() == "/net/msg/sent") {
-		/* a message have been sent (display it maybe?) */
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
-		if(data.flags & sig::MessageData::ACTION != 0) {
-			messageW->printf(" * %s %s\n", data.id.toString.c_str(), data.data.c_str());
-		} else if(data.flags & sig::MessageData::MESSAGE != 0) {
-			messageW->printf("<%s> %s\n", data.id.toString.c_str(), data.data.c_str());
+		if (~data.flags & sig::MessageData::ACTION) {
+			messageW->printf("> %s\n", data.data.c_str());
+			return;
 		}
+
+		NetworkUsers::iterator it = networkUsers.find(sig.getSender());
+		assert(it != networkUsers.end());
+		messageW->printf(" * %s %s\n",
+		                 it == networkUsers.end()
+		                 ? "I" : it->second->ourUser.id.toString().c_str(),
+		                 data.data.c_str());
+		/* FIXME: sig::MessageData::RAW is not handled */
+
 
 	} else if (sig.getType() == "/net/conn/connected") {
 		/* wow! a new network :) and it sents us its user list.
@@ -206,6 +212,7 @@ void UI::handleCharacter(int c) {
 				*history.begin() = *historyIterator;
 			}
 			handleCommand(*history.begin());
+			messageW->refresh();
 			history.push_front(std::string(""));
 			historyIterator = history.begin();
 			commandCurPos = 0;
@@ -305,7 +312,6 @@ void UI::handleCommand(const std::string &command) {
 
 	/*
 	messageW->printf("UI::handleCommand(%s)\n", command.data());
-	messageW->refresh();
 	*/
 
 	if (!len) {
@@ -330,8 +336,8 @@ void UI::handleCommand(const std::string &command) {
 		if (networkUsers.empty()) {
 			messageW->printf("There are no connected networks\n");
 		} else {
-			std::map<std::string,shared_obj<sig::UsersListData> >::iterator nuit;
-			std::map<User::ID, User *>::iterator uit;
+			NetworkUsers::iterator nuit;
+			sig::UsersListData::Users::iterator uit;
 			for(nuit=networkUsers.begin(); nuit!=networkUsers.end(); ++nuit) {
 				if (nuit->second->users.empty()) {
 					messageW->printf("Network %s has no connected users\n",
@@ -353,7 +359,7 @@ void UI::handleCommand(const std::string &command) {
 	if (len == 1 || (len == 4 && data == "/msg") ||
 	    (len == 3 && data == "/me")) {
 		/* if len == 0 then data == "/" */
-	message:
+		/* message: */
 
 		/* trim */
 		pos = nextToken(command, pos.second);
@@ -383,17 +389,16 @@ void UI::handleCommand(const std::string &command) {
 		} else if(usersfound > 1) {
 			int iii;
 			messageW->printf("Ambiguous user '%s', possible matches:\n",
-							 userString.c_str());
+			                 userString.c_str());
 			for(iii=0; iii<usersfound; ++iii) {
 				messageW->printf("[#%d] %s\n", iii,
-						up[iii]->id.toString().c_str());
+				                 up[iii]->id.toString().c_str());
 			}
 		} else {
 
-			/* somhow identify network and user you want to send data to. */
 			std::string net = "/net/ppcp/0";
 			sendSignal("/net/msg/send", net,
-					   new sig::MessageData(up[0]->id,
+			           new sig::MessageData(up[0]->id,
 		                                std::string(command, pos.first),
 		                                len==3?sig::MessageData::ACTION:0));
 		}
@@ -489,18 +494,6 @@ int UI::findUsers(const std::string &uri, User **up, int n) {
  * --------------------------------------------------------------------------
  */
 
-UI::Window::Window(UI *assocUI, int nlines, int ncols, int starty,
-	int startx)
-	: nlines(nlines), ncols(ncols), starty(starty), startx(startx),
-	  ui(assocUI), cY(0), cX(0) {
-	
-	wp = newwin(nlines, ncols, starty, startx);
-}
-
-UI::Window::~Window() {
-	delwin(wp);
-}
-
 void UI::Window::redraw() {
 	mvwaddstr(wp, cY, 0, ui->historyIterator->c_str());
 	wclrtoeol(wp);
@@ -518,38 +511,20 @@ void UI::Window::refresh(int update) {
 
 /*
  * --------------------------------------------------------------------------
- *  UI::CommandWindow
- * --------------------------------------------------------------------------
- */
-
-UI::CommandWindow::CommandWindow(UI *assocUI, int nlines, int ncols,
-	int starty, int startx)
-	: Window(assocUI, nlines, ncols, starty, startx) {
-
-}
-
-/*
- * --------------------------------------------------------------------------
  *  UI::OutputWindow
  * --------------------------------------------------------------------------
  */
 
-UI::OutputWindow::OutputWindow(UI *assocUI, int nlines, int ncols,
-	int starty, int startx)
-	: Window(assocUI, nlines, ncols, starty, startx) {
-
-	buffersize = PPC_UI_OUTPUTWINDOW_BUFFERSIZE;
-	buffer = new char [buffersize];
-
+UI::OutputWindow::OutputWindow(UI *assocUI, unsigned lines, unsigned cols,
+                               unsigned starty, unsigned startx)
+	: Window(assocUI, lines, cols, starty, startx),
+	  buffersize(PPC_UI_OUTPUTWINDOW_BUFFERSIZE),
+	  buffer(new char [PPC_UI_OUTPUTWINDOW_BUFFERSIZE]) {
 	scrollok(wp, true);
 }
 
-UI::OutputWindow::~OutputWindow() {
-	delete buffer;
-}
-
 int UI::OutputWindow::printf(const char *format, ...) {
-	
+
 	va_list ap;
 	int result;
 	char *start, *end;
@@ -563,12 +538,12 @@ int UI::OutputWindow::printf(const char *format, ...) {
 		/* FIXME: better error reporting */
 		wprintw(wp, "Error in vsnprintf\n");
 	}
-	
+
 	waddstr(wp, buffer);
 	return 0;
 
 	/* TODO: test this one */
-	/* 
+	/*
 	 * This fixes the potential bug, where the string itself fits the width
 	 * of the window, but the ending newline does not.
 	 * This issue may only appear in the last line printed
@@ -580,22 +555,21 @@ int UI::OutputWindow::printf(const char *format, ...) {
 	}
 
 	/* find how many characters are before newline or end of string */
-	std::list<std::pair<char*, int> > v;
+	std::list<std::pair<const char*, unsigned> > v;
 	start = buffer;
-	end = strchr(start, '\n');
-	while(end != 0) {
-		v.push_back(std::make_pair(start, (int)(end-start)));
-		start = end+1;
-		end = strchr(start, '\n');
+	for (; (end = strchr(start, '\n')); start = end + 1) {
+		v.push_back(std::make_pair(start, (unsigned)(end-start)));
 	}
-	v.push_back(std::make_pair(start, strlen(start)));
+	if (*start) {
+		v.push_back(std::make_pair(start, strlen(start)));
+	}
 
-	std::list<std::pair<char*, int> >::iterator i;
+	std::list<std::pair<const char*, unsigned> >::iterator i;
 	int j;
 
-	i=v.begin();
+	i = v.begin();
 
-	if(i->second > ncols-cX) {
+	if (i->second > ncols-cX) {
 		v.insert(i, 1, std::make_pair(i->first, ncols-cX));
 		i->first += ncols-cX;
 		i->second -= ncols-cX;
@@ -629,8 +603,6 @@ int UI::OutputWindow::printf(const char *format, ...) {
 	} else {
 		int size = v.size();
 		int linesleft = nlines-cY;
-		char *ifirst;
-		int isecond;
 		if (size > linesleft) {
 			wscrl(wp, size - linesleft);
 			cY -= size - linesleft;
@@ -653,7 +625,7 @@ int UI::OutputWindow::printf(const char *format, ...) {
 		getyx(wp, cY, cX);
 	}
 
-	if(result >= buffersize) {
+	if ((size_t)result >= buffersize) {
 		/* FIXME: better error reporting */
 		wprintw(wp, "Warning! Output truncated!\n");
 	}
