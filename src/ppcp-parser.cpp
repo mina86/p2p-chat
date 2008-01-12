@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.10 2008/01/06 15:25:41 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.11 2008/01/12 02:43:28 mina86 Exp $
  */
 
 #include <assert.h>
@@ -25,6 +25,7 @@ enum {
 	E_M               = 4,
 	E_IGNORE          = 255,
 
+	A_UNKNOWN         = 0,
 	A_PPCP_N          = 1,
 	A_PPCP_P          = 2,
 	A_PPCP_TO_N       = 3,
@@ -116,6 +117,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		/* Attribute */
 	case xml::Tokenizer::ATTR_NAME:
 		/* Change state depending on attribute name */
+		attribute = A_UNKNOWN;
 		switch (element) {
 		case E_PPCP:
 			if (xToken.data == "n") attribute = A_PPCP_N;
@@ -127,6 +129,9 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		case E_ST:
 			if (xToken.data == "st") attribute = A_ST_ST;
 			else if (xToken.data == "dn") attribute = A_ST_DN;
+			break;
+
+		case E_RQ:
 			break;
 
 		case E_M:
@@ -178,6 +183,8 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			if (xToken.data == "ac") flags |= Token::M_ACTION;
 			break;
 
+		case A_UNKNOWN:
+			break;
 		default:
 			assert(0);
 		}
