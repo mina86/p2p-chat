@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.23 2008/01/12 02:43:47 mina86 Exp $
+ * $Id: network.cpp,v 1.24 2008/01/13 11:53:10 mina86 Exp $
  */
 
 #include <assert.h>
@@ -11,6 +11,37 @@
 #include "network.hpp"
 #include "ppcp-parser.hpp"
 #include "ppcp-packets.hpp"
+
+
+
+/**
+ * Time after which user (with state different then offline) is
+ * considered to disconnected.
+ */
+#define ONLINE_USER_MAX_AGE         750
+
+/**
+ * Time after which user (with offline state) is considered to
+ * disconnect.  Normally, if user sends a packet with offline status
+ * (s)he is treated as if (s)he has disconnected, yet if user sends us
+ * a message (s)he apperas with offline status and this time specifis
+ * how long shall it be kept without any activity.
+ */
+#define OFFLINE_USER_MAX_AGE        400
+
+/** Status sending interval. */
+#define STATUS_RESEND               300
+
+/** Interval after which unused TCP connection will be closed. */
+#define CONNECTION_MAX_AGE          600
+
+/**
+ * Interval after which connection which is being closed (that is we
+ * are traying to send ppcp close tag or waiting for that tag from the
+ * other side) should be closed without waiting for proper ppcp
+ * closing tags.
+ */
+#define CONNECTION_CLOSING_TIMEOUT   60
 
 
 
@@ -318,6 +349,9 @@ Network::Network(Core &c, Address addr, const std::string &nick)
 	: Module(c, "/net/ppc/", seq++), address(addr),
 	  tcpListeningSocket(new TCPListeningSocket(Address())),
 	  udpSocket(new UDPSocket(addr)),
+#if PPC_NETWORK_HZ_DIVIDER > 1
+	  missedTicks(0),
+#endif
 	  lastStatus(Core::getTicks()),
 	  users(new sig::UsersListData(nick, tcpListeningSocket->address.port)),
 	  ourUser(users->ourUser) {
@@ -480,10 +514,9 @@ void Network::recievedSignal(const Signal &sig) {
 		/* ignore all signals */
 
 	} else if (sig.getType() == "/core/module/quit") {
+		disconnecting = true;
 		delete tcpListeningSocket;
 		tcpListeningSocket = 0;
-
-		disconnecting = true;
 
 		Connections::iterator it(connections.begin()), end(connections.end());
 		for (; it != end; ++it) {
@@ -511,15 +544,22 @@ void Network::recievedSignal(const Signal &sig) {
 
 	finish_quit:
 		sendSignal("/net/conn/disconnecting", "/ui/");
+		if (!udpSocket && connections.empty()) {
+			sendSignal("/core/module/exits", Core::coreName);
+		}
 
 	} else if (sig.getType() == "/net/conn/are-you-connected") {
 		sendSignal("/net/conn/connected", "/ui/", users.get());
 
 	} else if (sig.getType() == "/core/tick") {
-		missedTicks = (missedTicks + 1) % HZ_DIVIDER;
+#if PPC_NETWORK_HZ_DIVIDER > 1
+		missedTicks = (missedTicks + 1) % PPC_NETWORK_HZ_DIVIDER;
 		if (!missedTicks) {
+#endif
 			performTick();
+#if PPC_NETWORK_HZ_DIVIDER > 1
 		}
+#endif
 
 	} else if (sig.getType() == "/net/status/change") {
 		const sig::UserData &data = *sig.getData<sig::UserData>();
@@ -692,7 +732,9 @@ void Network::handleToken(NetworkUser &user,
 	}
 
 	case ppcp::Tokenizer::RQ:
-		if (Core::getTicks() - lastStatus + 10 >= STATUS_RESEND) {
+		if (ourUser.status.state != User::OFFLINE) {
+			/* nothing */
+		} else if (Core::getTicks() - lastStatus + 10 >= STATUS_RESEND) {
 			send(ppcp::st(ourUser));
 			lastStatus = Core::getTicks();
 		} else {
@@ -724,7 +766,9 @@ void Network::writeToTCPConnection(NetworkConnection &conn) {
 
 void Network::performTick() {
 	if (Core::getTicks() - lastStatus >= STATUS_RESEND) {
-		send(ppcp::st(ourUser));
+		if (ourUser.status.state != User::OFFLINE) {
+			send(ppcp::st(ourUser));
+		}
 		lastStatus = Core::getTicks();
 	}
 
@@ -763,7 +807,7 @@ void Network::performTick() {
 			continue;
 		}
 
-		sendSignal("/net/usr/changed", "/ui/",
+		sendSignal("/net/status/changed", "/ui/",
 		           new sig::UserData(user, sig::UserData::DISCONNECTED));
 		users->users.erase(u);
 		u = users->users.lower_bound(user.id);

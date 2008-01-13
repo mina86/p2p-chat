@@ -1,6 +1,6 @@
 /** \file
  * Network module definition.
- * $Id: network.hpp,v 1.11 2007/12/30 18:44:11 mina86 Exp $
+ * $Id: network.hpp,v 1.12 2008/01/13 11:53:10 mina86 Exp $
  */
 
 #ifndef H_NETWORK_HPP
@@ -12,6 +12,15 @@
 #include "unordered-vector.hpp"
 #include "ppcp-parser.hpp"
 #include "ppcp-packets.hpp"
+
+
+/**
+ * Intervfal between checking timeouts.  This may have value greater
+ * then one to save some CPU time as Network will investigate all
+ * users and all connections once every HZ_DIVIDER seconds instead of
+ * every second.
+ */
+#define PPC_NETWORK_HZ_DIVIDER       10
 
 
 namespace ppc {
@@ -49,52 +58,6 @@ struct Network : public Module {
 
 
 private:
-	/** Certain constants. */
-	enum {
-		/**
-		 * Time after which user (with state different then offline)
-		 * is considered to disconnected.
-		 */
-		ONLINE_USER_MAX_AGE  = 750,
-
-		/**
-		 * Time after which user (with offline state) is considered to
-		 * disconnect.  Normally, if user sends a packet with offline
-		 * status (s)he is treated as if (s)he has disconnected, yet
-		 * if user sends us a message (s)he apperas with offline
-		 * status and this time specifis how long shall it be kept
-		 * without any activity.
-		 */
-		OFFLINE_USER_MAX_AGE = 400,
-
-		/**
-		 * Status sending interval.
-		 */
-		STATUS_RESEND        = 300,
-
-		/**
-		 * Interval after which unused TCP connection will be closed.
-		 */
-		CONNECTION_MAX_AGE   = 600,
-
-		/**
-		 * Interval after which connection which is being closed (that
-		 * is we are traying to send ppcp close tag or waiting for
-		 * that tag from the other side) should be closed without
-		 * waiting for proper ppcp closing tags.
-		 */
-		CONNECTION_CLOSING_TIMEOUT = 60,
-
-		/**
-		 * Intervfal between checking timeouts.  This may have value
-		 * greater then one to save some CPU time as Network will
-		 * investigate all users and all connections once every
-		 * HZ_DIVIDER seconds instead of every second.
-		 */
-		HZ_DIVIDER           =  10
-	};
-
-
 	/** Vector of all opened TCP connections. */
 	typedef unordered_vector<NetworkConnection*> Connections;
 
