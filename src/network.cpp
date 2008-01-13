@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.24 2008/01/13 11:53:10 mina86 Exp $
+ * $Id: network.cpp,v 1.25 2008/01/13 18:14:52 mina86 Exp $
  */
 
 #include <assert.h>
@@ -162,7 +162,7 @@ struct NetworkConnection {
 	 * \param ourNick our nick name.
 	 */
 	NetworkConnection(TCPSocket &sock, const std::string &ourNick)
-		: tcpSocket(sock), tokenizer(ourNick),
+		: tcpSocket(sock), user(0), tokenizer(ourNick),
 		  lastAccessed(Core::getTicks()) { }
 
 	/**
@@ -563,26 +563,34 @@ void Network::recievedSignal(const Signal &sig) {
 
 	} else if (sig.getType() == "/net/status/change") {
 		const sig::UserData &data = *sig.getData<sig::UserData>();
-		if (!data.flags & (sig::UserData::STATE | sig::UserData::MESSAGE |
-		                   sig::UserData::NAME)) {
-			return;
-		}
+		bool request = data.flags & sig::UserData::REQUEST;
+		bool sendStatus = request;
 
-		if (data.flags & sig::UserData::STATE) {
+		if (data.flags & sig::UserData::STATE &&
+		    ourUser.status.state != data.user.status.state) {
+			sendStatus = true;
+			request = request || ourUser.status.state == User::OFFLINE;
 			ourUser.status.state = data.user.status.state;
 		}
-		if (data.flags & sig::UserData::MESSAGE) {
+
+		if (data.flags & sig::UserData::MESSAGE &&
+		    ourUser.status.message != data.user.status.message) {
+			sendStatus = true;
 			ourUser.status.message = data.user.status.message;
 		}
-		if (data.flags & sig::UserData::NAME) {
+
+		if (data.flags & sig::UserData::NAME &&
+		    ourUser.name != data.user.name) {
+			sendStatus = true;
 			ourUser.name = data.user.name;
 		}
 
-		sendSignal("/net/status/changed", "/ui/",
-		           new sig::UserData(ourUser, data.flags));
-		send(data.flags & sig::UserData::REQUEST
-		     ? ppcp::st(ourUser)+ppcp::rq() : ppcp::st(ourUser));
-		lastStatus = Core::getTicks();
+		if (sendStatus) {
+			sendSignal("/net/status/changed", "/ui/",
+			           new sig::UserData(ourUser, data.flags));
+			send(request ? ppcp::st(ourUser)+ppcp::rq() : ppcp::st(ourUser));
+			lastStatus = Core::getTicks();
+		}
 
 	} else if (sig.getType() == "/net/msg/send") {
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
@@ -593,7 +601,7 @@ void Network::recievedSignal(const Signal &sig) {
 
 	} else if (sig.getType() == "/net/status/rq") {
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
-		send(data.id, ppcp::rq(), true);
+		send(data.id, ppcp::rq() + ppcp::st(ourUser), true);
 	}
 }
 
@@ -836,10 +844,13 @@ NetworkUser &Network::getUser(const User::ID &id, const std::string &name) {
 void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 	NetworkConnection *conn = user.getConnection();
 
-	if (!conn && udp) {
+	if (conn) {
+		/* nothing */
+	} else if (udp) {
 		udpSocket->push(ppcp::ppcpOpen(ourUser, user.id.nick) + str +
 		                ppcp::ppcpClose(),
 		                Address(user.id.address.ip, address.port));
+		return;
 	} else {
 		TCPSocket *sock;
 		try {
