@@ -5,6 +5,7 @@ ppcp element:
   p       required, user's TCP listening port number
   may contain st, rq and m rlements
 
+
 st element:
   st      optional, default value "on", possible values:
           on, off, away, xa, dnd
