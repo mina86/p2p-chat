@@ -1,6 +1,6 @@
 /** \file
  * A netio library UDP multicast comunication test.
- * $Id: netio-multicast.cpp,v 1.1 2008/01/06 15:26:53 mina86 Exp $
+ * $Id: netio-multicast.cpp,v 1.2 2008/01/13 12:08:37 mina86 Exp $
  */
 
 #include <stdio.h>
@@ -47,6 +47,9 @@ int run(ppc::IP ip) {
 			while (!(data = sock.read(remoteAddr)).empty()) {
 				printf("[%s]: %s",
 				       remoteAddr.toString().c_str(), data.c_str());
+				if (data[data.length() - 1]!='\n') {
+					putchar('\n');
+				}
 			}
 		}
 
