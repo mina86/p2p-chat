@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.8 2008/01/13 11:57:12 mina86 Exp $
+ * $Id: user.hpp,v 1.9 2008/01/13 21:55:54 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -184,7 +184,23 @@ struct User {
 	 * Returns state name.
 	 * \param state state to get name of.
 	 */
-	static const char *stateName(enum State state);
+	static const char *stateName(State state);
+
+	/**
+	 * Returns state from it's name.
+	 * \param state state's name.
+	 */
+	static State getState(const std::string &state) {
+		bool ignore;
+		return getState(state, ignore);
+	}
+
+	/**
+	 * Returns state from it's name.
+	 * \param state state's name.
+	 * \param valid set whether \a state was valid state's name.
+	 */
+	static State getState(const std::string &state, bool &valid);
 
 
 

@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.cpp,v 1.2 2008/01/13 11:57:12 mina86 Exp $
+ * $Id: user.cpp,v 1.3 2008/01/13 21:55:54 mina86 Exp $
  */
 
 #include "user.hpp"
@@ -68,7 +68,7 @@ bool User::nameMatchesNick(const std::string &name, const std::string &nick) {
 }
 
 
-const char *User::stateName(enum State state) {
+const char *User::stateName(User::State state) {
 	switch (state) {
 	case OFFLINE: return "offline";
 	case ONLINE : return "online";
@@ -80,6 +80,38 @@ const char *User::stateName(enum State state) {
 		return "<unknown>";
 	}
 }
+
+
+User::State User::getState(const std::string &state, bool &valid) {
+	valid = true;
+	switch (state.length()) {
+	case 7:
+		if (state == "offline") return OFFLINE;
+		break;
+	case 6:
+		if (state == "online" ) return ONLINE;
+		break;
+	case 5:
+		if (state == "xaway"  ) return XAWAY;
+		break;
+	case 4:
+		if (state == "away"   ) return AWAY;
+		if (state == "busy"   ) return BUSY;
+		break;
+	case 3:
+		if (state == "dnd"    ) return BUSY;
+		if (state == "off"    ) return OFFLINE;
+		break;
+	case 2:
+		if (state == "on"     ) return ONLINE;
+		if (state == "aw"     ) return AWAY;
+		if (state == "xa"     ) return XAWAY;
+		break;
+	}
+	valid = false;
+	return ONLINE;
+}
+
 
 
 }
