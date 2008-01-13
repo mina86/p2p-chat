@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.cpp,v 1.1 2007/12/08 18:01:30 mina86 Exp $
+ * $Id: user.cpp,v 1.2 2008/01/13 11:57:12 mina86 Exp $
  */
 
 #include "user.hpp"
@@ -39,6 +39,46 @@ std::string &User::nickFromNameInPlace(std::string &name) {
 		}
 	}
 	return name;
+}
+
+
+bool User::nameMatchesNick(const std::string &name, const std::string &nick) {
+	if (name.length() != nick.length()) {
+		return false;
+	}
+	if (name.empty()) {
+		return true;
+	}
+
+	const char *it1 = name.data(), *it2 = nick.data();
+	const char *const end = it1 + name.length();
+	char cmp;
+
+	do {
+		if (static_cast<signed char>(*it1) < 48) {
+			cmp = '_';
+		} else if (*it1 >= 'A' && *it1 <= 'Z') {
+			cmp = *it1 | 32;
+		} else {
+			cmp = *it1;
+		}
+	} while (*it2++ == cmp && ++it1 != end);
+
+	return it1 == end;
+}
+
+
+const char *User::stateName(enum State state) {
+	switch (state) {
+	case OFFLINE: return "offline";
+	case ONLINE : return "online";
+	case AWAY   : return "away";
+	case XAWAY  : return "extended away";
+	case BUSY   : return "busy";
+	default     :
+		assert(0);
+		return "<unknown>";
+	}
 }
 
 

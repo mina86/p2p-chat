@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.7 2008/01/11 23:47:05 mco Exp $
+ * $Id: user.hpp,v 1.8 2008/01/13 11:57:12 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -95,7 +95,9 @@ struct User {
 
 		/** Returns identifier as a string. */
 		std::string toString() const {
-			return nick + '/' + address.toString();
+			std::string result = nick;
+			result += '/';
+			return result += address.toString();
 		}
 
 		/**
@@ -103,9 +105,14 @@ struct User {
 		 * \param name user's display name
 		 */
 		std::string toString(const std::string &name) const {
-			return name + " (" +
-				(nick != User::nickFromName(name) ? nick + '/' : "") +
-				address.toString() + ')';
+			std::string result = name;
+			result += '(';
+			if (!User::nameMatchesNick(nick, name)) {
+				result += nick;
+				result += '/';
+			}
+			result += address.toString();
+			return result += ')';
 		}
 
 		/** User's nick name. */
@@ -146,9 +153,18 @@ struct User {
 	 */
 	static std::string nickFromName(const std::string &name) {
 		std::string result = name;
-		nickFromNameInPlace(result);
-		return result;
+		return nickFromNameInPlace(result);
 	}
+
+	/**
+	 * Returns \c true iff display name converted into nick name
+	 * matches given nick name.
+	 *
+	 * \param name display name.
+	 * \param nick nick name.
+	 */
+	static bool nameMatchesNick(const std::string &name,
+	                            const std::string &nick);
 
 	/**
 	 * Converts display name into nick name in place.  Conversion is
@@ -163,6 +179,12 @@ struct User {
 	 *         name.
 	 */
 	static std::string &nickFromNameInPlace(std::string &name);
+
+	/**
+	 * Returns state name.
+	 * \param state state to get name of.
+	 */
+	static const char *stateName(enum State state);
 
 
 
@@ -225,6 +247,19 @@ struct User {
 			throw InvalidNick("Invalid nick name: ''");
 		}
 	}
+
+
+	/**
+	 * Returns user name with all informations.  If user's display
+	 * name matches user's nick name (see \link
+	 * User::nickFromName(const std::string &)\endlink ) returned
+	 * string is display name followed by IP address and port number
+	 * in parenthesis.  Otherwise, IP address is preceded by user's
+	 * nick name and a slash sign.
+	 */
+	std::string formattedName() const {
+		return id.toString(name);
+	}
 };
 
 
@@ -266,7 +301,7 @@ inline bool operator> (const User::ID &a, const User::ID &b) {
 	return a.address > b.address ||
 		(a.address == b.address &&
 		 (a.nick.length() > b.nick.length() ||
-		  (a.nick.length() == b.nick.length() && a > b)));
+		  (a.nick.length() == b.nick.length() && a.nick > b.nick)));
 }
 
 
@@ -285,7 +320,7 @@ inline bool operator>=(const User::ID &a, const User::ID &b) {
 	return a.address > b.address ||
 		(a.address == b.address &&
 		 (a.nick.length() > b.nick.length() ||
-		  (a.nick.length() == b.nick.length() && a >= b)));
+		  (a.nick.length() == b.nick.length() && a.nick >= b.nick)));
 }
 
 
