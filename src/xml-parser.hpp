@@ -1,6 +1,6 @@
 /** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.6 2008/01/11 15:57:41 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.7 2008/01/13 13:25:04 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
@@ -414,10 +414,7 @@ protected:
 	 * Parser class instead of Parser2.
 	 * \param name element name.
 	 */
-	virtual void open(const std::string &name) {
-		element = name;
-		attributes.clear();
-	}
+	virtual void open(const std::string &name);
 
 	/**
 	 * Called when element attribute is encountered.  Instead of this
@@ -427,10 +424,7 @@ protected:
 	 * \param name attribute's name.
 	 * \param value attribute's value.
 	 */
-	virtual void attribute(const std::string &name,
-	                       const std::string &value) {
-		attributes[name] = value;
-	}
+	virtual void attribute(const std::string &name, const std::string &value);
 
 	/**
 	 * Called when open tag is closed.  Instead of this method \link
@@ -438,11 +432,7 @@ protected:
 	 * should be used.  If you intend to use it consider Parser
 	 * class instead of Parser2.
 	 */
-	virtual void open_end() {
-		open(element, attributes);
-		element.clear();
-		attributes.clear();
-	};
+	virtual void open_end();
 
 
 private:

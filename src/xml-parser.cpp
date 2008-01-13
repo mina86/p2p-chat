@@ -1,6 +1,6 @@
 /** \file
  * XML parser implementation.
- * $Id: xml-parser.cpp,v 1.8 2008/01/03 18:39:53 mina86 Exp $
+ * $Id: xml-parser.cpp,v 1.9 2008/01/13 13:25:04 mina86 Exp $
  */
 
 #include <assert.h>
@@ -395,6 +395,25 @@ Tokenizer::Token Tokenizer::nextToken() {
 		pos = buffer.length();
 	}
 	return token;
+}
+
+
+
+void Parser2::open(const std::string &name) {
+	element = name;
+	attributes.clear();
+}
+
+
+void Parser2::attribute(const std::string &name, const std::string &value) {
+	attributes[name] = value;
+}
+
+
+void Parser2::open_end() {
+	open(element, attributes);
+	element.clear();
+	attributes.clear();
 }
 
 
