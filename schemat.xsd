@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://waw.er.pl/ppcp/default" xmlns:to="http://waw.er.pl/ppcp/to">
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+xmlns="http://waw.er.pl/ppcp/default">
 
   <xsd:element name="ppcp">
     <xsd:complexType>
@@ -8,9 +9,9 @@
           <xsd:complexType>
             <xsd:simpleContent>
               <xsd:extension base="xsd:string">
-                <xsd:attribute name="st" use="required">
+                <xsd:attribute name="st" use="optional" default="on">
                   <xsd:simpleType>
-                    <xsd:restriction base="xs:string">
+                    <xsd:restriction base="xsd:string">
                       <xsd:enumeration value="on"/>
                       <xsd:enumeration value="away"/>
                       <xsd:enumeration value="xa"/>
@@ -19,46 +20,27 @@
                     </xsd:restriction>
                   </xsd:simpleType>
                 </xsd:attribute>
+                <xsd:attribute name="dn" use="optional" type="xsd:string"/>
               </xsd:extension>
             </xsd:simpleContent>
           </xsd:complexType>
         </xsd:element>
-        <xsd:element name="rq" minOccurs="0" maxOccurs="1">
-          <xsd:complexType>
-            <xsd:simpleContent>
-              <xsd:extension base="xsd:string">
-                <xsd:attribute name="rq" type="xsd:string" use="required"/>
-              </xsd:extension>
-            </xsd:simpleContent>
-          </xsd:complexType>
-        </xsd:element>
+        <xsd:element name="rq" minOccurs="0" maxOccurs="1" />
         <xsd:element name="m" minOccurs="0" maxOccurs="1">
           <xsd:complexType>
             <xsd:simpleContent>
               <xsd:extension base="xsd:string">
-                <xsd:attribute name="ac" type="xsd:string" use="optional">
-                  <xsd:simpleType>
-                    <xsd:restriction base="xs:string">
-                      <xsd:enumeration value="ac"/>
-                    </xsd:restriction>
-                  </xsd:simpleType>
-                </xsd:attribute>
-                <xsd:attribute name="msg" type="xsd:string" use="optional">
-                  <xsd:simpleType>
-                    <xsd:restriction base="xs:string">
-                      <xsd:enumeration value="msg"/>
-                    </xsd:restriction>
-                  </xsd:simpleType>
-                </xsd:attribute>
+                <xsd:attribute name="ac" use="optional" type="xsd:boolean" />
+                <xsd:attribute name="msg" use="optional" type="xsd:boolean" />
               </xsd:extension>
             </xsd:simpleContent>
           </xsd:complexType>
         </xsd:element>
-        <xsd:element name="to" type="xsd:string" minOccurs="0" maxOccurs="1"/>
       </xsd:sequence>
       <xsd:attribute name="n" type="xsd:string" use="required"/>
-      <xsd:attribute name="to:n" type="xsd:string" use="optional"/>
-      <xsd:attribute name="to:neg" type="xsd:string" use="optional"/>
+      <xsd:attribute name="ton" type="xsd:string" use="optional"/>
+      <xsd:attribute name="toneg" type="xsd:boolean" use="optional"/>
+      <xsd:attribute name="p" type="xsd:integer" use="required"/>
     </xsd:complexType>
   </xsd:element>
 </xsd:schema>
