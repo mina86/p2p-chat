@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.25 2008/01/13 18:14:52 mina86 Exp $
+ * $Id: network.cpp,v 1.26 2008/01/13 21:54:18 mina86 Exp $
  */
 
 #include <assert.h>
@@ -728,10 +728,11 @@ void Network::handleToken(NetworkUser &user,
 			user.status.message = token.data;
 			flags |= sig::UserData::MESSAGE;
 		}
-		if (user.name != token.data2) {
-			user.name = token.data2;
+		if (user.name != (token.data2.empty() ? user.id.nick : token.data2)) {
+			user.name = token.data2.empty() ? user.id.nick : token.data2;
 			flags |= sig::UserData::NAME;
 		}
+
 		if (flags) {
 			sendSignal("/net/status/changed", "/ui/",
 			           new sig::UserData(user, flags));
@@ -863,6 +864,7 @@ void Network::send(NetworkUser &user, const std::string &str, bool udp) {
 		}
 		conn = new NetworkConnection(*sock, ourUser.id.nick);
 		conn->attachTo(user);
+		connections.push_back(conn);
 		sock->push(ppcp::ppcpOpen(ourUser, user.id.nick));
 	}
 
