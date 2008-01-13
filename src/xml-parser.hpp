@@ -1,6 +1,6 @@
 /** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.7 2008/01/13 13:25:04 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.8 2008/01/13 21:50:54 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
@@ -35,7 +35,7 @@ namespace xml {
  * \return whether character is valid name.
  */
 inline bool isNameChar(char ch) {
-	return (ch>='0' && ch<='9') || ((ch | 64)>='a' && (ch | 64)<='z') ||
+	return (ch>='0' && ch<='9') || ((ch | 32)>='a' && (ch | 32)<='z') ||
 		ch == ':' || ch=='-' || ch=='_';
 }
 
