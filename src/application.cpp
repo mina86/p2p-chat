@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.25 2008/01/13 11:54:06 mina86 Exp $
+ * $Id: application.cpp,v 1.26 2008/01/13 21:52:26 mina86 Exp $
  */
 
 #include <assert.h>
@@ -203,8 +203,12 @@ void Core::deliverSignals() {
 		if (signals.front().getType() == "/core/module/exits") {
 			removeModule(signals.front().getSender());
 		} else {
+#if PPC_CORE_DEBUG_SIGNALS
+			it = matchingModules(signals.front().getReciever());
+#else
 			std::pair<Modules::iterator, Modules::iterator> it
 				= matchingModules(signals.front().getReciever());
+#endif
 			for (; it.first != it.second; ++it.first) {
 				it.first->second->recievedSignal(signals.front());
 			}
