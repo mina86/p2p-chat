@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.22 2008/01/13 16:05:26 mco Exp $
+ * $Id: ui.cpp,v 1.23 2008/01/13 21:57:00 mina86 Exp $
  */
 
 #include <errno.h>
@@ -415,6 +415,7 @@ void UI::handleCommand(const std::string &command) {
 	} else if (len == 7 && data == "/status") {
 	status:
 		enum User::State state;
+		bool valid;
 
 		pos = nextToken(command, pos.second);
 		if (pos.first == std::string::npos) {
@@ -422,13 +423,8 @@ void UI::handleCommand(const std::string &command) {
 		}
 
 		data.assign(command, pos.first, pos.second - pos.first);
-		if (data == "online" || data == "on") {
-			state = User::ONLINE;
-		} else if (data == "away" || data == "aw") {
-			state = User::AWAY;
-		/* ... */
-		} else {
-			/* print error message -- unkonw state */
+		state = User::getState(data, valid);
+		if (!valid) {
 			return;
 		}
 
@@ -441,8 +437,8 @@ void UI::handleCommand(const std::string &command) {
 			data.assign(command, pos.first, std::string::npos);
 		}
 
-		/* 
-		 * in UserData we must supply valid data only for these 
+		/*
+		 * in UserData we must supply valid data only for these
 		 * information which has changed (status and/or displayname)
 		 */
 		sendSignal("/net/status/change", net,
@@ -536,10 +532,17 @@ void UI::handleSigStatusChanged(const std::string &network,
 	(void)network;
 
 	if (data.flags & sig::UserData::CONNECTED) {
+		/*
 		messageW->printf("--- %s has connected\n",
 		                 data.user.formattedName().c_str());
+		*/
 		/* At this point user's status is offline, so do nothing more.
 		   When user changes status we'll get another signal. */
+		return;
+	}
+
+	if (data.flags & sig::UserData::DISCONNECTED &&
+	    data.user.status.state == User::OFFLINE) {
 		return;
 	}
 
