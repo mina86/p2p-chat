@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.21 2008/01/13 12:16:21 mina86 Exp $
+ * $Id: ui.cpp,v 1.22 2008/01/13 16:05:26 mco Exp $
  */
 
 #include <errno.h>
@@ -384,24 +384,25 @@ void UI::handleCommand(const std::string &command) {
 		                 userString.c_str());
 
 
-		int usersfound;
-		User **up = new User* [PPC_UI_COMPLETIONMENUSIZE];
-		usersfound = findUsers(userString, up, PPC_UI_COMPLETIONMENUSIZE);
-		if(usersfound == 0) {
+		std::multimap< std::string, User* > usersfound;
+		std::multimap< std::string, User* >::iterator it;
+		findUsers(userString, usersfound);
+
+		if(usersfound.size() == 0) {
 			messageW->printf("No users found\n");
-		} else if(usersfound > 1) {
+		} else if(usersfound.size() > 1) {
 			int iii;
 			messageW->printf("Ambiguous user '%s', possible matches:\n",
 			                 userString.c_str());
-			for(iii=0; iii<usersfound; ++iii) {
-				messageW->printf("[#%d] %s\n", iii,
-				                 up[iii]->id.toString().c_str());
+			for(iii=0, it=usersfound.begin(); it!=usersfound.end(); ++iii, ++it) {
+				messageW->printf("[#%d] %s\n", iii, it->second->id.toString().c_str());
 			}
 		} else {
 
-			std::string net = "/net/ppcp/0";
+			it = usersfound.begin();
+			std::string net = it->first;
 			sendSignal("/net/msg/send", net,
-			           new sig::MessageData(up[0]->id,
+			           new sig::MessageData(it->second->id,
 		                                std::string(command, pos.first),
 		                                len==3?sig::MessageData::ACTION:0));
 		}
@@ -431,16 +432,20 @@ void UI::handleCommand(const std::string &command) {
 			return;
 		}
 
-		/* somhow identify network */
-		std::string net = "/net/ppcp/0";
+		/* send to all networks */
+		std::string net = "/net/";
 		pos = nextToken(command, pos.second);
 		if (pos.first == std::string::npos) {
-			data.assign(command, pos.first, std::string::npos);
-		} else {
 			data.clear();
+		} else {
+			data.assign(command, pos.first, std::string::npos);
 		}
 
-		sendSignal("/user/status/change", net,
+		/* 
+		 * in UserData we must supply valid data only for these 
+		 * information which has changed (status and/or displayname)
+		 */
+		sendSignal("/net/status/change", net,
 		           new sig::UserData(User("dummy", Address(),
 		                                  User::Status(state, data)),
 		                             sig::UserData::STATE |
@@ -507,10 +512,9 @@ std::string UI::ourUserName(const std::string &network) {
 
 
 
-int UI::findUsers(const std::string &uri, User **up, int n) {
+int UI::findUsers(const std::string &uri, std::multimap< std::string, User* > &map) {
 
 	std::string::size_type len = uri.length();
-	int found = 0;
 	std::map<std::string,shared_obj<sig::UsersListData> >::iterator nuit;
 	std::map<User::ID, User *>::iterator uit;
 	for(nuit=networkUsers.begin(); nuit!=networkUsers.end(); ++nuit) {
@@ -518,15 +522,12 @@ int UI::findUsers(const std::string &uri, User **up, int n) {
 			uit!=nuit->second->users.end();
 			++uit) {
 			if(uit->first.toString().compare(0, len, uri) == 0) {
-				if(found < n) {
-					up[found] = uit->second;
-				}
-				++found;
+				map.insert(std::make_pair(nuit->first, uit->second));
 			}
 		}
 	}
 
-	return found;
+	return map.size();
 }
 
 

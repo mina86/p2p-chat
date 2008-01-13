@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.12 2008/01/13 12:16:21 mina86 Exp $
+ * $Id: ui.hpp,v 1.13 2008/01/13 16:05:27 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -71,7 +71,7 @@ private:
 	 * \param n find at most that many users
 	 * \return number of users found (it could be more than n)
 	 */
-	int findUsers(const std::string &uri, User **up, int n);
+	int findUsers(const std::string &uri, std::multimap< std::string, User* > &map);
 
 	/**
 	 * Handles every single character received from user
