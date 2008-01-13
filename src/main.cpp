@@ -1,6 +1,6 @@
 /** \file
  * Main file.
- * $Id: main.cpp,v 1.3 2008/01/12 02:26:38 mina86 Exp $
+ * $Id: main.cpp,v 1.4 2008/01/13 13:31:09 mina86 Exp $
  */
 
 #include <errno.h>
@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "application.hpp"
+#include "config.hpp"
 #include "network.hpp"
 #include "ui.hpp"
 

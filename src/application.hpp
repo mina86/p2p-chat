@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.16 2008/01/06 15:23:53 mina86 Exp $
+ * $Id: application.hpp,v 1.17 2008/01/13 13:31:09 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -318,10 +318,6 @@ private:
 
 
 	friend struct Module;
-};
-
-
-struct Config {
 };
 
 
