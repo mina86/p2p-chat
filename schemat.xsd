@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://waw.er.pl/ppcp/default" xmlns:to="http://waw.er.pl/ppcp/to">
+
+  <xsd:element name="ppcp">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="st" minOccurs="0" maxOccurs="1">
+          <xsd:complexType>
+            <xsd:simpleContent>
+              <xsd:extension base="xsd:string">
+                <xsd:attribute name="st" use="required">
+                  <xsd:simpleType>
+                    <xsd:restriction base="xs:string">
+                      <xsd:enumeration value="on"/>
+                      <xsd:enumeration value="away"/>
+                      <xsd:enumeration value="xa"/>
+                      <xsd:enumeration value="dnd"/>
+                      <xsd:enumeration value="off"/>
+                    </xsd:restriction>
+                  </xsd:simpleType>
+                </xsd:attribute>
+              </xsd:extension>
+            </xsd:simpleContent>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="rq" minOccurs="0" maxOccurs="1">
+          <xsd:complexType>
+            <xsd:simpleContent>
+              <xsd:extension base="xsd:string">
+                <xsd:attribute name="rq" type="xsd:string" use="required"/>
+              </xsd:extension>
+            </xsd:simpleContent>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="m" minOccurs="0" maxOccurs="1">
+          <xsd:complexType>
+            <xsd:simpleContent>
+              <xsd:extension base="xsd:string">
+                <xsd:attribute name="ac" type="xsd:string" use="optional">
+                  <xsd:simpleType>
+                    <xsd:restriction base="xs:string">
+                      <xsd:enumeration value="ac"/>
+                    </xsd:restriction>
+                  </xsd:simpleType>
+                </xsd:attribute>
+                <xsd:attribute name="msg" type="xsd:string" use="optional">
+                  <xsd:simpleType>
+                    <xsd:restriction base="xs:string">
+                      <xsd:enumeration value="msg"/>
+                    </xsd:restriction>
+                  </xsd:simpleType>
+                </xsd:attribute>
+              </xsd:extension>
+            </xsd:simpleContent>
+          </xsd:complexType>
+        </xsd:element>
+        <xsd:element name="to" type="xsd:string" minOccurs="0" maxOccurs="1"/>
+      </xsd:sequence>
+      <xsd:attribute name="n" type="xsd:string" use="required"/>
+      <xsd:attribute name="to:n" type="xsd:string" use="optional"/>
+      <xsd:attribute name="to:neg" type="xsd:string" use="optional"/>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>
