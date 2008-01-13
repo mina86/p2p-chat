@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.11 2008/01/12 02:43:28 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.12 2008/01/13 21:55:22 mina86 Exp $
  */
 
 #include <assert.h>
@@ -167,12 +167,11 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			if (data == "neg") flags |= F_PPCP_TO_NEG;
 			break;
 
-		case A_ST_ST:
-			if (xToken.data == "off") flags = (unsigned)User::OFFLINE;
-			else if (xToken.data == "on") flags = (unsigned)User::ONLINE;
-			else if (xToken.data == "away") flags = (unsigned)User::AWAY;
-			else if (xToken.data == "xa") flags = (unsigned)User::XAWAY;
-			else if (xToken.data == "dnd") flags = (unsigned)User::BUSY;
+		case A_ST_ST: {
+			bool valid = true;
+			enum User::State state = User::getState(xToken.data, valid);
+			if (valid) flags = (unsigned short)state;
+		}
 			break;
 
 		case A_M_MSG:
@@ -188,6 +187,8 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		default:
 			assert(0);
 		}
+
+		attribute = A_UNKNOWN;
 		break;
 
 
