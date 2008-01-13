@@ -1,12 +1,10 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.11 2008/01/12 02:16:42 mina86 Exp $
+ * $Id: ui.hpp,v 1.12 2008/01/13 12:16:21 mina86 Exp $
  */
 
 #ifndef H_UI_HPP
 #define H_UI_HPP
-
-#define UI_HISTORY_SIZE		100
 
 #include <map>
 #include <list>
@@ -52,6 +50,21 @@ private:
 	NetworkUsers networkUsers;
 
 	/**
+	 * Returns a string representing given user.
+	 *
+	 * \param network name of network module.
+	 * \param id      user's ID.
+	 */
+	std::string userName(const std::string &network, const User::ID &id);
+
+	/**
+	 * Returns a string representing our user.
+	 *
+	 * \param network name of network module.
+	 */
+	std::string ourUserName(const std::string &network);
+
+	/**
 	 * Finds user by given URI
 	 * \param uri user uri (or starting part of it)
 	 * \param up array of pointers to User
@@ -73,6 +86,15 @@ private:
 	void handleCommand(const std::string &command);
 
 	/**
+	 * Handles \c /net/status/changed signal.
+	 * \param network name of network module which sent signal.
+	 * \param data    signal's argument.
+	 */
+	void handleSigStatusChanged(const std::string &network,
+	                            const sig::UserData &data);
+
+
+	/**
 	 * Returns a next string token from given string at given
 	 * position.  When there are no more tokens a pair of two
 	 * std::string::npos values is returned.
@@ -81,8 +103,9 @@ private:
 	 * \param pos index to find searching for tokens.
 	 * \return an index of first and one-past-the-last char of token.
 	 */
-	std::pair<std::string::size_type, std::string::size_type>
+	static std::pair<std::string::size_type, std::string::size_type>
 	nextToken(const std::string &str, std::string::size_type pos = 0);
+
 
 	/**
 	 * Commands history buffer.

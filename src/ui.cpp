@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.20 2008/01/12 02:16:42 mina86 Exp $
+ * $Id: ui.cpp,v 1.21 2008/01/13 12:16:21 mina86 Exp $
  */
 
 #include <errno.h>
@@ -14,6 +14,8 @@
 
 #define PPC_UI_OUTPUTWINDOW_BUFFERSIZE	4096
 #define PPC_UI_COMPLETIONMENUSIZE 10
+#define PPC_UI_HISTORY_SIZE		100
+
 
 namespace ppc {
 
@@ -58,8 +60,10 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	sendSignal("/net/conn/are-you-connected", "/net/");
 	messageW->printf("Hello from User Interface on fd=%d\n", infd);
 	messageW->printf("Enter: %d, %d, %d\n", '\n', '\r', KEY_ENTER);
-	messageW->printf("backspace, delchar, erasechar: %d, %d, %d, \n", KEY_BACKSPACE, KEY_DC, erasechar());
-	messageW->printf("UP, DOWN, LEFT, RIGHT: %d %d %d %d\n", KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
+	messageW->printf("backspace, delchar, erasechar: %d, %d, %d, \n",
+	                 KEY_BACKSPACE, KEY_DC, erasechar());
+	messageW->printf("UP, DOWN, LEFT, RIGHT: %d %d %d %d\n",
+	                 KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
 	wprintw(statusW, "W trakcie tworzenia");
 	wnoutrefresh(stdscr);
 	messageW->refresh();
@@ -70,8 +74,6 @@ UI::UI(Core &c, int infd /* some more arguments */)
 
 
 UI::~UI() {
-	/* clear command history */
-	history.clear();
 	/* destroy windows */
 	delete messageW;
 	delwin(statusW);
@@ -79,7 +81,6 @@ UI::~UI() {
 
 	/* whatever needed */
 	endwin();
-	printf("UI exiting\n");
 }
 
 
@@ -126,32 +127,31 @@ void UI::recievedSignal(const Signal &sig) {
 		   connected ot it have jsut disconnected, it's all in data.
 		   You may (shoul) identify network which sent information by
 		   sig.getSender(). */
-		const sig::UserData &data = *sig.getData<sig::UserData>();
-		(void)data; /* to silence warning for the time being */
+		handleSigStatusChanged(sig.getSender(),
+		                       *sig.getData<sig::UserData>());
+		messageW->refresh(true);
 
 
 	} else if (sig.getType() == "/net/msg/got") {
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
 		messageW->printf(data.flags & sig::MessageData::ACTION
 		                 ? " * %s %s\n" : " <%s> %s\n",
-		                 data.id.toString().c_str(),
+		                 userName(sig.getSender(), data.id).c_str(),
 		                 data.data.c_str());
-		/* FIXME: sig::MessageData::RAW is not handled */
+		messageW->refresh(true);
 
 	} else if (sig.getType() == "/net/msg/sent") {
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
-		if (~data.flags & sig::MessageData::ACTION) {
+		if (data.flags & sig::MessageData::RAW) {
+			/* nothing */
+		} else if (~data.flags & sig::MessageData::ACTION) {
 			messageW->printf("> %s\n", data.data.c_str());
-			return;
+		} else {
+			messageW->printf(" * %s %s\n",
+			                 ourUserName(sig.getSender()).c_str(),
+			                 data.data.c_str());
 		}
-
-		NetworkUsers::iterator it = networkUsers.find(sig.getSender());
-		assert(it != networkUsers.end());
-		messageW->printf(" * %s %s\n",
-		                 it == networkUsers.end()
-		                 ? "I" : it->second->ourUser.id.toString().c_str(),
-		                 data.data.c_str());
-		/* FIXME: sig::MessageData::RAW is not handled */
+		messageW->refresh(true);
 
 
 	} else if (sig.getType() == "/net/conn/connected") {
@@ -195,113 +195,116 @@ void UI::recievedSignal(const Signal &sig) {
 }
 
 void UI::handleCharacter(int c) {
+	std::list<std::string>::iterator tmpHistoryIterator;
+
 	mvwprintw(statusW, 0, 0, "Entered character: [O:%o] [D:%d] [H:%x]", c, c, c);
 	wclrtoeol(statusW);
 	wnoutrefresh(statusW);
 	doupdate();
-	std::list<std::string>::iterator tmpHistoryIterator;
+
 	switch(c) {
 		/* enter key */
-		case '\n':
-		case '\r':
-		case KEY_ENTER:
-			if(historyIterator->length() == 0) {
-				break;
-			}
-			if(historyIterator != history.begin()) {
-				*history.begin() = *historyIterator;
-			}
-			handleCommand(*history.begin());
-			messageW->refresh();
-			history.push_front(std::string(""));
-			historyIterator = history.begin();
-			commandCurPos = 0;
-			if(history.size() > UI_HISTORY_SIZE) {
-				history.pop_back();
-			}
-			commandW->redraw();
+	case '\n':
+	case '\r':
+	case KEY_ENTER:
+		if(historyIterator->length() == 0) {
 			break;
+		}
+		if(historyIterator != history.begin()) {
+			*history.begin() = *historyIterator;
+		}
+		handleCommand(*history.begin());
+		messageW->refresh();
+		history.push_front(std::string(""));
+		historyIterator = history.begin();
+		commandCurPos = 0;
+		if(history.size() > PPC_UI_HISTORY_SIZE) {
+			history.pop_back();
+		}
+		break;
+
 		/* backspace key */
-		case 0x07:
-		case 0x08:
-		case KEY_BACKSPACE:
-			if(historyIterator != history.begin()) {
-				*history.begin() = *historyIterator;
-				historyIterator = history.begin();
-			}
-			if(commandCurPos > 0 && commandCurPos <= historyIterator->length()) {
-				historyIterator->erase(commandCurPos-1, 1);
-				--commandCurPos;
-				commandW->redraw();
-			}
-			break;
+	case 0x07:
+	case 0x08:
+	case KEY_BACKSPACE:
+		if(historyIterator != history.begin()) {
+			*history.begin() = *historyIterator;
+			historyIterator = history.begin();
+		}
+		if(commandCurPos > 0 && commandCurPos <= historyIterator->length()) {
+			historyIterator->erase(commandCurPos-1, 1);
+			--commandCurPos;
+		}
+		break;
+
 		/* delete key */
-		case 0x04:
-		case KEY_DC:
-			if(commandCurPos < historyIterator->length()) {
-				historyIterator->erase(commandCurPos, 1);
-				commandW->redraw();
-			}
-			break;
-		case 0x10:
-		case KEY_UP:
-			tmpHistoryIterator = historyIterator;
-			++tmpHistoryIterator;
-			if(tmpHistoryIterator != history.end()) {
-				historyIterator=tmpHistoryIterator;
-				commandCurPos = historyIterator->length();
-				commandW->redraw();
-			}
-			break;
-		case 0x0e:
-		case KEY_DOWN:
-			if(historyIterator != history.begin()) {
-				--historyIterator;
-				commandCurPos = historyIterator->length();
-				commandW->redraw();
-			}
-			break;
-		case 0x02:
-		case KEY_LEFT:
-			if(commandCurPos>0) {
-				--commandCurPos;
-			}
-			commandW->redraw();
-			break;
-		case 0x06:
-		case KEY_RIGHT:
-			if(commandCurPos < historyIterator->size()) {
-				++commandCurPos;
-			}
-			commandW->redraw();
-			break;
-		case 0x01:
-		case KEY_HOME:
-			commandCurPos = 0;
-			commandW->redraw();
-			break;
-		case 0x05:
-		case KEY_END:
-			commandCurPos = historyIterator->size();
-			commandW->redraw();
-			break;
-		default:
-			if(commandCurPos == maxX) {
-				mvwprintw(statusW, 0, 0, "No ziomal, krutsze som te polecenia Yo");
-				wclrtoeol(statusW);
-				wnoutrefresh(statusW);
-				doupdate();
-				break;
-			}
-			if(historyIterator != history.begin()) {
-				*history.begin() = *historyIterator;
-				historyIterator = history.begin();
-			}
-			historyIterator->insert(commandCurPos, 1, c);
+	case 0x04:
+	case KEY_DC:
+		if(commandCurPos < historyIterator->length()) {
+			historyIterator->erase(commandCurPos, 1);
+		}
+		break;
+
+	case 0x10:
+	case KEY_UP:
+		tmpHistoryIterator = historyIterator;
+		++tmpHistoryIterator;
+		if(tmpHistoryIterator != history.end()) {
+			historyIterator=tmpHistoryIterator;
+			commandCurPos = historyIterator->length();
+		}
+		break;
+
+	case 0x0e:
+	case KEY_DOWN:
+		if(historyIterator != history.begin()) {
+			--historyIterator;
+			commandCurPos = historyIterator->length();
+		}
+		break;
+
+	case 0x02:
+	case KEY_LEFT:
+		if(commandCurPos>0) {
+			--commandCurPos;
+		}
+		break;
+
+	case 0x06:
+	case KEY_RIGHT:
+		if(commandCurPos < historyIterator->size()) {
 			++commandCurPos;
-			commandW->redraw();
+		}
+		break;
+
+	case 0x01:
+	case KEY_HOME:
+		commandCurPos = 0;
+		break;
+
+	case 0x05:
+	case KEY_END:
+		commandCurPos = historyIterator->size();
+		break;
+
+	default:
+		if(commandCurPos == maxX) {
+			mvwprintw(statusW, 0, 0, "No ziomal, krutsze som te polecenia Yo");
+			wclrtoeol(statusW);
+			wnoutrefresh(statusW);
+			doupdate();
 			break;
+		}
+		if(historyIterator != history.begin()) {
+			*history.begin() = *historyIterator;
+			historyIterator = history.begin();
+		}
+		historyIterator->insert(commandCurPos, 1, c);
+		++commandCurPos;
+		break;
 	}
+
+	commandW->redraw();
 }
 
 void UI::handleCommand(const std::string &command) {
@@ -466,6 +469,44 @@ UI::nextToken(const std::string &str, std::string::size_type pos) {
 	return std::make_pair(start, end);
 }
 
+
+
+std::string UI::userName(const std::string &network, const User::ID &id) {
+	NetworkUsers::iterator nit = networkUsers.find(network);
+	if (nit == networkUsers.end()) {
+	not_found:
+		sendSignal("/net/conn/are-you-connected", network);
+		return id.toString();
+	} else {
+		sig::UsersListData::Users::iterator uit = nit->second->users.find(id);
+		if (uit == nit->second->users.end()) {
+			goto not_found;
+		} else {
+			return uit->second->formattedName();
+		}
+	}
+}
+
+
+std::string UI::ourUserName(const std::string &network) {
+	NetworkUsers::iterator nit = networkUsers.find(network);
+	if (nit == networkUsers.end()) {
+		sendSignal("/net/conn/are-you-connected", network);
+		return "I";
+	} else {
+		User &ourUser = nit->second->ourUser;
+		std::string result(ourUser.name);
+		if (!User::nameMatchesNick(ourUser.name, ourUser.id.nick)) {
+			result += '(';
+			result += ourUser.id.nick;
+			result += ')';
+		}
+		return  result;
+	}
+}
+
+
+
 int UI::findUsers(const std::string &uri, User **up, int n) {
 
 	std::string::size_type len = uri.length();
@@ -487,6 +528,44 @@ int UI::findUsers(const std::string &uri, User **up, int n) {
 
 	return found;
 }
+
+
+void UI::handleSigStatusChanged(const std::string &network,
+                                const sig::UserData &data) {
+	(void)network;
+
+	if (data.flags & sig::UserData::CONNECTED) {
+		messageW->printf("--- %s has connected\n",
+		                 data.user.formattedName().c_str());
+		/* At this point user's status is offline, so do nothing more.
+		   When user changes status we'll get another signal. */
+		return;
+	}
+
+	if (data.flags & sig::UserData::NAME) {
+		messageW->printf("--- %s is known as %s\n",
+		                 data.user.id.toString().c_str(),
+		                 data.user.name.c_str());
+	}
+	if (data.flags == sig::UserData::NAME) {
+		return;
+	}
+
+	messageW->printf("--- %s ", data.user.formattedName().c_str());
+	if (data.flags & sig::UserData::DISCONNECTED) {
+		messageW->printf("has disconnected");
+	} else {
+		messageW->printf("is %s", User::stateName(data.user.status.state));
+	}
+
+	if (data.user.status.message.empty()) {
+		messageW->printf("\n");
+	} else {
+		messageW->printf(" (%s)\n", data.user.status.message.c_str());
+	}
+}
+
+
 
 /*
  * --------------------------------------------------------------------------
@@ -524,7 +603,6 @@ UI::OutputWindow::OutputWindow(UI *assocUI, unsigned lines, unsigned cols,
 }
 
 int UI::OutputWindow::printf(const char *format, ...) {
-
 	va_list ap;
 	int result;
 	char *start, *end;
