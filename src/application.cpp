@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.24 2008/01/07 23:46:11 mco Exp $
+ * $Id: application.cpp,v 1.25 2008/01/13 11:54:06 mina86 Exp $
  */
 
 #include <assert.h>
@@ -185,19 +185,19 @@ int Core::run() {
 void Core::deliverSignals() {
 	for (; !signals.empty(); signals.front().clear(), signals.pop()) {
 		/* FIXME: Shall be removed in production code */
-		if(PPC_CORE_DEBUG_SIGNALS) {
-			sprintf(sharedBuffer, "%3lu: ", Core::getTicks());
-			std::string message = sharedBuffer + signals.front().getType() + " from " +
-				signals.front().getSender() + " to " +
-				signals.front().getReciever();
-			Signal sig("/ui/msg/debug", moduleName, "/ui/",
-			           new sig::StringData(message));
-			std::pair<Modules::iterator, Modules::iterator> it
-				= matchingModules(sig.getReciever());
-			for (; it.first != it.second; ++it.first) {
-				it.first->second->recievedSignal(sig);
-			}
+#if PPC_CORE_DEBUG_SIGNALS
+		sprintf(sharedBuffer, "%3lu: ", Core::getTicks());
+		std::string message = sharedBuffer + signals.front().getType() +
+			" from " + signals.front().getSender() + " to " +
+			signals.front().getReciever();
+		Signal sig("/ui/msg/debug", moduleName, "/ui/",
+		           new sig::StringData(message));
+		std::pair<Modules::iterator, Modules::iterator> it
+			= matchingModules(sig.getReciever());
+		for (; it.first != it.second; ++it.first) {
+			it.first->second->recievedSignal(sig);
 		}
+#endif
 
 		/* /core/modules/exits needs special handling */
 		if (signals.front().getType() == "/core/module/exits") {
