@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.23 2008/01/13 21:57:00 mina86 Exp $
+ * $Id: ui.cpp,v 1.24 2008/01/15 22:15:25 mco Exp $
  */
 
 #include <errno.h>
@@ -215,7 +215,12 @@ void UI::handleCharacter(int c) {
 		}
 		handleCommand(*history.begin());
 		messageW->refresh();
-		history.push_front(std::string(""));
+		if(history.size() > 1
+		&& *historyIterator == *(++history.begin())) {
+			history.begin()->clear();
+		} else {
+			history.push_front(std::string(""));
+		}
 		historyIterator = history.begin();
 		commandCurPos = 0;
 		if(history.size() > PPC_UI_HISTORY_SIZE) {
@@ -446,6 +451,17 @@ void UI::handleCommand(const std::string &command) {
 		                                  User::Status(state, data)),
 		                             sig::UserData::STATE |
 		                             sig::UserData::MESSAGE));
+
+	} else if(len == 8 && data == "/history") {
+		std::list<std::string>::iterator hi;
+		int i;
+
+		messageW->printf("Command history:\n");
+		for(hi=history.begin(), ++hi, i=1; hi!=history.end(); ++hi, ++i) {
+			messageW->printf("[%2d] %s\n", i, hi->c_str());
+		}
+		messageW->refresh();
+
 
 	/* ... and so it may go with other commands */
 	} else {
