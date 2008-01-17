@@ -1,6 +1,6 @@
 /** \file
  * Config structure definition.
- * $Id: config.hpp,v 1.1 2008/01/13 13:30:54 mina86 Exp $
+ * $Id: config.hpp,v 1.2 2008/01/17 11:31:36 mina86 Exp $
  */
 
 #ifndef H_CONFIG_HPP
@@ -84,7 +84,7 @@ struct Config{
 	 * Changes value of automating configuration option.
 	 * If it's true configuration is saved to file after
 	 * every change of configuration parametr.
-	 * \param value to set
+	 * \param set value to set
 	 */
 	void setAutoSave(bool set) {
 		autoSave = set;

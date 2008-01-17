@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.13 2008/01/13 16:05:27 mco Exp $
+ * $Id: ui.hpp,v 1.14 2008/01/17 11:31:36 mina86 Exp $
  */
 
 #ifndef H_UI_HPP
@@ -71,6 +71,7 @@ private:
 	 * \param n find at most that many users
 	 * \return number of users found (it could be more than n)
 	 */
+	/* FIXME: fix documentation */
 	int findUsers(const std::string &uri, std::multimap< std::string, User* > &map);
 
 	/**
@@ -112,8 +113,10 @@ private:
 	 * First entry is current command buffer.
 	 */
 	std::list<std::string> history;
+	/** Iterator to edited command. */
 	std::list<std::string>::iterator historyIterator;
 
+	/** Command position. */
 	unsigned int commandCurPos;
 
 	/** Screen height. */
@@ -164,6 +167,8 @@ private:
 		int cY;
 		int cX; /* unused, see ui->commandCurPos */
 	};
+
+	/* FIXME: write documentation */
 
 	struct CommandWindow : Window {
 

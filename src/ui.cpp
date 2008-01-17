@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.24 2008/01/15 22:15:25 mco Exp $
+ * $Id: ui.cpp,v 1.25 2008/01/17 11:31:36 mina86 Exp $
  */
 
 #include <errno.h>
@@ -12,8 +12,11 @@
 #include "io.hpp"
 #include "ui.hpp"
 
+/** Output window buffer size. */
 #define PPC_UI_OUTPUTWINDOW_BUFFERSIZE	4096
+/** Number of entries to display when user name is ambiguous. */
 #define PPC_UI_COMPLETIONMENUSIZE 10
+/** Command history size. */
 #define PPC_UI_HISTORY_SIZE		100
 
 

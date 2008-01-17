@@ -1,6 +1,6 @@
 /** \file
  * XML Tree structures definition.
- * $Id: xmltree.hpp,v 1.1 2008/01/13 13:30:54 mina86 Exp $
+ * $Id: xmltree.hpp,v 1.2 2008/01/17 11:31:36 mina86 Exp $
  */
 
 #ifndef H_XMLTREE_HPP
@@ -30,7 +30,7 @@ struct Node {
 	/**
 	 * Constructor of node which has only name yet
 	 * \param name name of element
-	 * \param upNode pointer to parent
+	 * \param upNode_ pointer to parent
 	 */
 	Node(const std::string &name, struct Node *upNode_)
 		: tagName(name), upNode(upNode_), downNode(0), nextNode(0) { }
@@ -38,8 +38,8 @@ struct Node {
 	/**
 	 * Constructor of node which has name and attributes
 	 * \param name name of element
-	 * \param attrs list of attributes
-	 * \param upNode pointer to parent
+	 * \param attrs_ list of attributes
+	 * \param upNode_ pointer to parent
 	 */
 	Node(const std::string &name, const Attributes &attrs_,
 	     struct Node *upNode_)

@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.26 2008/01/13 21:52:26 mina86 Exp $
+ * $Id: application.cpp,v 1.27 2008/01/17 11:31:36 mina86 Exp $
  */
 
 #include <assert.h>
@@ -11,6 +11,7 @@
 
 #include "application.hpp"
 
+/** Whether to send /ui/msg/debug signal when signal is delivered. */
 #define PPC_CORE_DEBUG_SIGNALS 0
 
 namespace ppc {

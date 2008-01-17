@@ -1,6 +1,6 @@
 /** \file
  * Main file.
- * $Id: main.cpp,v 1.4 2008/01/13 13:31:09 mina86 Exp $
+ * $Id: main.cpp,v 1.5 2008/01/17 11:31:36 mina86 Exp $
  */
 
 #include <errno.h>
@@ -13,7 +13,11 @@
 #include "ui.hpp"
 
 
-/** Main function. */
+/**
+ * Main function.
+ * \param argc number of arguments.
+ * \param argv arguments array.
+ */
 int main(int argc, char **argv) {
 
 	if (argc != 4) {
