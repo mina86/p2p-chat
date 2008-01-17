@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.26 2008/01/13 21:54:18 mina86 Exp $
+ * $Id: network.cpp,v 1.27 2008/01/17 17:30:52 mina86 Exp $
  */
 
 #include <assert.h>
@@ -234,11 +234,12 @@ struct NetworkConnection {
 	 */
 	bool feed() {
 		std::string data = tcpSocket.read();
-		if (!data.empty()) {
-			lastAccessed = Core::getTicks();
-			tokenizer.feed(data);
+		if (data.empty()) {
+			return false;
 		}
-		return !data.empty();
+		lastAccessed = Core::getTicks();
+		tokenizer.feed(data);
+		return true;
 	}
 
 	/**
@@ -741,13 +742,13 @@ void Network::handleToken(NetworkUser &user,
 	}
 
 	case ppcp::Tokenizer::RQ:
-		if (ourUser.status.state != User::OFFLINE) {
+		if (ourUser.status.state == User::OFFLINE) {
 			/* nothing */
 		} else if (Core::getTicks() - lastStatus + 10 >= STATUS_RESEND) {
 			send(ppcp::st(ourUser));
 			lastStatus = Core::getTicks();
 		} else {
-			send(user, ppcp::st(ourUser));
+			send(user, ppcp::st(ourUser), true);
 		}
 		break;
 
