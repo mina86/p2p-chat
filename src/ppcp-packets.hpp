@@ -1,6 +1,6 @@
 /** \file
  * Methods generating ppcp packets.
- * $Id: ppcp-packets.hpp,v 1.6 2007/12/27 17:58:36 mina86 Exp $
+ * $Id: ppcp-packets.hpp,v 1.7 2008/01/17 17:32:25 mina86 Exp $
  */
 
 #ifndef H_PPCP_PACKETS_HPP
@@ -34,8 +34,9 @@ std::string ppcpOpen(const User &user, const std::string &to, bool neg=false);
 
 
 /** Returns a \c ppcp close tag (that is <tt>"\</ppcp\>"</tt>). */
-inline std::string ppcpClose() {
-	return "</ppcp>";
+inline const std::string &ppcpClose() {
+	static const std::string data("</ppcp>");
+	return data;
 }
 
 
@@ -60,8 +61,9 @@ inline std::string st(const User &user) {
 
 
 /** Returns a \c rq element. */
-inline std::string rq() {
-	return "<rq/>";
+inline const std::string &rq() {
+	static const std::string data("<rq/>");
+	return data;
 }
 
 
