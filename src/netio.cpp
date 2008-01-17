@@ -1,6 +1,6 @@
 /** \file
  * Network I/O operations.
- * $Id: netio.cpp,v 1.15 2008/01/06 15:24:42 mina86 Exp $
+ * $Id: netio.cpp,v 1.16 2008/01/17 17:29:17 mina86 Exp $
  */
 
 #include "shared-buffer.hpp"
@@ -172,11 +172,17 @@ std::pair<int, Address> UDPSocket::bind(Address addr) {
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &t, sizeof t) < 0) {
 			throw IOException("setsockopt: reuseaddr: ", errno);
 		}
-		common_bind_part(fd, addr);
 
-		if (addr.ip.isMulticast()) {
+		if (!addr.ip.isMulticast()) {
+			common_bind_part(fd, addr);
+		} else {
 			const int yes = 1;
 			struct ip_mreq mreq;
+			IP ip(addr.ip);
+
+			addr.ip = 0UL;
+			common_bind_part(fd, addr);
+			addr.ip = ip;
 
 			if (setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
 			               &yes, sizeof yes) < 0) {
