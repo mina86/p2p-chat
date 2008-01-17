@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.12 2008/01/13 21:55:22 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.13 2008/01/17 17:33:45 mina86 Exp $
  */
 
 #include <assert.h>
@@ -121,7 +121,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 		switch (element) {
 		case E_PPCP:
 			if (xToken.data == "n") attribute = A_PPCP_N;
-			if (xToken.data == "p") attribute = A_PPCP_P;
+			else if (xToken.data == "p") attribute = A_PPCP_P;
 			else if (xToken.data == "to:n") attribute = A_PPCP_TO_N;
 			else if (xToken.data == "to:neg") attribute = A_PPCP_TO_NEG;
 			break;
@@ -159,7 +159,9 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 
 		case A_PPCP_TO_N:
 			flags = (flags & ~F_PPCP_TO_N_OK) | F_PPCP_TO_N;
-			if (data == ourNick) flags |= F_PPCP_TO_N_OK;
+			if (xToken.data == ourNick) {
+				flags |= F_PPCP_TO_N_OK;
+			}
 			break;
 
 		case A_PPCP_TO_NEG:
@@ -209,7 +211,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			char *end;
 			errno = 0;
 			port = strtoul(data2.c_str(), &end, 10);
-			if (errno || port<=1024 || port>65535 || *end) goto ignore_rest;
+			if (errno || port<1024 || port>65535 || *end) goto ignore_rest;
 			token.flags = port;
 		}
 
