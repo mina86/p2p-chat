@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser definition.
- * $Id: ppcp-parser.hpp,v 1.10 2008/01/06 15:25:41 mina86 Exp $
+ * $Id: ppcp-parser.hpp,v 1.11 2008/01/17 17:34:11 mina86 Exp $
  */
 
 #ifndef H_PPCP_PARSER_HPP
@@ -116,7 +116,7 @@ struct Tokenizer {
 	 * \param port port number to compare against \c p attribute.
 	 */
 	explicit Tokenizer(const std::string &nick, Port port = 0)
-		: ourNick(nick), ourPort(port) { }
+		: ourNick(nick), ourPort(port), element(0), ignore(0) { }
 
 
 	/**
@@ -127,7 +127,8 @@ struct Tokenizer {
 	 * \param id User::ID object including with nick name and port number.
 	 */
 	explicit Tokenizer(const User::ID &id)
-		: ourNick(id.nick), ourPort(id.address.port) { }
+		: ourNick(id.nick), ourPort(id.address.port),
+		  element(0), ignore(0) { }
 
 
 
