@@ -1,6 +1,6 @@
 /** \file
  * XML parser definition.
- * $Id: xml-parser.hpp,v 1.8 2008/01/13 21:50:54 mina86 Exp $
+ * $Id: xml-parser.hpp,v 1.9 2008/01/17 17:31:37 mina86 Exp $
  */
 
 #ifndef H_XML_PARSER_HPP
@@ -158,6 +158,10 @@ struct Tokenizer {
 		 */
 		std::string data;
 	};
+
+
+	/** Zeroes tokenizer's its state. */
+	Tokenizer() : pos(0), state(0) { }
 
 
 	/** Initialises tokenizer and zeroes its state. */
