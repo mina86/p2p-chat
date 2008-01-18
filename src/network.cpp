@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.28 2008/01/18 15:17:55 mina86 Exp $
+ * $Id: network.cpp,v 1.29 2008/01/18 22:47:04 mina86 Exp $
  */
 
 #include <assert.h>
@@ -689,7 +689,7 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 		case ppcp::Tokenizer::END:
 			if (!conn.feed()) {
 				if (conn.isEOF()) {
-					(*it)->flags |= NetworkConnection::BOTH_CLOSED;
+					conn.flags |= NetworkConnection::BOTH_CLOSED;
 					/* XXX */ throw IOException("Unexpected end of file.");
 				}
 				return;
