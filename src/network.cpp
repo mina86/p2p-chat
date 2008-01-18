@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.27 2008/01/17 17:30:52 mina86 Exp $
+ * $Id: network.cpp,v 1.28 2008/01/18 15:17:55 mina86 Exp $
  */
 
 #include <assert.h>
@@ -32,16 +32,23 @@
 /** Status sending interval. */
 #define STATUS_RESEND               300
 
-/** Interval after which unused TCP connection will be closed. */
-#define CONNECTION_MAX_AGE          600
+/** Time after which unused TCP connection is closed. */
+#define CONNECTION_TIMEOUT          300
 
 /**
- * Interval after which connection which is being closed (that is we
- * are traying to send ppcp close tag or waiting for that tag from the
- * other side) should be closed without waiting for proper ppcp
- * closing tags.
+ * Timeout for sending data through TCP connection.  If there was no
+ * activity on a connection that have some data pending to be send for
+ * given time this connection will be shutdown (without sending any
+ * closing tags etc).
  */
-#define CONNECTION_CLOSING_TIMEOUT   60
+#define CONNECTION_SEND_TIMEOUT      60
+
+/**
+ * Timeout for waiting for \c ppcp closing tag from remote host.  If
+ * we have sent a \c ppcp closing tag and the other host does not
+ * respond in given time connection will be shutdown.
+ */
+#define CONNECTION_CLOSED_TIMEOUT    60
 
 
 
@@ -487,13 +494,13 @@ int Network::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 			(*it)->flags |= NetworkConnection::BOTH_CLOSED;
 		}
 
-		/* !(~a & b)  is the same thing as  (a & b) == b */
-		if (!(~(*it)->flags & NetworkConnection::BOTH_CLOSED)) {
+		/* (~a & b)  is the same thing as  (a & b) != b */
+		if (~(*it)->flags & NetworkConnection::BOTH_CLOSED) {
+			++it;
+		} else {
 			delete *it;
 			it = connections.erase(it);
 			end = connections.end();
-		} else {
-			++it;
 		}
 	}
 
@@ -521,7 +528,7 @@ void Network::recievedSignal(const Signal &sig) {
 
 		Connections::iterator it(connections.begin()), end(connections.end());
 		for (; it != end; ++it) {
-			if (~(*it)->flags & NetworkConnection::LOCAL_CLOSING) {
+			if (!((*it)->flags & NetworkConnection::LOCAL_CLOSING)) {
 				(*it)->push(ppcp::ppcpClose());
 				(*it)->flags |= NetworkConnection::LOCAL_CLOSING;
 			}
@@ -682,7 +689,8 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 		case ppcp::Tokenizer::END:
 			if (!conn.feed()) {
 				if (conn.isEOF()) {
-					throw IOException("Unexpected end of file.");
+					(*it)->flags |= NetworkConnection::BOTH_CLOSED;
+					/* XXX */ throw IOException("Unexpected end of file.");
 				}
 				return;
 			}
@@ -690,7 +698,7 @@ void Network::readFromTCPConnection(NetworkConnection &conn) {
 
 		case ppcp::Tokenizer::IGNORE:
 		case ppcp::Tokenizer::PPCP_CLOSE:
-			if (~conn.flags & NetworkConnection::LOCAL_CLOSING) {
+			if (!(conn.flags & NetworkConnection::LOCAL_CLOSING)) {
 				conn.push(ppcp::ppcpClose());
 			}
 			conn.flags |= NetworkConnection::REMOTE_CLOSED |
@@ -786,24 +794,29 @@ void Network::performTick() {
 	Connections::iterator c    = connections.begin();
 	Connections::iterator cend = connections.end();
 	while (c != cend) {
-		if ((*c)->flags & NetworkConnection::LOCAL_CLOSING) {
-			if((*c)->age() < CONNECTION_CLOSING_TIMEOUT) goto next;
-		remove:
-			delete *c;
-			c = connections.erase(c);
-			cend = connections.end();
-			continue;
-		} else {
-			if ((*c)->age() < CONNECTION_MAX_AGE) goto next;
-			/* if we could not send data for more then
-			   CONNECTION_MAX_AGE then we shall remove this connection
-			   immidiatelly. */
-			if (!(*c)->hasDataToWrite()) goto remove;
-			(*c)->flags |= NetworkConnection::LOCAL_CLOSING;
-			(*c)->push(ppcp::ppcpClose());
+		NetworkConnection *const conn = *c;
+
+		if (conn->flags & NetworkConnection::LOCAL_CLOSED) {
+			if (conn->age() >= CONNECTION_CLOSED_TIMEOUT) goto remove;
+		} else if (conn->hasDataToWrite()) {
+			if (conn->age() >= CONNECTION_SEND_TIMEOUT) goto remove;
+		} else if (conn->age() >= CONNECTION_TIMEOUT) {
+			/* This assert is true because if LOCAL_CLOSING flag is
+			   set then either there are pending data to be send (thus
+			   conn->hasDataToWrite() is true) or (if that's not the
+			   case) a closing tag have been already sent and thus
+			   LOCAL_CLOSED tag is set. */
+			assert((conn->flags & NetworkConnection::LOCAL_CLOSING) == 0);
+			conn->flags |= NetworkConnection::LOCAL_CLOSING;
+			conn->push(ppcp::ppcpClose());
 		}
-	next:
 		++c;
+		continue;
+
+	remove:
+		delete conn;
+		c = connections.erase(c);
+		cend = connections.end();
 	}
 
 	/* Handle users */
@@ -889,7 +902,7 @@ void Network::send(const User::ID &id, const std::string &str, bool udp) {
 
 NetworkConnection *NetworkUser::getConnection() {
 	Connections::iterator it = connections.begin(), end = connections.end();
-	while (it != end && ~(*it)->flags & NetworkConnection::LOCAL_CLOSING) {
+	while (it != end && (*it)->flags & NetworkConnection::LOCAL_CLOSING) {
 		++it;
 	}
 	return it == end ? 0 : *it;
