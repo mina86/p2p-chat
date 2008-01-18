@@ -1,6 +1,6 @@
 /** \file
  * XML parser implementation.
- * $Id: xml-parser.cpp,v 1.9 2008/01/13 13:25:04 mina86 Exp $
+ * $Id: xml-parser.cpp,v 1.10 2008/01/18 15:18:39 mina86 Exp $
  */
 
 #include <assert.h>
@@ -213,6 +213,7 @@ Tokenizer::Token Tokenizer::nextToken() {
 		if (p != dataStart) {
 			token.type = TEXT;
 			token.data.assign(data + dataStart, p - dataStart);
+			unescapeInPlace(token.data);
 			state = TAG;
 			dataStart = pos = p + 1;
 			break;
@@ -377,6 +378,7 @@ Tokenizer::Token Tokenizer::nextToken() {
 
 		token.type = ATTR_VALUE;
 		token.data.assign(data + dataStart, p - dataStart);
+		unescapeInPlace(token.data);
 		state = TAG_INSIDE;
 		pos = p + 1;
 		break;
