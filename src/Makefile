@@ -1,6 +1,6 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.10 2008/01/12 02:26:15 mina86 Exp $
+## $Id: Makefile,v 1.11 2008/01/20 16:53:54 mina86 Exp $
 ##
 
 #CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
@@ -17,7 +17,7 @@ all: main
 %.o: %.cpp $(HPP_FILES)
 	exec $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 
-tests/%:
+tests/%: FORCE
 	exec $(MAKE) -C tests $(notdir $@)
 
 main: $(OBJ_FILES)
@@ -34,4 +34,4 @@ clean:
 	exec rm -rf -- *.o main
 	exec $(MAKE) -C tests clean
 
-.PHONY: all doc tests clean
+.PHONY: all doc tests clean FORCE
