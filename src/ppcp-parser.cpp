@@ -1,6 +1,6 @@
 /** \file
  * PPCP parser implementation.
- * $Id: ppcp-parser.cpp,v 1.13 2008/01/17 17:33:45 mina86 Exp $
+ * $Id: ppcp-parser.cpp,v 1.14 2008/01/20 16:54:16 mina86 Exp $
  */
 
 #include <assert.h>
@@ -34,6 +34,7 @@ enum {
 	A_ST_DN           = 6,
 	A_M_MSG           = 7,
 	A_M_AC            = 8,
+	A_RQ_RQ           = 9,
 
 	F_PPCP_P          = 1,
 	F_PPCP_TO_N       = 2,
@@ -91,6 +92,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			break;
 
 		case E_PPCP:
+			flags = 0;
 			if (xToken.data == "st") {
 				flags = (unsigned short)User::ONLINE;
 				element = E_ST;
@@ -132,6 +134,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			break;
 
 		case E_RQ:
+			if (xToken.data == "rq") attribute = A_RQ_RQ;
 			break;
 
 		case E_M:
@@ -182,6 +185,10 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 
 		case A_M_AC:
 			if (xToken.data == "ac") flags |= Token::M_ACTION;
+			break;
+
+		case A_RQ_RQ:
+			flags = xToken.data != "st";
 			break;
 
 		case A_UNKNOWN:
@@ -255,7 +262,7 @@ Tokenizer::Token Tokenizer::nextToken(const xml::Tokenizer::Token &xToken) {
 			break;
 
 		case E_RQ:
-			token.type = RQ;
+			if (!flags) token.type = RQ;
 			element = E_PPCP;
 			break;
 
