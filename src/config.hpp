@@ -1,20 +1,20 @@
 /** \file
  * Config structure definition.
- * $Id: config.hpp,v 1.3 2008/01/20 16:26:03 jwawer Exp $
+ * $Id: config.hpp,v 1.4 2008/01/20 17:49:26 mina86 Exp $
  */
 
 #ifndef H_CONFIG_HPP
 #define H_CONFIG_HPP
 
 #include "xml-node.hpp"
-#include <errno.h>
+
 
 namespace ppc {
 
 /**
  * Class maintaining program configuration.
  */
-struct Config{
+struct Config {
 	/** Constructor. */
 	Config() {
 		root = new xml::ElementNode();
@@ -26,7 +26,8 @@ struct Config{
 		delete root;
 	}
 
-	xml::ElementNode *getRoot() {return root; }
+	xml::ElementNode *getRoot() { return root; }
+	const xml::ElementNode *getRoot() const { return root; }
 
 	/**
 	 * Lets to get the whole list of attributes at one time.
@@ -35,17 +36,20 @@ struct Config{
 	 * \param attrs returns found list of attributes here.
 	 * \return 0 when attribute was found, 1 when wasn't.
 	 */
+	/* FIXME
 	xml::Attributes &getAttrs(const std::string& name) const {
 	//	return tree->getAttrs(name, attrs);
 	}
+	*/
 
-	const std::string& getString(const std::string &path, 
-			const std::string &def = *(new std::string())) const;
-			
-	unsigned long getUnsigned(const std::string &path, unsigned long def = 0) const;
+	const std::string& getString(const std::string &path,
+			const std::string &def = std::string()) const;
+
+	unsigned long getUnsigned(const std::string &path,
+	                          unsigned long def = 0) const;
 	long getInteger(const std::string &path, long def = 0) const;
 	double getReal(const std::string &path, double def = 0) const;
-	
+
 	void setString(const std::string &path, const std::string &val) {
 		size_t index = path.find_first_of(":");
 		std::string nodePath = path.substr(0, index);
@@ -53,31 +57,32 @@ struct Config{
 		if(index != std::string::npos){
 			attr = path.substr(index+1);
 		}
-	
+
 		xml::ElementNode *node = root->modifyNode(nodePath);
-	
-		if ( attr.empty() ){
+
+		if (attr.empty()) {
 			node->modifyCData(val);
-		}
-		else{
+		} else {
 			node->setAttr(attr, val);
-		}	
+		}
 	}
-		
+
 	void setUnsigned(const std::string &path, unsigned long val) {
-	 	char buffer[11];
-	 	sprintf(buffer, "%lu", val);
-	 	setString(path, *(new std::string(buffer)));
+		char buffer[100];
+		sprintf(buffer, "%lu", val);
+		setString(path, buffer);
 	}
+
 	void setInteger(const std::string &path, long val) {
-	 	char buffer[12];
-	 	sprintf(buffer, "%ld", val);
-	 	setString(path, *(new std::string(buffer)));	
+		char buffer[100];
+		sprintf(buffer, "%ld", val);
+		setString(path, buffer);
 	}
+
 	void setReal(const std::string &path, double val) {
-	 	char buffer[22];
-	 	sprintf(buffer, "%lf", val);
-	 	setString(path, *(new std::string(buffer)));
+		char buffer[100];
+		sprintf(buffer, "%f", val);
+		setString(path, buffer);
 	}
 
 private:
@@ -86,10 +91,10 @@ private:
 };
 
 
-struct ConfigFile: public Config {
+struct ConfigFile : public Config {
 
 	/** Constructor. */
-	ConfigFile() : Config(), autoSave(false) {}
+	ConfigFile() : autoSave(false) {}
 
 	/** Constructor which set configuration file name. It
 	 * automatically reads configuration from this file and
@@ -98,13 +103,9 @@ struct ConfigFile: public Config {
 	 * \param fileName name of file with configuration
 	 */
 	ConfigFile(const std::string& fileName)
-		: Config(), configFile(fileName), autoSave(true) {
+		: configFile(fileName), autoSave(true) {
 		loadConfig();
 	}
-
-
-	/** Destructor. */
-	~ConfigFile() {};
 
 	/**
 	 * Loads configuration from previously entered XML file.
@@ -170,14 +171,6 @@ private:
 	std::string configFile;
 	/** Variable to turn on and off autosaving. */
 	bool autoSave;
-
-	/**
-	 * Simple method used for maintaining opening files.
-	 * \param fileName name of file to open.
-	 * \param mode mode used to opening file (r(ead) or w(rite)).
-	 * \return opened file descriptor or 0 if there was any problem
-	 */
-	FILE *openFile(const std::string& fileName, const char *mode);
 };
 
 }
