@@ -1,6 +1,6 @@
 /** \file
  * Config structure definition.
- * $Id: config.hpp,v 1.5 2008/01/20 17:58:18 mina86 Exp $
+ * $Id: config.hpp,v 1.6 2008/01/20 22:52:47 jwawer Exp $
  */
 
 #ifndef H_CONFIG_HPP
@@ -39,12 +39,9 @@ struct Config {
 	 * \param attrs returns found list of attributes here.
 	 * \return 0 when attribute was found, 1 when wasn't.
 	 */
-	/* FIXME
-	xml::Attributes &getAttrs(const std::string& name) const {
-	//	return tree->getAttrs(name, attrs);
-	}
-	*/
-
+	
+	xml::Attributes *getAttrs(const std::string& path);
+	
 	const std::string& getString(const std::string &path,
 			const std::string &def = std::string()) const;
 
@@ -53,40 +50,10 @@ struct Config {
 	long getInteger(const std::string &path, long def = 0) const;
 	double getReal(const std::string &path, double def = 0) const;
 
-	void setString(const std::string &path, const std::string &val) {
-		size_t index = path.find_first_of(":");
-		std::string nodePath = path.substr(0, index);
-		std::string attr;
-		if(index != std::string::npos){
-			attr = path.substr(index+1);
-		}
-
-		xml::ElementNode *node = root.modifyNode(nodePath);
-
-		if (attr.empty()) {
-			node->modifyCData(val);
-		} else {
-			node->setAttr(attr, val);
-		}
-	}
-
-	void setUnsigned(const std::string &path, unsigned long val) {
-		char buffer[100];
-		sprintf(buffer, "%lu", val);
-		setString(path, buffer);
-	}
-
-	void setInteger(const std::string &path, long val) {
-		char buffer[100];
-		sprintf(buffer, "%ld", val);
-		setString(path, buffer);
-	}
-
-	void setReal(const std::string &path, double val) {
-		char buffer[100];
-		sprintf(buffer, "%f", val);
-		setString(path, buffer);
-	}
+	void setString(const std::string &path, const std::string &val);
+	void setUnsigned(const std::string &path, unsigned long val);
+	void setInteger(const std::string &path, long val);
+	void setReal(const std::string &path, double val);
 
 private:
 	/** Structure with configuration. */

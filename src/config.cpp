@@ -1,6 +1,6 @@
 /** \file
  * Config structure implementation.
- * $Id: config.cpp,v 1.4 2008/01/20 17:58:18 mina86 Exp $
+ * $Id: config.cpp,v 1.5 2008/01/20 22:52:47 jwawer Exp $
  */
 
 #include <errno.h>
@@ -36,10 +36,10 @@ int ConfigFile::loadConfig(const std::string& fileName) {
 
 	for(;;) {
 		size_t readelements = fread(sharedBuffer, 1, sizeof sharedBuffer, fd);
+		reader.feed(sharedBuffer, readelements);
 		if (ferror(fd) || feof(fd)) {
 			break;
 		}
-		reader.feed(sharedBuffer, readelements);
 	}
 	reader.done();
 
@@ -52,14 +52,23 @@ int ConfigFile::saveConfig(const std::string& fileName){
 		return 1;
 	}
 
-	getRoot().printNode(fd);
-
+	if(getRoot().getFirstChild()){
+		getRoot().getFirstChild()->printNode(fd);
+	}
 	return fclose(fd) == EOF ? 2 : 0;
+}
+
+xml::Attributes *Config::getAttrs(const std::string& path) {
+	xml::ElementNode *node = root.findNode(path);
+	if (!node) {
+		return 0;
+	}
+	return node->getAttrs();
 }
 
 const std::string& Config::getString(const std::string &path,
                                      const std::string &def) const {
-	std::string::size_type index = path.find(':');
+	std::string::size_type index = path.find('#');
 	xml::ElementNode *node =
 		root.findNode(index == std::string::npos
 		              ? path : std::string(path, 0, index));
@@ -114,6 +123,38 @@ double  Config::getReal(const std::string &path, double def) const {
 		return def;
 	}
 	return res;
+}
+
+void Config::setString(const std::string &path, const std::string &val) {
+	size_t index = path.find_first_of("#");
+	std::string nodePath = path.substr(0, index);
+	std::string attr;
+	if(index != std::string::npos){
+		attr = path.substr(index+1);
+	}
+
+	xml::ElementNode *node = root.modifyNode(nodePath);
+
+	if (attr.empty()) {
+		node->modifyCData(val);
+	} else {
+		node->setAttr(attr, val);
+	}
+}
+
+void Config::setUnsigned(const std::string &path, unsigned long val) {
+	sprintf(sharedBuffer, "%lu", val);
+	setString(path, sharedBuffer);
+}
+
+void Config::setInteger(const std::string &path, long val) {
+	sprintf(sharedBuffer, "%ld", val);
+	setString(path, sharedBuffer);
+}
+
+void Config::setReal(const std::string &path, double val) {
+	sprintf(sharedBuffer, "%f", val);
+	setString(path, sharedBuffer);
 }
 
 

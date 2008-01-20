@@ -27,7 +27,6 @@ struct Node {
 
 	virtual void printNode(FILE* out) = 0;
 	virtual void clearNode() = 0;
-	virtual void clearTree() = 0;
 
 	inline CDataNode &cdataNode();
 	inline const CDataNode &cdataNode() const;
@@ -62,7 +61,6 @@ struct CDataNode : public Node {
 	}
 
 	virtual void clearNode() {}
-	virtual void clearTree() {}
 	virtual void printNode(FILE* stout);
 
 private:
@@ -80,12 +78,10 @@ struct ElementNode : public Node {
 		clearTree();
 	}
 
-	virtual void clearNode();
-	virtual void clearTree();
+	void clearTree();
 
 	ElementNode* addChild(const std::string &n, const Attributes &attrs_);
 	void addCData(const std::string &cleanData);
-	void modifyCData(const std::string &newCData);
 	ElementNode* closeNode();
 
 	/**
@@ -95,15 +91,14 @@ struct ElementNode : public Node {
 	 */
 	virtual void printNode(FILE *fd);
 
-
-	ElementNode* findNode(std::string n);
-	ElementNode* findChild(const std::string& n);
-
-
+	CDataNode* findCData();
+	void modifyCData(const std::string &newCData);
+	ElementNode* findNode(const std::string path);
 	ElementNode* modifyNode(const std::string& path);
 
-	ElementNode* modifyChild(const std::string& n);
-
+	Attributes* getAttrs() {
+		return &attrs;
+	}
 
 	const std::string& getAttr(const std::string& attr,
 	                           const std::string& def = std::string()) {
@@ -116,22 +111,13 @@ struct ElementNode : public Node {
 	const void setAttr(const std::string& attr, const std::string& val){
 		attrs[attr] = val;
 	}
-
-	CDataNode* findCData(){
-		Node* node = this;
-		if(node != 0 && node->isElement() ){
-			node = node->elementNode().firstChild;
-			while(node != 0){
-				if( node->isCData() ){
-					return &(node->cdataNode());
-				}
-				node = node->getNextSibling();
-			}
-		}
-		return 0;
-	}
-
+	
+	Node* getFirstChild(){ return firstChild;}
 private:
+	ElementNode* findChild(const std::string& n);
+	ElementNode* modifyChild(const std::string& n);
+	virtual void clearNode();
+
 	Attributes attrs;
 	Node *firstChild;
 };

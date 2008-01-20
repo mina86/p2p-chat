@@ -1,6 +1,6 @@
 /** \file
  * XML Tree structures implementation.
- * $Id: xml-node.cpp,v 1.2 2008/01/20 17:53:57 mina86 Exp $
+ * $Id: xml-node.cpp,v 1.3 2008/01/20 22:52:48 jwawer Exp $
  */
 
 #include "xml-node.hpp"
@@ -23,7 +23,7 @@ void ElementNode::printNode(FILE* out){
 	}
 
 	if (!firstChild) {
-		fputs("/>", out);
+		fputs("/>\n", out);
 		return;
 	}
 
@@ -32,7 +32,7 @@ void ElementNode::printNode(FILE* out){
 	do {
 		node->printNode(out);
 	} while ((node = node->getNextSibling()));
-	fprintf(out, "</%s>", getName().c_str());
+	fprintf(out, "</%s>\n", getName().c_str());
 }
 
 void ElementNode::clearTree(){
@@ -121,18 +121,31 @@ ElementNode* ElementNode::closeNode(){
 	return &(getParent()->elementNode());
 }
 
+CDataNode* ElementNode::findCData(){
+	Node* node = this;
+	if(node != 0 && node->isElement() ){
+		node = node->elementNode().firstChild;
+		while(node != 0){
+			if( node->isCData() ){
+				return &(node->cdataNode());
+			}
+			node = node->getNextSibling();
+		}
+	}
+	return 0;
+}
 
-ElementNode* ElementNode::findNode(std::string n){
+ElementNode* ElementNode::findNode(const std::string path){
 	ElementNode* node = this;
-	std::string tempName;
+	std::string nodeName, tempPath;
 	size_t index;
 
-	n = n.substr(1);
+	tempPath = path.substr(1);
 	while(1){
-		index = n.find_first_of("/");
-		tempName = n.substr(0, index);
-		n = n.substr(index+1);
-		node = node->findChild(tempName);
+		index = tempPath.find_first_of("/");
+		nodeName = tempPath.substr(0, index);
+		tempPath = tempPath.substr(index+1);
+		node = node->findChild(nodeName);
 		if((node == 0) || (index == std::string::npos)){
 			break;
 		}
