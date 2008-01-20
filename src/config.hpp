@@ -1,12 +1,13 @@
 /** \file
  * Config structure definition.
- * $Id: config.hpp,v 1.2 2008/01/17 11:31:36 mina86 Exp $
+ * $Id: config.hpp,v 1.3 2008/01/20 16:26:03 jwawer Exp $
  */
 
 #ifndef H_CONFIG_HPP
 #define H_CONFIG_HPP
 
-#include "config-parser.hpp"
+#include "xml-node.hpp"
+#include <errno.h>
 
 namespace ppc {
 
@@ -15,10 +16,80 @@ namespace ppc {
  */
 struct Config{
 	/** Constructor. */
-	Config() : autoSave(false) {
-		tree = new xml::Tree();
-		parser = new ConfigParser(tree);
+	Config() {
+		root = new xml::ElementNode();
 	}
+
+	/** Destructor. */
+	~Config() {
+		root->clearTree();
+		delete root;
+	}
+
+	xml::ElementNode *getRoot() {return root; }
+
+	/**
+	 * Lets to get the whole list of attributes at one time.
+	 * Where: Attributes is std::map<std::string, std::string>.
+	 * \param name path to element (e.g. /foo/bar).
+	 * \param attrs returns found list of attributes here.
+	 * \return 0 when attribute was found, 1 when wasn't.
+	 */
+	xml::Attributes &getAttrs(const std::string& name) const {
+	//	return tree->getAttrs(name, attrs);
+	}
+
+	const std::string& getString(const std::string &path, 
+			const std::string &def = *(new std::string())) const;
+			
+	unsigned long getUnsigned(const std::string &path, unsigned long def = 0) const;
+	long getInteger(const std::string &path, long def = 0) const;
+	double getReal(const std::string &path, double def = 0) const;
+	
+	void setString(const std::string &path, const std::string &val) {
+		size_t index = path.find_first_of(":");
+		std::string nodePath = path.substr(0, index);
+		std::string attr;
+		if(index != std::string::npos){
+			attr = path.substr(index+1);
+		}
+	
+		xml::ElementNode *node = root->modifyNode(nodePath);
+	
+		if ( attr.empty() ){
+			node->modifyCData(val);
+		}
+		else{
+			node->setAttr(attr, val);
+		}	
+	}
+		
+	void setUnsigned(const std::string &path, unsigned long val) {
+	 	char buffer[11];
+	 	sprintf(buffer, "%lu", val);
+	 	setString(path, *(new std::string(buffer)));
+	}
+	void setInteger(const std::string &path, long val) {
+	 	char buffer[12];
+	 	sprintf(buffer, "%ld", val);
+	 	setString(path, *(new std::string(buffer)));	
+	}
+	void setReal(const std::string &path, double val) {
+	 	char buffer[22];
+	 	sprintf(buffer, "%lf", val);
+	 	setString(path, *(new std::string(buffer)));
+	}
+
+private:
+	/** Structure with configuration. */
+	xml::ElementNode *root;
+};
+
+
+struct ConfigFile: public Config {
+
+	/** Constructor. */
+	ConfigFile() : Config(), autoSave(false) {}
 
 	/** Constructor which set configuration file name. It
 	 * automatically reads configuration from this file and
@@ -26,27 +97,23 @@ struct Config{
 	 * without arguments.
 	 * \param fileName name of file with configuration
 	 */
-	Config(const std::string& fileName)
-		: configFile(fileName), autoSave(true) {
-		tree = new xml::Tree();
-		parser = new ConfigParser(tree);
+	ConfigFile(const std::string& fileName)
+		: Config(), configFile(fileName), autoSave(true) {
 		loadConfig();
 	}
 
 
 	/** Destructor. */
-	~Config() {
-		delete tree;
-		delete parser;
-	}
+	~ConfigFile() {};
 
 	/**
 	 * Loads configuration from previously entered XML file.
 	 * \return 0 if everything is ok, 1 if there was problem
 	 * with opening file or 2 if problem was with closing file
 	 */
-	int loadConfig();
-
+	int loadConfig(){
+		return loadConfig(configFile);
+	}
 	/**
 	 * Saves configuration in XML file, which was used for load
 	 * the last time.
@@ -65,10 +132,7 @@ struct Config{
 	 * \return 0 if everything is ok, 1 if there was problem
 	 * with opening file or 2 if problem was with closing file
 	 */
-	int loadConfig(const std::string& fileName) {
-		configFile = fileName;
-		return loadConfig();
-	}
+	int loadConfig(const std::string& fileName);
 
 	/**
 	 * Saves configuration to XML file named as fileName.
@@ -84,7 +148,7 @@ struct Config{
 	 * Changes value of automating configuration option.
 	 * If it's true configuration is saved to file after
 	 * every change of configuration parametr.
-	 * \param set value to set
+	 * \param value to set
 	 */
 	void setAutoSave(bool set) {
 		autoSave = set;
@@ -100,62 +164,8 @@ struct Config{
 		return autoSave;
 	}
 
-	/**
-	 * Lets to get value (CData) of element
-	 * \param name path to element we want to get (e.g. /foo/bar)
-	 * \param val returns found value (CData) here
-	 * \return 0 when element was found or 1 when wasn't
-	 */
-	int getValue(const std::string& name, std::string &val) const {
-		return tree->getValue(name, val);
-	}
-
-	/**
-	 * Lets to set value (CData) of element
-	 * \param name path to element we want to get (e.g. /foo/bar)
-	 * \param val value (CData) to set
-	 */
-	void setValue(const std::string& name, const std::string &val) {
-		tree->setValue(name, val);
-	}
-
-	/**
-	 * Lets to get attribute value of element
-	 * \param name path to element and attribute (e.g. /foo/bar:attr)
-	 * \param val returns found attribute value here
-	 * \return 0 when attribute was found, 1 when there is no element
-	 *  with this name or 2 when there was no attribute
-	 */
-	int getAttr(const std::string& name, std::string &val) const {
-		return tree->getAttr(name, val);
-	}
-
-	/**
-	 * Lets to set attribute of element
-	 * \param name path to element and attribute (e.g. /foo/bar:attr)
-	 * \param val attribute value to set
-	 */
-	void setAttr(const std::string& name, const std::string &val) {
-		tree->setAttr(name, val);
-	}
-
-	/**
-	 * Lets to get the whole list of attributes at one time.
-	 * Where: Attributes is std::map<std::string, std::string>.
-	 * \param name path to element (e.g. /foo/bar).
-	 * \param attrs returns found list of attributes here.
-	 * \return 0 when attribute was found, 1 when wasn't.
-	 */
-	int getAttrs(const std::string& name, xml::Attributes &attrs) const {
-		return tree->getAttrs(name, attrs);
-	}
-
 
 private:
-	/** Structure with configuration. */
-	xml::Tree *tree;
-	/** Parser used for reading configuration from file. */
-	ConfigParser *parser;
 	/** Name of configuragtion file loaded the last time. */
 	std::string configFile;
 	/** Variable to turn on and off autosaving. */
