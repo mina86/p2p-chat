@@ -1,6 +1,6 @@
 /** \file
  * Config structure implementation.
- * $Id: config.cpp,v 1.3 2008/01/20 17:49:26 mina86 Exp $
+ * $Id: config.cpp,v 1.4 2008/01/20 17:58:18 mina86 Exp $
  */
 
 #include <errno.h>
@@ -26,7 +26,7 @@ static FILE *openFile(const std::string& fileName, const char *mode){
 
 
 int ConfigFile::loadConfig(const std::string& fileName) {
-	xml::Reader reader(getRoot());
+	xml::Reader reader(&getRoot());
 
 	configFile = fileName;
 	FILE* fd = openFile(configFile, "r");
@@ -52,7 +52,7 @@ int ConfigFile::saveConfig(const std::string& fileName){
 		return 1;
 	}
 
-	getRoot()->printNode(fd);
+	getRoot().printNode(fd);
 
 	return fclose(fd) == EOF ? 2 : 0;
 }
@@ -61,8 +61,8 @@ const std::string& Config::getString(const std::string &path,
                                      const std::string &def) const {
 	std::string::size_type index = path.find(':');
 	xml::ElementNode *node =
-		root->findNode(index == std::string::npos
-		               ? path : std::string(path, 0, index));
+		root.findNode(index == std::string::npos
+		              ? path : std::string(path, 0, index));
 	if (!node) {
 		return def;
 	} else if (index == std::string::npos) {

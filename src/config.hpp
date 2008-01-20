@@ -1,6 +1,6 @@
 /** \file
  * Config structure definition.
- * $Id: config.hpp,v 1.4 2008/01/20 17:49:26 mina86 Exp $
+ * $Id: config.hpp,v 1.5 2008/01/20 17:58:18 mina86 Exp $
  */
 
 #ifndef H_CONFIG_HPP
@@ -16,18 +16,21 @@ namespace ppc {
  */
 struct Config {
 	/** Constructor. */
-	Config() {
-		root = new xml::ElementNode();
-	}
+	Config() : root(*new xml::ElementNode()), autoDelete(true) { }
+
+	/** Constructor. */
+	Config(xml::ElementNode &r, bool aDelete = false)
+		: root(r), autoDelete(aDelete) { }
 
 	/** Destructor. */
 	~Config() {
-		root->clearTree();
-		delete root;
+		if (autoDelete) {
+			delete &root;
+		}
 	}
 
-	xml::ElementNode *getRoot() { return root; }
-	const xml::ElementNode *getRoot() const { return root; }
+	xml::ElementNode &getRoot() { return root; }
+	const xml::ElementNode &getRoot() const { return root; }
 
 	/**
 	 * Lets to get the whole list of attributes at one time.
@@ -58,7 +61,7 @@ struct Config {
 			attr = path.substr(index+1);
 		}
 
-		xml::ElementNode *node = root->modifyNode(nodePath);
+		xml::ElementNode *node = root.modifyNode(nodePath);
 
 		if (attr.empty()) {
 			node->modifyCData(val);
@@ -87,7 +90,9 @@ struct Config {
 
 private:
 	/** Structure with configuration. */
-	xml::ElementNode *root;
+	xml::ElementNode &root;
+	/** Whether we shall delete root. */
+	bool autoDelete;
 };
 
 
