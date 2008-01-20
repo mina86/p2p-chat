@@ -1,6 +1,6 @@
 /** \file
  * XML Tree structures implementation.
- * $Id: xml-node.cpp,v 1.1 2008/01/20 16:50:39 jwawer Exp $
+ * $Id: xml-node.cpp,v 1.2 2008/01/20 17:53:57 mina86 Exp $
  */
 
 #include "xml-node.hpp"
@@ -9,34 +9,30 @@ namespace ppc {
 
 namespace xml {
 
-void CDataNode::printNode(std::ostringstream* stout){
-	*stout << escape(data)  << "\n";
-	if(getNextSibling() != 0){
-		getNextSibling()->printNode(stout);
-	}
+void CDataNode::printNode(FILE *out) {
+	fputs(xml::escape(data).c_str(), out);
 }
 
-void ElementNode::printNode(std::ostringstream* stout){
-	*stout << "<" << getName();
-	if (!attrs.empty() ){ 
-		printAttributes(attrs, stout);
-	}
-	*stout << ">\n";
-	if(firstChild != 0){
-		firstChild->printNode(stout);
-	}
-	*stout << "</" << getName() << ">\n";
-	if(getNextSibling() != 0){
-		getNextSibling()->printNode(stout);
-	}
-}
+void ElementNode::printNode(FILE* out){
+	fprintf(out, "<%s", getName().c_str());
 
-void ElementNode::printAttributes(const Attributes &attrs,
-                       std::ostringstream* stout){                  
 	Attributes::const_iterator it = attrs.begin(), end = attrs.end();
 	for (; it != end; ++it) {
-		*stout << " " << it->first << "=\"" << it->second << "\"";
+		fprintf(out, " %s=\"%s\"", it->first.c_str(),
+		        xml::escape(it->second).c_str());
 	}
+
+	if (!firstChild) {
+		fputs("/>", out);
+		return;
+	}
+
+	putc('>', out);
+	Node *node = firstChild;
+	do {
+		node->printNode(out);
+	} while ((node = node->getNextSibling()));
+	fprintf(out, "</%s>", getName().c_str());
 }
 
 void ElementNode::clearTree(){
@@ -60,20 +56,21 @@ void ElementNode::clearNode(){
 		delete this;
 }
 
-ElementNode* ElementNode::addChild(const std::string &n, 
-									const Attributes &attrs_){
+ElementNode* ElementNode::addChild(const std::string &n,
+                                   const Attributes &attrs_){
 	if (firstChild == 0){
 		ElementNode *node = new ElementNode(n, *this, attrs_);
 		firstChild = node;
 		return node;
 	}
 	else{
+		ElementNode *next = new ElementNode(n, *this, attrs_);
 		Node* temp = firstChild;
-		while(temp->getNextSibling() != 0){
+		while (temp->getNextSibling()) {
 			temp = temp->getNextSibling();
 		}
-		temp->setNextSibling(new ElementNode(n, *this, attrs_));
-		return &(temp->getNextSibling()->elementNode());
+		temp->setNextSibling(next);
+		return next;
 	}
 }
 
@@ -97,34 +94,31 @@ void ElementNode::addCData(const std::string &cleanData){
 		}
 		temp->setNextSibling(new CDataNode(*this, cleanData));
 	}
-
 }
 
 void ElementNode::modifyCData(const std::string &newCData){
 	if (firstChild == 0){
 		CDataNode *node = new CDataNode(*this, newCData);
 		firstChild = node;
-	}
-	else{
+	} else {
 		Node* temp = firstChild;
 		while((temp->getNextSibling() != 0)){
-			if ( temp->isCData() ){
+			if (temp->isCData()) {
 				temp->cdataNode().setCData(newCData);
 				return;
 			}
 			temp = temp->getNextSibling();
 		}
-		if ( temp->isCData() ){
+		if (temp->isCData()) {
 			temp->cdataNode().setCData(newCData);
 			return;
 		}
 		temp->setNextSibling(new CDataNode(*this, newCData));
 	}
-
 }
 
 ElementNode* ElementNode::closeNode(){
-	return &(getParent()->elementNode());	
+	return &(getParent()->elementNode());
 }
 
 
@@ -132,7 +126,7 @@ ElementNode* ElementNode::findNode(std::string n){
 	ElementNode* node = this;
 	std::string tempName;
 	size_t index;
-	
+
 	n = n.substr(1);
 	while(1){
 		index = n.find_first_of("/");
@@ -140,7 +134,7 @@ ElementNode* ElementNode::findNode(std::string n){
 		n = n.substr(index+1);
 		node = node->findChild(tempName);
 		if((node == 0) || (index == std::string::npos)){
-			break;	
+			break;
 		}
 	}
 	return node;
@@ -165,7 +159,7 @@ ElementNode* ElementNode::modifyNode(const std::string& path){
 	std::string nodeName, tempPath;
 	ElementNode* node = this;
 	size_t index;
-	
+
 	tempPath = path.substr(1);
 	while(1){
 		index = tempPath.find_first_of("/");
@@ -180,16 +174,14 @@ ElementNode* ElementNode::modifyNode(const std::string& path){
 }
 
 ElementNode* ElementNode::modifyChild(const std::string& n){
-	Node* node = this;
-	ElementNode* parent = this;
-
 	if(firstChild == 0){
-		firstChild = new ElementNode(n, *parent);
-		return &(firstChild->elementNode());
-	}
-	else{
-		node = firstChild;
-		while(node->getNextSibling() != 0){
+		ElementNode *newNode = new ElementNode(n, *this);
+		firstChild = newNode;
+		return newNode;
+	} else {
+		Node *node = firstChild;
+
+		while (node->getNextSibling()) {
 			if(node->getName() == n){
 				return &(node->elementNode());
 			}
@@ -197,23 +189,11 @@ ElementNode* ElementNode::modifyChild(const std::string& n){
 		}
 		if(node->getName() == n){
 			return &(node->elementNode());
-		}	
-		node->setNextSibling(new ElementNode(n, *parent) );
-		return &(node->getNextSibling()->elementNode());
+		}
+		ElementNode *newNode = new ElementNode(n, *this);
+		node->setNextSibling(newNode);
+		return newNode;
 	}
-}
-
-CDataNode &Node::cdataNode() {
-	return *dynamic_cast<CDataNode*>(this);
-}
-const CDataNode &Node::cdataNode() const {
-	return *dynamic_cast<const CDataNode*>(this);
-}
-ElementNode &Node::elementNode() {
-	return *dynamic_cast<ElementNode*>(this);
-}
-const ElementNode &Node::elementNode() const {
-	return *dynamic_cast<const ElementNode*>(this);
 }
 
 
