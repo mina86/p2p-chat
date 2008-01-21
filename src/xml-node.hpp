@@ -13,82 +13,82 @@ typedef Parser2::Attributes Attributes;
 struct CDataNode;
 struct ElementNode;
 
-/** Abstract structure of configuration tree's node. */
+/** Abstract structure of XML tree's node. */
 struct Node {
 
 	/** Returns name of node. */
 	const std::string &getName() const { return name; }
-	
+
 	/** Returns pointer to parent of node. */
 	ElementNode *getParent() { return parent; }
-	
+
 	/** Returns const pointer to parent of node. */
 	const ElementNode *getParent() const { return parent; }
-	
+
 	/** Returns pointer to next node on the same level. */
 	Node *getNextSibling() { return nextSibling; }
-	
+
 	/** Returns const pointer to next node on the same level. */
 	const Node *getNextSibling() const { return nextSibling; }
-	
+
 	/** Sets node's pointer to next node on the same level. */
 	void setNextSibling(Node *next) { nextSibling = next; }
 
-	/** 
-	 * Allows to check if node is root.
-	 * \return 1 if it's root and 0 otherwise.
-	 */
+	/** Returns \c true iff node is a root node (ie. have no parent). */
 	bool isRoot() const { return !parent; }
-	
-	/** 
-	 * Allows to check if node is CDataNode.
-	 * \return 1 if it's root and 0 otherwise.
-	 */	
+
+	/** Returns \c true iff node is a CDataNode. */
 	bool isCData() const { return name.empty(); }
-	
-	/**
-	 * Allows to check if node is ElementNode.
-	 * \return 1 if it's root and 0 otherwise.
-	 */	
+
+	/** Returns \c true iff node is an ElementNode. */
 	bool isElement() const { return !name.empty(); }
 
-	/** Virtual method to print tree from this node. */
-	virtual void printNode(FILE* out) = 0;
-	
-	/** Virtual method to clean tree from this node. */
+	/**
+	 * Outputs given node to stream donated by \a out.  Data is
+	 * (obviously) saved in XML format.  If this node is an Element
+	 * node opening tag and closing tags are written and all elements
+	 * are printed inside (yes, this is obvious as well).
+	 *
+	 * \param out output stream to write data to.
+	 */
+	virtual void printNode(FILE* out) const = 0;
+
+	/**
+	 * Cleans tree from this node down.  Does not affect siblings.
+	 * Does not delete this node either.
+	 */
 	virtual void clearNode() = 0;
 
-	/** Method to cast node to CDataNode. */
+	/** Returns object casted to CDataNode type. */
 	inline CDataNode &cdataNode();
-	
-	/** Method to cast node to CDataNode. */
+
+	/** Returns object casted to CDataNode type. */
 	inline const CDataNode &cdataNode() const;
-	
-	/** Method to cast node to ElementNode. */
+
+	/** Returns object casted to ElementNode type. */
 	inline ElementNode &elementNode();
-	
-	/** Method to cast node to ElementNode. */
+
+	/** Returns object casted to ElementNode type. */
 	inline const ElementNode &elementNode() const;
 
-protected:
 
+	/** Destructor. */
+	virtual ~Node() { }
+
+
+protected:
 	/**
 	 * Constructor.
 	 * \param n name of node.
 	 * \param p parent node.
-	 * \param n next node on that level. 
+	 * \param n next node on that level.
 	 */
 	Node(const std::string &n, ElementNode &p, Node *next = 0)
 		: name(n), parent(&p), nextSibling(next) { }
-	
-	/**
-	 * Constructor.
-	 * Uses to construct root.
-	 */
+
+	/** Constructor. Used to construct root. */
 	Node() : name("<root>"), parent(0), nextSibling(0) { }
-	
-	/** Destructor. */
-	virtual ~Node() { }
+
 
 private:
 	/** No copying allowed. */
@@ -96,53 +96,40 @@ private:
 
 	/** Name of node. */
 	std::string name;
-	
+
 	/** Pointer to parent node. */
 	ElementNode *parent;
-	
+
 	/** Pointer to next node on the same level. */
 	Node *nextSibling;
 };
 
-/** Node to hold CData information. */
-struct CDataNode : public Node {
 
+/** Node holding CData information. */
+struct CDataNode : public Node {
 	/**
 	 * Constructor.
 	 * \param p parent node.
-	 * \param str CData information.	 
-	 * \param n next node on that level. 
+	 * \param str CData information.
+	 * \param n next node on that level.
 	 */
 	CDataNode(ElementNode &p, const std::string &str = std::string(),
 	          Node *n = 0) : Node(std::string(), p, n), data(str) { }
 
-	/** Destructor. */
-	virtual ~CDataNode() { }
-
-	/** Allows to get CData. */
+	/** Returns CData hold by the object. */
 	const std::string &getCData() const { return data; }
 
-	/** Allows to get CData. */
+	/** Returns CData hold by the object. */
 	std::string &getCData() { return data; }
 
-	/** 
-	 * Allows to set CData. 
+	/**
+	 * Sets CData hold by the object.
 	 * \param str string to set as value.
 	 */
 	void setCData(const std::string &str) { data = str; }
-	
-	/** 
-	 * Allows to complete CData. 
-	 * \param cleanData string to add to value.
-	 */
-	void completeCData(const std::string &cleanData) {
-		data.append(cleanData);
-	}
 
-	/** Virtual method to print tree from this node. */	
-	virtual void printNode(FILE* stout);
-		
-	/** Virtual method to clean tree from this node. */
+
+	virtual void printNode(FILE* stout) const;
 	virtual void clearNode() {}
 
 private:
@@ -150,32 +137,30 @@ private:
 	std::string data;
 };
 
-/** Node to hold xml element information and make tree. */
-struct ElementNode : public Node {
 
+/** Node to hold XML element information and make tree. */
+struct ElementNode : public Node {
 	/**
 	 * Constructor.
 	 * \param p parent node.
- 	 * \param n node's name. 
-	 * \param attrs_ node's attributes.	 
+	 * \param n node's name.
+	 * \param attrs_ node's attributes.
 	 */
 	ElementNode(const std::string &n, ElementNode &p,
 	           const Attributes &attrs_ = Attributes())
 		: Node(n, p), attrs(attrs_), firstChild(0) {}
 
-	/**
-	 * Constructor.
-	 * Uses to construct root.
-	 */
+	/** Constructor.  Used to construct root. */
 	ElementNode() : Node() { }
 
 	/** Destructor. */
 	virtual ~ElementNode() {
-		clearTree();
+		clearNode();
 	}
 
-	/** Deletes all nodes of tree from this node (without it). */
-	void clearTree();
+	virtual void printNode(FILE *fd) const;
+	virtual void clearNode();
+
 
 	/**
 	 * Adds child (ElementNode)to node.
@@ -184,107 +169,131 @@ struct ElementNode : public Node {
 	 * \return pointer to new node.
 	 */
 	ElementNode* addChild(const std::string &n, const Attributes &attrs_);
-	
+
 	/**
 	 * Adds CDataNode to node.
 	 * \param n name of node.
 	 * \param attrs_ attributes of new node.
 	 */
 	void addCData(const std::string &cleanData);
-	
-	/** Closes node and returns pointer to parent node. */
-	ElementNode* closeNode();
 
 	/**
-	 * Prints the whole tree from this node (in XML format)
-	 * to file.
-	 * \param fd file descriptor.
+	 * Returns pointer to CDataNde inside element or 0 if it wasn't found.
 	 */
-	virtual void printNode(FILE *fd);
+	const CDataNode* findCData() const;
 
 	/**
-	 * Finds CDataNode of node.
-	 * \return pointer to CDataNde or 0 if it wasn't found.
+	 * Returns pointer to CDataNde inside element or 0 if it wasn't found.
 	 */
-	CDataNode* findCData();
-	
+	CDataNode* findCData() {
+		return const_cast<CDataNode*>(const_cast<const ElementNode*>(this)->findCData());
+	}
+
 	/**
 	 * Modifies CDataNode of node.
 	 * \param newCData new value to set as CData.
 	 */
 	void modifyCData(const std::string &newCData);
-	
+
 	/**
 	 * Finds node in tree.
 	 * \param path path to node (e.g. /foo/bar ).
-	 * \return pointer to founded node.
+	 * \return pointer to founded node or 0.
 	 */
-	ElementNode* findNode(const std::string& path);
-	
+	ElementNode* findNode(const std::string &path);
+
 	/**
-	 * Finds node in tree. Makes it when it doesn't exist.
+	 * Finds node in tree.  Creates it when if it doesn't exist.
 	 * \param path path to node (e.g. /foo/bar ).
 	 * \return pointer to founded node.
 	 */
-	ElementNode* modifyNode(const std::string& path);
+	ElementNode* modifyNode(const std::string &path);
 
-	/** Allows to get attributes od node. */
-	Attributes* getAttrs() {
-		return &attrs;
+	/** Returns node's attributes. */
+	Attributes &getAttrs() {
+		return attrs;
+	}
+
+	/** Returns node's attributes. */
+	const Attributes &getAttrs() const {
+		return attrs;
 	}
 
 	/**
-	 * Allows to get value of attribute.
+	 * Returns attribute's value.
 	 * \param attr name od attribute to get.
 	 * \param def default value to return if attribute doesn't exist.
-	 * \return value of attribute or def if it doesn't exist.
+	 * \return value of attribute or \a def if it doesn't exist.
 	 */
-	const std::string& getAttr(const std::string& attr,
-	                           const std::string& def = std::string()) {
-		if( attrs.find(attr) == attrs.end() ){
-			return def;
-		}
-		return attrs[attr];
+	const std::string &getAttr(const std::string &attr,
+	                           const std::string &def = std::string()) {
+		Attributes::iterator it = attrs.find(attr);
+		return it == attrs.end() ? def : it->second;
 	}
 
 	/**
-	 * Allows to set value of attribute.
+	 * Set attribute's value.
 	 * \param attr name od attribute to get.
 	 * \param val value to set as attribute.
 	 */
 	const void setAttr(const std::string& attr, const std::string& val){
 		attrs[attr] = val;
 	}
-	
-	/** Gets firstChild of node. */
-	Node* getFirstChild() { return firstChild; }
-	
-private:
 
 	/**
-	 * Finds node which name is n from children.
+	 * Removes attribute.
+	 * \param attr name od attribute to get.
+	 */
+	const void removeAttr(const std::string &attr){
+		attrs.erase(attrs.find(attr));
+	}
+
+
+	/** Return's node's first child. */
+	Node* getFirstChild() { return firstChild; }
+
+	/** Return's node's first child. */
+	const Node* getFirstChild() const { return firstChild; }
+
+
+private:
+	/**
+	 * Finds node's child which name is n.
 	 * \param n name of wanted node.
 	 * \return pointer to wanted node or 0 if it doesn't exist.
 	 */
-	ElementNode* findChild(const std::string& n);
-	
+	ElementNode *findChild(const std::string& n);
+
 	/**
-	 * Finds node which name is n from children. Makes it
-	 * if it doesn't exist.
+	 * Finds node's child which name is n.  Creates it if it doesn't
+	 * exist.
 	 * \param n name of wanted node.
 	 * \return pointer to wanted node.
 	 */
-	ElementNode* modifyChild(const std::string& n);
-	
-	/** Deletes all nodes of tree from this node. */
-	virtual void clearNode();
+	ElementNode *modifyChild(const std::string& n);
+
 
 	/** Attributes of node */
 	Attributes attrs;
-	
+
 	/* First child of node */
 	Node *firstChild;
 };
+
+
+
+CDataNode &Node::cdataNode() {
+	return *dynamic_cast<CDataNode*>(this);
+}
+const CDataNode &Node::cdataNode() const {
+	return *dynamic_cast<const CDataNode*>(this);
+}
+ElementNode &Node::elementNode() {
+	return *dynamic_cast<ElementNode*>(this);
+}
+const ElementNode &Node::elementNode() const {
+	return *dynamic_cast<const ElementNode*>(this);
+}
 
 
 
@@ -298,34 +307,16 @@ struct Reader : public xml::Parser2 {
 	 * Constructor.
 	 * \param tree structure where element will be hold.
 	 */
-	Reader(xml::ElementNode *root) : node(root) {
-		node->clearTree();
-	}
+	Reader(xml::ElementNode &root) : node(&root) { }
 
 
 protected:
-
-	/**
-	 * Called when open tag is encountered.
-	 * \param name  element name.
-	 * \param attrs list of attributes.
-	 */
 	virtual void open(const std::string &name, const Attributes &attrs);
-
-	/**
-	 * Called when element is being closed.
-	 * \param name element's name.
-	 */
 	virtual void close(const std::string &name);
-	
-	/** 
-	 * Called when there is some CData to add.
-	 * \param data CData.
-	 */
 	virtual void cdata(const std::string &data);
 
-private:
 
+private:
 	/** Pointer to structure where elements are hold. */
 	xml::ElementNode *node;
 };

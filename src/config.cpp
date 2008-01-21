@@ -1,6 +1,6 @@
 /** \file
  * Config structure implementation.
- * $Id: config.cpp,v 1.6 2008/01/21 00:22:26 jwawer Exp $
+ * $Id: config.cpp,v 1.7 2008/01/21 02:18:25 mina86 Exp $
  */
 
 #include <errno.h>
@@ -17,14 +17,6 @@ namespace ppc {
 /************************ Config methods ************************/
 
 /* Methods to get config values */
-
-xml::Attributes *Config::getAttrs(const std::string& path) {
-	xml::ElementNode *node = root.findNode(path);
-	if (!node) {
-		return 0;
-	}
-	return node->getAttrs();
-}
 
 const std::string& Config::getString(const std::string &path,
                                      const std::string &def) const {
@@ -134,7 +126,7 @@ static FILE *openFile(const std::string& fileName, const char *mode){
 }
 
 int ConfigFile::loadConfig(const std::string& fileName) {
-	xml::Reader reader(&getRoot());
+	xml::Reader reader(getRoot());
 
 	configFile = fileName;
 	FILE* fd = openFile(configFile, "r");

@@ -1,6 +1,6 @@
 /** \file
  * XML Tree structures implementation.
- * $Id: xml-node.cpp,v 1.4 2008/01/21 00:22:26 jwawer Exp $
+ * $Id: xml-node.cpp,v 1.5 2008/01/21 02:18:25 mina86 Exp $
  */
 
 #include "xml-node.hpp"
@@ -9,24 +9,12 @@ namespace ppc {
 
 namespace xml {
 
-CDataNode &Node::cdataNode() {
-	return *dynamic_cast<CDataNode*>(this);
-}
-const CDataNode &Node::cdataNode() const {
-	return *dynamic_cast<const CDataNode*>(this);
-}
-ElementNode &Node::elementNode() {
-	return *dynamic_cast<ElementNode*>(this);
-}
-const ElementNode &Node::elementNode() const {
-	return *dynamic_cast<const ElementNode*>(this);
-}
 
-void CDataNode::printNode(FILE *out) {
+void CDataNode::printNode(FILE *out) const {
 	fputs(xml::escape(data).c_str(), out);
 }
 
-void ElementNode::printNode(FILE* out){
+void ElementNode::printNode(FILE* out) const {
 	fprintf(out, "<%s", getName().c_str());
 
 	Attributes::const_iterator it = attrs.begin(), end = attrs.end();
@@ -48,25 +36,14 @@ void ElementNode::printNode(FILE* out){
 	fprintf(out, "</%s>\n", getName().c_str());
 }
 
-void ElementNode::clearTree(){
-		if(firstChild != 0){
-			firstChild->clearNode();
-			firstChild = 0;
-		}
-		if(getNextSibling() != 0){
-			getNextSibling()->clearNode();
-			setNextSibling(0);
-		}
-}
-
 void ElementNode::clearNode(){
-		if(firstChild != 0){
-			firstChild->clearNode();
-		}
-		if(getNextSibling() != 0){
-			getNextSibling()->clearNode();
-		}
-		delete this;
+	Node *child, *next = firstChild;
+	while ((child = next)) {
+		next = child->getNextSibling();
+		child->clearNode();
+		delete child;
+	}
+	attrs.clear();
 }
 
 ElementNode* ElementNode::addChild(const std::string &n,
@@ -91,21 +68,16 @@ void ElementNode::addCData(const std::string &cleanData){
 	if (firstChild == 0){
 		CDataNode *node = new CDataNode(*this, cleanData);
 		firstChild = node;
-	}
-	else{
+	} else {
 		Node* temp = firstChild;
-		while((temp->getNextSibling() != 0)){
-			if ( temp->isCData() ){
-				temp->cdataNode().completeCData(cleanData);
-				return;
-			}
+		while (!temp->isCData() && temp->getNextSibling()) {
 			temp = temp->getNextSibling();
 		}
-		if ( temp->isCData() ){
-			temp->cdataNode().completeCData(cleanData);
-			return;
+		if (temp->isCData()){
+			temp->cdataNode().getCData().append(cleanData);
+		} else {
+			temp->setNextSibling(new CDataNode(*this, cleanData));
 		}
-		temp->setNextSibling(new CDataNode(*this, cleanData));
 	}
 }
 
@@ -130,22 +102,12 @@ void ElementNode::modifyCData(const std::string &newCData){
 	}
 }
 
-ElementNode* ElementNode::closeNode(){
-	return &(getParent()->elementNode());
-}
-
-CDataNode* ElementNode::findCData(){
-	Node* node = this;
-	if(node != 0 && node->isElement() ){
-		node = node->elementNode().firstChild;
-		while(node != 0){
-			if( node->isCData() ){
-				return &(node->cdataNode());
-			}
-			node = node->getNextSibling();
-		}
+const CDataNode* ElementNode::findCData() const {
+	const Node *node = firstChild;
+	while (node && !node->isCData()) {
+		node = node->getNextSibling();
 	}
-	return 0;
+	return node ? &(node->cdataNode()) : 0;
 }
 
 ElementNode* ElementNode::findNode(const std::string& path){
@@ -240,7 +202,7 @@ void Reader::cdata(const std::string &data){
 
 void Reader::close(const std::string &name){
 	(void)name;
-	node = node->closeNode();
+	node = node->getParent();
 }
 
 
