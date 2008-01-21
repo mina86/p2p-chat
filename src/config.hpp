@@ -1,13 +1,12 @@
 /** \file
  * Config structure definition.
- * $Id: config.hpp,v 1.6 2008/01/20 22:52:47 jwawer Exp $
+ * $Id: config.hpp,v 1.7 2008/01/21 00:22:26 jwawer Exp $
  */
 
 #ifndef H_CONFIG_HPP
 #define H_CONFIG_HPP
 
 #include "xml-node.hpp"
-
 
 namespace ppc {
 
@@ -18,7 +17,10 @@ struct Config {
 	/** Constructor. */
 	Config() : root(*new xml::ElementNode()), autoDelete(true) { }
 
-	/** Constructor. */
+	/** Constructor. 
+	* \param r reference to node which will be root.
+	* \param aDelete bool value to set autodeleting root in destructor
+	*/
 	Config(xml::ElementNode &r, bool aDelete = false)
 		: root(r), autoDelete(aDelete) { }
 
@@ -29,30 +31,96 @@ struct Config {
 		}
 	}
 
+	/** Method to get root.
+	 * \return reference to root.
+	 */
 	xml::ElementNode &getRoot() { return root; }
+	
+	/** Method to get root.
+	 * \return const reference to root.
+	 */
 	const xml::ElementNode &getRoot() const { return root; }
 
 	/**
 	 * Lets to get the whole list of attributes at one time.
 	 * Where: Attributes is std::map<std::string, std::string>.
-	 * \param name path to element (e.g. /foo/bar).
-	 * \param attrs returns found list of attributes here.
-	 * \return 0 when attribute was found, 1 when wasn't.
+	 * \param path path to element (e.g. /foo/bar).
+	 * \return pointer to Attributes or 0 when node wasn't found.
 	 */
-	
 	xml::Attributes *getAttrs(const std::string& path);
 	
+	/**
+	 * Lets to get value (CData) or attribute of element as string.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * get bar cdata and /foo/bar#atr to get attribute atr value).
+	 * \param def default value to return when node wasn't found.
+	 * \return value (CData) or attribute of element as string.
+	 */
 	const std::string& getString(const std::string &path,
 			const std::string &def = std::string()) const;
 
+	/**
+	 * Lets to get value (CData) or attribute of element as unsigned long.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * get bar cdata and /foo/bar#atr to get attribute atr value).
+	 * \param def default value to return when node wasn't found.
+	 * \return value (CData) or attribute of element as unsigned long.
+	 */
 	unsigned long getUnsigned(const std::string &path,
 	                          unsigned long def = 0) const;
+	                          
+	/**
+	 * Lets to get value (CData) or attribute of element as long.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * get bar cdata and /foo/bar#atr to get attribute atr value).
+	 * \param def default value to return when node wasn't found.
+	 * \return value (CData) or attribute of element as long.
+	 */
 	long getInteger(const std::string &path, long def = 0) const;
+	
+	/**
+	 * Lets to get value (CData) or attribute of element as double.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * get bar cdata and /foo/bar#atr to get attribute atr value).
+	 * \param def default value to return when node wasn't found.
+	 * \return value (CData) or attribute of element as double.
+	 */
 	double getReal(const std::string &path, double def = 0) const;
 
+	/**
+	 * Lets to set value (CData) or attribute of element from string.
+	 * It makes this element if it doesn't exist before.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * set bar cdata and /foo/bar#atr to set attribute atr value).
+	 * \param val value to set.
+	 */
 	void setString(const std::string &path, const std::string &val);
+	
+	/**
+	 * Lets to set value (CData) or attribute of element from unsigned 
+	 * long. It makes this element if it doesn't exist before.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * set bar cdata and /foo/bar#atr to set attribute atr value).
+	 * \param val value to set.
+	 */
 	void setUnsigned(const std::string &path, unsigned long val);
+	
+	/**
+	 * Lets to set value (CData) or attribute of element from long.
+	 * It makes this element if it doesn't exist before.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * set bar cdata and /foo/bar#atr to set attribute atr value).
+	 * \param val value to set.
+	 */
 	void setInteger(const std::string &path, long val);
+	
+	/**
+	 * Lets to set value (CData) or attribute of element from double.
+	 * It makes this element if it doesn't exist before.
+	 * \param path path to element we want to get (e.g. /foo/bar to 
+	 * set bar cdata and /foo/bar#atr to set attribute atr value).
+	 * \param val value to set.
+	 */	
 	void setReal(const std::string &path, double val);
 
 private:
@@ -62,7 +130,10 @@ private:
 	bool autoDelete;
 };
 
-
+/**
+ * Class maintaining reading from and writing to files 
+ * with program configuration.
+ */
 struct ConfigFile : public Config {
 
 	/** Constructor. */

@@ -1,6 +1,6 @@
 /** \file
  * Config structure implementation.
- * $Id: config.cpp,v 1.5 2008/01/20 22:52:47 jwawer Exp $
+ * $Id: config.cpp,v 1.6 2008/01/21 00:22:26 jwawer Exp $
  */
 
 #include <errno.h>
@@ -13,50 +13,10 @@
 
 namespace ppc {
 
-/**
- * Simple function used for maintaining opening files.
- *
- * \param fileName name of file to open.
- * \param mode mode used to opening file (r(ead) or w(rite)).
- * \return opened file descriptor or 0 if there was any problem
- */
-static FILE *openFile(const std::string& fileName, const char *mode){
-	return fileName.empty() ? 0 : fopen(fileName.c_str(), mode);
-}
 
+/************************ Config methods ************************/
 
-int ConfigFile::loadConfig(const std::string& fileName) {
-	xml::Reader reader(&getRoot());
-
-	configFile = fileName;
-	FILE* fd = openFile(configFile, "r");
-	if(fd == 0){
-		return 1;
-	}
-
-	for(;;) {
-		size_t readelements = fread(sharedBuffer, 1, sizeof sharedBuffer, fd);
-		reader.feed(sharedBuffer, readelements);
-		if (ferror(fd) || feof(fd)) {
-			break;
-		}
-	}
-	reader.done();
-
-	return fclose(fd) == EOF ? 2 : 0;
-}
-
-int ConfigFile::saveConfig(const std::string& fileName){
-	FILE* fd = openFile(fileName, "w");
-	if(fd == 0){
-		return 1;
-	}
-
-	if(getRoot().getFirstChild()){
-		getRoot().getFirstChild()->printNode(fd);
-	}
-	return fclose(fd) == EOF ? 2 : 0;
-}
+/* Methods to get config values */
 
 xml::Attributes *Config::getAttrs(const std::string& path) {
 	xml::ElementNode *node = root.findNode(path);
@@ -125,6 +85,8 @@ double  Config::getReal(const std::string &path, double def) const {
 	return res;
 }
 
+/* Methods to set config values */
+
 void Config::setString(const std::string &path, const std::string &val) {
 	size_t index = path.find_first_of("#");
 	std::string nodePath = path.substr(0, index);
@@ -155,6 +117,53 @@ void Config::setInteger(const std::string &path, long val) {
 void Config::setReal(const std::string &path, double val) {
 	sprintf(sharedBuffer, "%f", val);
 	setString(path, sharedBuffer);
+}
+
+
+/********************** ConfigFile methods **********************/
+
+/**
+ * Simple function used for maintaining opening files.
+ *
+ * \param fileName name of file to open.
+ * \param mode mode used to opening file (r(ead) or w(rite)).
+ * \return opened file descriptor or 0 if there was any problem
+ */
+static FILE *openFile(const std::string& fileName, const char *mode){
+	return fileName.empty() ? 0 : fopen(fileName.c_str(), mode);
+}
+
+int ConfigFile::loadConfig(const std::string& fileName) {
+	xml::Reader reader(&getRoot());
+
+	configFile = fileName;
+	FILE* fd = openFile(configFile, "r");
+	if(fd == 0){
+		return 1;
+	}
+
+	for(;;) {
+		size_t readelements = fread(sharedBuffer, 1, sizeof sharedBuffer, fd);
+		reader.feed(sharedBuffer, readelements);
+		if (ferror(fd) || feof(fd)) {
+			break;
+		}
+	}
+	reader.done();
+
+	return fclose(fd) == EOF ? 2 : 0;
+}
+
+int ConfigFile::saveConfig(const std::string& fileName){
+	FILE* fd = openFile(fileName, "w");
+	if(fd == 0){
+		return 1;
+	}
+
+	if(getRoot().getFirstChild()){
+		getRoot().getFirstChild()->printNode(fd);
+	}
+	return fclose(fd) == EOF ? 2 : 0;
 }
 
 

@@ -1,6 +1,6 @@
 /** \file
  * XML Tree structures implementation.
- * $Id: xml-node.cpp,v 1.3 2008/01/20 22:52:48 jwawer Exp $
+ * $Id: xml-node.cpp,v 1.4 2008/01/21 00:22:26 jwawer Exp $
  */
 
 #include "xml-node.hpp"
@@ -8,6 +8,19 @@
 namespace ppc {
 
 namespace xml {
+
+CDataNode &Node::cdataNode() {
+	return *dynamic_cast<CDataNode*>(this);
+}
+const CDataNode &Node::cdataNode() const {
+	return *dynamic_cast<const CDataNode*>(this);
+}
+ElementNode &Node::elementNode() {
+	return *dynamic_cast<ElementNode*>(this);
+}
+const ElementNode &Node::elementNode() const {
+	return *dynamic_cast<const ElementNode*>(this);
+}
 
 void CDataNode::printNode(FILE *out) {
 	fputs(xml::escape(data).c_str(), out);
@@ -135,7 +148,7 @@ CDataNode* ElementNode::findCData(){
 	return 0;
 }
 
-ElementNode* ElementNode::findNode(const std::string path){
+ElementNode* ElementNode::findNode(const std::string& path){
 	ElementNode* node = this;
 	std::string nodeName, tempPath;
 	size_t index;
