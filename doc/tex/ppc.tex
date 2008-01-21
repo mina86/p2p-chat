@@ -1,0 +1,333 @@
+%%
+%% Application documentation.
+%% $Id: ppc.tex,v 1.1 2008/01/21 03:17:46 mina86 Exp $
+%%
+
+\documentclass[a4paper,10pt,oneside]{report}
+\usepackage[MeX]{polski}
+\usepackage[latin2]{inputenc}
+
+%%
+%% Penalties
+%%
+%\overfullrule = 3mm       % zaznacz linijki z nadmiarami czarn± sztabk±
+\exhyphenpenalty = 999999 % s³owa z³o¿one nie przeno¶ na ³±czniku
+\righthyphenmin = 3       % nie dziel xx-, ale xxx-
+\widowpenalty = 999999    % ostatnia linia akapitu nie zacznie strony
+\clubpenalty = 999999     % pierwsza linia akapitu nie zacznie strony
+%\clubpenalty = 9950  % pierwsza linia akapitu wyj±tkowo mo¿e koñczyæ stronê
+\hfuzz = 0pt              % znaki nie mog± sterczeæ na margines
+%\hfuzz = 3pt              % znaki mog± sterczeæ na margines do wielko¶ci 3pt
+\tolerance 600            % zwiêkszamy toleracjê
+\pretolerance 300         % oraz pretolerancjê
+\doublehyphendemerits = 99999 %% zniechêcamy TeX-a do dzielenia wyrazów
+
+
+%%
+%% Dot after chapter, section, ... numbers
+%%
+\renewcommand\thesection{\arabic{section}.}
+\renewcommand\thesubsection{\thesection\arabic{subsection}.}
+\renewcommand\thesubsubsection{\thesubsection\arabic{subsubsection}.}
+\renewcommand\thetable{\arabic{table}.}
+
+
+%% Margins
+\addtolength{\topmargin}{-20pt}
+\addtolength{\textheight}{40pt}
+%\addtolength{\leftmargin}{-20pt}
+%\addtolength{\rightmargin}{-20pt}
+%\addtolength{\textwidth}{40pt}
+
+
+%% Simple commands
+\usepackage{soul}
+\let\emph = \so
+\def\f#1{$^#1$}
+\newcommand{\q}[1]{\textit{,,#1''}}
+\def\i#1{{\sl #1}}
+
+%%
+%% Modify page headers and footers
+%%
+\usepackage{fancyhdr}
+\pagestyle{fancyplain}
+\renewcommand{\sectionmark}[1]{\markright{#1}}
+\lhead[\fancyplain{}{\renewcommand\familydefault{\rmdefault}%
+      \normalfont \small\bfseries\thepage}]
+     {\fancyplain{}{\renewcommand\familydefault{\rmdefault}%
+      \normalfont \small\bfseries\rightmark}}
+\rhead[\fancyplain{}{\renewcommand\familydefault{\rmdefault}%
+     \normalfont \small\bfseries{Komunikator internetowy}}]
+    {\fancyplain{}{\renewcommand\familydefault{\rmdefault}%
+     \normalfont \small\bfseries\thepage}}
+\cfoot[]{}
+%\addtolength{\headheight}{1.6pt}
+
+
+\begin{document}
+
+\centerline{\Huge \bf Komunikator internetowy}
+
+\paragraph{Wykonawcy} Micha³ Nazarewicz, Krzysztof Rogala, Maciej
+¦wiêtochowski, Jaros³aw Wawer; grupa H1I3.
+
+\section{Wstêp}
+
+Tre¶ci± zadania jest stworzenie komunikatora peer-to-peer
+(tj. dzia³aj±cego bez po¶rednictwa serwera) korzystaj±cego z~pakietów
+typu multicast.  Komunikator ma umo¿liwiaæ ustawianie i~¶ledzenie
+stanu zalogowanych osób.
+
+
+\section{Protokó³}
+
+Komunikator korzysta z~protoko³u opartego na standardzie XML, co
+umo¿liwia rozszerzanie go o~now± funkcjonalno¶æ z~zachowaniem
+zgodno¶ci wstecz.
+
+
+\subsection{Identyfikacja u¿ytkowników}
+
+Poniewa¿ sieæ nie posiada serwera nie ma komu rozstrzygaæ konfliktów
+w~przypadku, gdy dwóch ró¿nych u¿ytkowników u¿ywa tego samego nicku.
+Co wiêcej, na tym samym komputerze mog± byæ uruchomieni dwaj klienci
+z~ustawionym takim samym nickiem.  Z~tego powodu u¿ytkownik sieci
+identyfikowany jest przez swój (ustalony na pocz±tku i~nigdy nie
+zmieniany) nick, adres IP oraz numer portu, na którym klient
+nas³uchuje na po³±czenia TCP.
+
+Podej¶cie takie umo¿liwia tworzenie serwerów proxy, które
+umo¿liwia³yby ³±czenie siê klientów np.\ przez TCP do sieci wewn±trz
+jakiej¶ instytucji--rozwi±zanie takie mo¿e okazaæ siê prostsze (a na
+pewno bardziej niezawodne) ni¿ przesy³anie pakietów multicast na drugi
+koniec globu.  Proxy takie, po stronie danej instytucji wygl±da³oby
+jak zwyk³y klient, a~poniewa¿ u¿ytkownicy z~innymi nickami (nawet
+je¿eli maj± ten sam adres IP i~nas³uchuj± na tym samym porcie) s±
+faktycznie traktowani jak ró¿ni u¿ytkownicy, serwer proxy nie musia³by
+tworzyæ dla ka¿dego klienta nowego gniazda TCP do nas³uchiwania na
+po³±czenia.
+
+Nick nie mo¿e byæ zmieniany, gdy¿ specyfika pakietów UDP nie
+gwarantuje, ¿e ka¿dy z~u¿ytkowników sieci dosta³by informacje
+o~zmianie, przez co u¿ytkownik po zmianie nicku móg³by zostaæ
+traktowany jak zupe³nie nowa osoba.  Aby {\it obej¶æ} to ograniczenie
+u¿ytkownik mo¿e ustawiæ swoj± nazwê (w analogiczny sposób jak status)
+i~zmieniæ j± w~dowolnym momencie---niektórzy nadal mog± nie otrzymaæ
+informacji o~zmianie statusu, ale nie wp³ynie to na uniemo¿liwienie
+lub utrudnienie komunikacji.
+
+Dopuszczalnymi znakami w~nicku s± wszystkie znaki ASCII o~kodzie
+wiêkszym lub równym 48 i~mniejszym od 128 z~pominiêciem du¿ych liter.
+W~nazwie mog± wystêpowaæ wszystkie znaki poza znakami o~kodzie
+mniejszym ni¿ 48.
+
+
+\subsection{Status i~obecno¶æ w~sieci}
+
+Poniewa¿ w~sieci nie ma serwera nie ma mo¿liwo¶ci centralnego
+przechowywania statusów wszystkich u¿ytkowników.  W~zwi±zku z~tym,
+jeden klient jest niewidoczny dla drugiego w~sieci dopóki nie dostanie
+od niego jakiego¶ komunikatu.  Z~tego powodu, zaraz po po³±czeniu z~sieci±
+i~ustawieniu statusu ka¿dy klient powinien wys³aæ ¿±danie, na które
+inni klienci odpowiadaj± wysy³aj±c do nadawcy swoje status.
+
+Gdy klient siê roz³±cza wysy³a informacjê o~tym fakcie dziêki czemu,
+wszyscy do których taka wiadomo¶æ dotrze wiedz±, ¿e dany u¿ytkownik
+siê roz³±czy³.  Jednak¿e, z~uwagi na specyfikê protoko³u UDP, a~tak¿e
+fakt, i¿ klient mo¿e nie wys³aæ takiej informacji\footnote{Np. b³±d
+  w~programie spowoduje jego zatrzymanie lub zabraknie pr±du lub
+  komputer nagle zostanie od³±czony on sieci itp.} na skutek czego
+inni klienci bêd± my¶leæ, i¿ dany u¿ytkownik jest wci±¿ po³±czony.
+Aby zapobiec takim sytuacjom, ka¿dy klient musi co piêæ minut wysy³aæ
+swój status, a~ponadto, je¿eli przez dwana¶cie minut nie otrzyma od
+jakiego¶ informacji statusu, ma przyj±æ, i¿ dany u¿ytkownik siê
+roz³±czy³.
+
+
+\subsection{Format komunikatu}
+
+G³ównym elementem komunikatu jest element {\tt ppcp}\footnote{\it
+  Peer-to-Peer Chat Protocol} posiadaj±cy dwa obowi±zkowe atrybuty
+{\tt n} i {\tt p} oraz dwa opcjonalne {\tt to:n} i~{\tt to:neg}.  Jego
+zawarto¶ci± mo¿e byæ dowolna liczba elementów {\tt st}, {\tt rq} lub
+{\tt m} interpretowanych w~kolejno¶ci wystêpowania.
+
+Atrybut {\tt n} okre¶la nick nadawcy wiadomo¶ci\footnote{Warto¶æ tego
+  atrybutu nie musi byæ poprawnym nickiem.  Je¿eli nie jest jest ona
+  konwertowana w~ten sposób, ¿e du¿e litery zamieniane s± na ma³e,
+  a~pozosta³e znaki niedozwolone w~nicku na znak podkre¶lenia.
+  W~momencie, gdy klient odbiera komunikat od nadawcy, o~którym do tej
+  pory nie wiedzia³ warto¶æ tego atrybutu ustawiana jest jako nazwa
+  u¿ytkownika, dziêki czemu (np. je¿eli czyja¶ nazwa ró¿ni siê od
+  nicku wy³±cznie wielko¶ci± znaków) nadawca mo¿e czasami obej¶æ siê
+  bez ustawiania w~sposób jawny nazwy u¿ytkownika.  Sposób ten zawodzi
+  jednak je¿eli u¿ytkownik chce zmieniæ nazwê, gdy¿ zmiany atrybutu
+  {\tt n} nie s± pó¼niej brane pod uwagê.}, a~{\tt p} numer portu, na
+którym klient nas³uchuje na po³±czenia TCP.  Atrybuty {\tt to:n} oraz
+{\tt to:neg} s± opcjonalne i~s³u¿± do okre¶lenia odbiorcy wiadomo¶ci.
+Mianowicie, je¿eli atrybut {\tt to:n} zosta³ podany to odbiorca musi
+zignorowaæ komunikat je¶li ${\tt to:n} = nick uzytkownika
+\Leftrightarrow {\tt to:neg} = {\tt neg}$.  Dodatkowo, atrybut {\tt
+  to:n} jest obowi±zkowy w~przypadku wysy³ania komunikatów przy pomocy
+strumieni TCP.
+
+\paragraph{Element {\tt st}}
+
+Element {\tt st}, którego zawarto¶æ okre¶la opcjonalny opis statusu
+posiada opcjonalne atrybuty {\tt st}, którego mo¿liwe warto¶ci
+przedstawia tabela \ref{tab:attr:st} oraz {\tt dn}, który okre¶la
+nazwê u¿ytkownika.
+
+\begin{table}[htp]
+\begin{center}
+\begin{tabular}{lll}
+{\bf Status} & {\bf Nazwa} & {\bf Opis} \\
+\hline
+{\tt on}     & Online & U¿ytkownik dostêpny (stan domy¶lny). \\
+{\tt away}   & Away from Keyboard & U¿ytkownik niedostêpny. \\
+{\tt xa}     & Extended Away  & U¿ytkownik niedostêpny. \\
+{\tt dnd}    & Do Not Disturb & U¿ytkownik zajêty. \\
+{\tt off}    & Offline        & U¿ytkownik niezalogowany. \\
+\end{tabular}
+\end{center}
+\caption{Mo¿liwe statusy u¿ytkownika}\label{tab:attr:st}
+\end{table}
+
+Nale¿y pamiêtaæ, ¿e w~stanie {\tt off} klient nadal mo¿e nas³uchiwaæ
+na komunikaty, a~tak¿e je wysy³aæ i~inicjowaæ rozmowy, jednak¿e
+poniewa¿ klient nie ma obowi±zku trzymaæ rekordów dla niepo³±czonych
+u¿ytkowników, tote¿ nie bêd± wiedzieli o~istnieniu tego klienta.
+
+\paragraph{Element {\tt rq}}
+
+Element {\tt rq} s³u¿y do wysy³ania ró¿nych ¿±dañ do klienta.  Rodzaj
+¿±dania okre¶lany jest przez atrybut {\tt rq}, którego domy¶lna---i
+jednocze¶nie jedyne do tej pory zdefiniowana mo¿liwa---warto¶æ to {\tt
+  st} (je¿eli atrybut ten posiada nierozpoznan± warto¶æ ca³y element
+musi byæ zignorowany).  Zawarto¶æ tego elementu zale¿y od atrybutu
+{\tt rq} i~dla warto¶ci {\tt st} jest pusty.
+
+Gdy klient otrzyma element {\tt rq} z~pominiêtym atrybutem {\tt rq}
+lub równym {\tt st} jest zobowi±zany wys³aæ do nadawcy\footnote{Lub do
+  grupy odbiorców w~taki sposób, aby nadawca by³ w¶ród nich.} element
+{\tt st} ze swoim statusem.
+
+\paragraph{Element {\tt m}}
+
+Element {\tt m} s³u¿y do wysy³ania wiadomo¶ci do u¿ytkownika.  Jego
+zawarto¶æ to tre¶æ wiadomo¶ci.  Posiada on dwa atrybuty {\tt ac}
+i~{\tt msg}.
+
+Atrybut {\tt ac} okre¶la, czy wiadomo¶æ ma byæ wy¶wietlona jako zwyk³y
+,,mówiony'' tekst, czy jako wykonywana akcja (je¿eli warto¶æ równa
+jest {\tt ac}.  Jest to kopia IRC-owej komendy {\tt /me}.
+
+Atrybut {\tt msg} okre¶la czy dana wiadomo¶æ to tylko pojedyncza
+wypowied¼ (je¿eli warto¶æ równa jest {\tt msg}), czy czê¶æ rozmowy.
+Klienci maja prawo ignorowaæ ten atrybut.  Je¿eli jest on ustawiony to
+sugeruje siê, aby nie wy¶wietlaæ okienka rozmowy, w~którym u¿ytkownik
+mo¿e wpisaæ odpowied¼, a~jedynie wy¶wietliæ wiadomo¶æ w~formie
+pojedynczego zawiadomienia.
+
+
+\subsection{Formy transmisji danych}
+
+Komunikaty mog± byæ wysy³ane albo za pomoc± datagramów UDP---zarówno
+do wszystkich u¿ytkowników sieci (datagramy multicast) jak i~do
+konkretnego odbiorcy (datagramy unicast)---jak i~za pomoc± pakietów
+TCP do konkretnego odbiorcy.  Pierwszy rodzaj wykorzystywany jest
+g³ównie do rozsy³ania informacji o~statusie, a~drugi do prowadzenia
+rozmów lecz nie musi tak byæ--informacja o~statusie mo¿e byæ wys³ana
+przez TCP, a~wiadomo¶ci tekstowe datagramem UDP.
+
+\paragraph{Po³±czenia TCP}
+
+Po nawi±zaniu po³±czenia obie strony musz± niezw³ocznie wys³aæ tag
+otwieraj±cy element {\tt ppcp}, przy czym klient inicjuj±cy po³±czenie
+(poza obowi±zkowymi atrybutami) musi w~nim podaæ atrybut {\tt to:n}.
+
+W~trakcie komunikacji obie strony mog± wysy³aæ elementy bêd±ce
+poprawnymi dzieæmi elementu {\tt ppcp} i~musze na bie¿±co
+interpretowaæ dane, które wysy³a druga strona.
+
+Gdy jedna, ze stron chce zakoñczyæ po³±czenie wysy³a tag zamykaj±cy
+element {\tt ppcp} i~czeka, a¿ to samo zrobi druga strona i~gdy to
+nast±pi po³±czenie zostaje zamkniête.
+
+
+\subsection{Funkcjonalno¶æ i~mo¿liwe rozszerzenia}
+
+Protokó³ pozwala, aby klient wysy³a³ ró¿nym u¿ytkownikom ró¿ne
+statusu.  W~ten sposób mo¿na np.\ niektórym osobom wysy³aæ status {\tt
+  dnd}, a~innym {\tt online} lub symulowaæ niewidzialno¶æ nie wysy³aj±c
+niektórym klientom statusu.  Wymaga to jednak wysy³ania datagramów
+bezpo¶rednio do tych klientów co troszkê przeczy idei wykorzystania
+adresów klasy multicast.  Ponadto, informacje o~statusie nie zostan±
+w~ten sposób wys³ane do u¿ytkowników, którzy co prawda s± zalogowani,
+ale na skutek niedostarczenia odpowiednich datagramów dany klient nie
+wie o~ich istnieniu.  Praktyki takie s± raczej niezalecane, gdy¿
+w~znacz±cym stopniu zwiêkszaj± liczbê wysy³anych datagramów.
+
+Z kolei rozszerzaæ protokó³ mo¿na np.\ dodaj±c atrybutu z~informacj±
+o~samopoczuciu.  Przy rozszerzaniu protoko³u nale¿y jednak pamiêtaæ,
+¿e z~uwagi na wysy³anie informacji o~statusie protoko³em UDP
+zwiêkszanie pojedynczego datagramu zwiêksza ryzyko utracenia go
+w~g±szczu Internetu.
+
+Narzuca siê tak¿e transfer plików oraz rozmowy g³osowe.  Jednak¿e,
+z~powodu binarnego charakteru takich transmisji, jedynie inicjacja
+transferu powinna byæ wykonywana w~protokole XML, a~ca³a reszta
+protoko³em binarnym.
+
+
+\section{Implementacja}
+
+Klient jest jedno-procesowym i~jednow±tkowym\footnote{Prawdê mówi±c
+  napisanie programu wielow±tkowego wydaje siê tutaj prostsze (wiele
+  po³±czeñ, które trzeba obs³u¿yæ wspó³bie¿nie, do tego interakcja
+  z~u¿ytkownikiem), ale napisaæ taki program wielow±tkowo to ka¿dy
+  potrafi---tymczasem autorzy maj± o~wiele ambitniejszy plan napisania
+  takiego wspó³bie¿nego serwera komunikuj±cego siê asynchronicznie
+  z~u¿ytkownikiem z~wykorzystaniem jednego programu, funkcji {\tt
+    select(2)} oraz funkcji nieblokuj±cych!} programem, który
+wspó³bie¿ne odbieranie komunikatów z~ró¿nych po³±czeñ bêdzie
+realizowa³ za pomoc± funkcji {\tt pselect(2)}.  Do ka¿dego po³±czenia
+przydzielony bêdzie ponadto parser XML, który bêdzie interpretowa³
+komunikaty i~wykonywa³ odpowiedni± akcjê.
+
+Program jest podzielony na modu³y, z~których ka¿dy mo¿e mieæ w³asn±
+(zmienn±) pulê deskryptorów, na których chce nas³uchiwaæ na gotowo¶æ.
+W~programie istnieje jeden modu³ g³ówny, którego zadaniem jest miêdzy
+innymi odpytanie wszystkich modu³ów o~to, jakie deskryptory je
+interesuj±, a~nastêpnie wywo³anie funkcji {\tt pselect(2)}--gdy jaki¶
+deskryptor jest gotowy modu³ ma szansê obs³u¿yæ zdarzenie.
+
+Poza modu³em g³ównym ({\tt Core}) istniej± dwa rodzaje modu³ów:
+interfejsy u¿ytkownika oraz sieci.  Te pierwsze s³u¿± do interakcji
+z~szeroko pojêtym u¿ytkownikiem\footnote{Interfejs u¿ytkownika mo¿e
+  np.\ zapisywaæ statystyki sieci do pliku albo dostarczaæ front-end
+  do jakiej¶ aplikacji.  Takie modu³y nie bêd± mia³y zbyt du¿o
+  wspólnego z~cz³owiekiem jako u¿ytkownikiem, jednak z~punktu widzenia
+  aplikacji bêd± interfejsami u¿ytkownika.}, a~te drugie do
+utrzymywania po³±czenia z~sieci±.  Modu³ów ka¿dego rodzaju mo¿e byæ
+wiele -- identyfikowane s± przez nazwê przypominaj±c± ¶cie¿kê do
+pliku.  Te pierwsze maj± nazwy wewn±trz przestrzeni nazw {\tt /ui/}
+(np. {\tt /ui/mco/00}), a~te drugie wewn±trz przestrzeni nazw {\tt
+  /net/} (np. {\tt /net/ppc/00}); modu³ g³ówny ma nazwê {\tt /core}.
+
+Komunikacja miêdzy modu³ami odbywa siê poprzez rozsy³anie sygna³ów,
+których dostarczaniem zajmuje siê rdzeñ.  Sygna³y maj± nazwy zbudowane
+na tej samej zasadzie (wyró¿nia siê trzy klasy sygna³ów: {\tt
+  /core/}--sygna³y zwi±zane z~aplikacj± jako tak±, {\tt /ui/}--sygna³y
+zwi±zane z~interfejsem u¿ytkownika oraz {\tt /net/}--sygna³y zwi±zane
+z~komunikacj± sieciow±).  Sygna³y mog± byæ wys³ane do pojedynczego
+modu³u lub do wszystkich modu³ów z~danej przestrzeni nazw i~tak, gdy
+sieæ odbierze wiadomo¶æ wysy³a sygna³ do wszystkich modu³ów
+z~przestrzeni nazw {\tt /ui/}.  W~danej chwili napisana zosta³a jedna
+klasa modu³u sieci oraz jedna klasa interfejsu u¿ytkownika.
+
+
+
+
+\end{document}
