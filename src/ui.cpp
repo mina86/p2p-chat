@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.26 2008/01/21 20:03:54 mco Exp $
+ * $Id: ui.cpp,v 1.27 2008/01/21 23:37:12 mina86 Exp $
  */
 
 #include <errno.h>
@@ -616,7 +616,7 @@ bool UI::userExists(const User::ID &user, const std::string &network) {
 	if (nuit == networkUsers.end()) {
 		return false;
 	}
-	
+
 	uit = nuit->second->users.find(user);
 	if (uit == nuit->second->users.end()) {
 		return false;
@@ -657,13 +657,7 @@ void UI::handleSigStatusChanged(const std::string &network,
 	if (data.flags & sig::UserData::DISCONNECTED) {
 		messageW->printf("has disconnected");
 	} else {
-		messageW->printf("is %s", User::stateName(data.user.status.state));
-	}
-
-	if (data.user.status.message.empty()) {
-		messageW->printf("\n");
-	} else {
-		messageW->printf(" (%s)\n", data.user.status.message.c_str());
+		messageW->printf("is %s\n", data.user.status.toString().c_str());
 	}
 }
 
