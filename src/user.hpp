@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.10 2008/01/21 20:03:55 mco Exp $
+ * $Id: user.hpp,v 1.11 2008/01/21 23:37:30 mina86 Exp $
  */
 
 #ifndef H_USER_HPP
@@ -70,18 +70,11 @@ struct User {
 		 * <status>: <message> (if message is set)
 		 * <status> (if message is not set)
 		 */
-		std::string toString() {
-			std::string result;
-			switch(state) {
-				case OFFLINE: result += "offline"; break;
-				case ONLINE: result += "online"; break;
-				case AWAY: result += "away"; break;
-				case XAWAY: result += "extended away"; break;
-				case BUSY: result += "busy"; break;
-			}
-			if(message.size()) {
-				result += ": ";
-				result += message;
+		std::string toString() const {
+			std::string result = User::stateName(state);
+			if (!message.empty()) {
+				result.append(": ");
+				result.append(message);
 			}
 			return result;
 		}
