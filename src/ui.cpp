@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.25 2008/01/17 11:31:36 mina86 Exp $
+ * $Id: ui.cpp,v 1.26 2008/01/21 20:03:54 mco Exp $
  */
 
 #include <errno.h>
@@ -32,7 +32,8 @@ static unsigned long seq = 0;
 
 
 UI::UI(Core &c, int infd /* some more arguments */)
-	: Module(c, "/ui/mco/", seq++), stdin_fd(infd) {
+	: Module(c, "/ui/mco/", seq++), stdin_fd(infd),
+	chatUser(std::string(), Address()) {
 
 	FileDescriptor::setNonBlocking(infd);
 
@@ -206,6 +207,13 @@ void UI::handleCharacter(int c) {
 	doupdate();
 
 	switch(c) {
+		/* tab key */
+	case '\t':
+		mvwprintw(statusW, 0, 0, "TAB-completion not supported, donations welcome");
+		wclrtoeol(statusW);
+		wnoutrefresh(statusW);
+		doupdate();
+		break;
 		/* enter key */
 	case '\n':
 	case '\r':
@@ -330,19 +338,33 @@ void UI::handleCommand(const std::string &command) {
 	}
 
 	std::string data(command, pos.first, len);
-	/*
 	if (command[pos.first] != '/') {
 		pos.second = pos.first;
-		goto message;
+		if (! chatNetwork.length()) {
+			messageW->printf("Message not sent, use /chat or /msg command\n");
+			messageW->refresh();
+			return;
+		}
+
+		if (! userExists(chatUser, chatNetwork)) {
+			messageW->printf("Message not sent, user not found\n");
+			messageW->refresh();
+			return;
+		}
+
+		sendSignal("/net/msg/send", chatNetwork,
+				   new sig::MessageData(chatUser,
+									std::string(command, pos.first), 0));
+
 	}
-	*/
 
 	if (len == 5 && (data == "/quit" || data == "/exit")) {
 		sendSignal("/core/module/exits", Core::coreName);
 		return;
 	}
 
-	if (len == 2 && (data == "/n" || data == ":n")) {
+	if ((len == 2 && (data == "/n" || data == ":n"))
+	|| (len == 6 && data == "/names")) {
 		/* /names command */
 		if (networkUsers.empty()) {
 			messageW->printf("There are no connected networks\n");
@@ -359,18 +381,61 @@ void UI::handleCommand(const std::string &command) {
 					for(uit=nuit->second->users.begin();
 					    uit!=nuit->second->users.end();
 					    ++uit) {
-						messageW->printf("%s\n", uit->first.toString().c_str());
-
+						messageW->printf("%s (%s) (%s)\n",
+						          uit->second->name.c_str(),
+						          uit->first.toString().c_str(),
+						          uit->second->status.toString().c_str()
+						);
 					}
 				}
 			}
 		}
 	}
 
+	if (len == 5 && data == "/chat") {
+
+		/* trim */
+		pos = nextToken(command, pos.second);
+		if (pos.first == std::string::npos) {
+			/* end chat */
+			messageW->printf("Chat with %s (network %s) finished\n",
+			                chatUser.toString().c_str(),
+							chatNetwork.c_str());
+			chatNetwork.clear();
+			messageW->refresh();
+			return;
+		}
+
+		std::string userString(command, pos.first, pos.second-pos.first);
+
+		std::multimap< std::string, User* > usersfound;
+		std::multimap< std::string, User* >::iterator it;
+		findUsers(userString, usersfound);
+
+		if(usersfound.size() == 0) {
+			messageW->printf("No users match to '%s', try /names command.\n", userString.c_str());
+		} else if(usersfound.size() > 1) {
+			int iii;
+			messageW->printf("Ambiguous user '%s', possible matches:\n",
+			                 userString.c_str());
+			for(iii=0, it=usersfound.begin(); it!=usersfound.end(); ++iii, ++it) {
+				messageW->printf("[#%d] %s\n", iii, it->second->id.toString().c_str());
+			}
+		} else {
+
+			it = usersfound.begin();
+			chatUser = it->second->id;
+			chatNetwork = it->first;
+			messageW->printf("Chatting with %s (network %s)\n",
+			                 chatUser.toString().c_str(),
+							 chatNetwork.c_str());
+			messageW->refresh();
+		}
+	}
+
 	if (len == 1 || (len == 4 && data == "/msg") ||
 	    (len == 3 && data == "/me")) {
 		/* if len == 0 then data == "/" */
-		/* message: */
 
 		/* trim */
 		pos = nextToken(command, pos.second);
@@ -387,17 +452,12 @@ void UI::handleCommand(const std::string &command) {
 		}
 		std::string msgString(command, pos.first, pos.second-pos.first);
 
-		messageW->printf("Message [%s] to user [%s] not sent\n",
-					     msgString.c_str(),
-		                 userString.c_str());
-
-
 		std::multimap< std::string, User* > usersfound;
 		std::multimap< std::string, User* >::iterator it;
 		findUsers(userString, usersfound);
 
 		if(usersfound.size() == 0) {
-			messageW->printf("No users found\n");
+			messageW->printf("No users match to '%s', try /names command.\n", userString.c_str());
 		} else if(usersfound.size() > 1) {
 			int iii;
 			messageW->printf("Ambiguous user '%s', possible matches:\n",
@@ -454,6 +514,10 @@ void UI::handleCommand(const std::string &command) {
 		                                  User::Status(state, data)),
 		                             sig::UserData::STATE |
 		                             sig::UserData::MESSAGE));
+	} else if((len == 3 && data == "/dn")
+	|| (len = 12 && data == "/displayname")) {
+
+
 
 	} else if(len == 8 && data == "/history") {
 		std::list<std::string>::iterator hi;
@@ -545,6 +609,21 @@ int UI::findUsers(const std::string &uri, std::multimap< std::string, User* > &m
 	return map.size();
 }
 
+bool UI::userExists(const User::ID &user, const std::string &network) {
+	std::map<std::string,shared_obj<sig::UsersListData> >::iterator nuit;
+	std::map<User::ID, User *>::iterator uit;
+	nuit = networkUsers.find(network);
+	if (nuit == networkUsers.end()) {
+		return false;
+	}
+	
+	uit = nuit->second->users.find(user);
+	if (uit == nuit->second->users.end()) {
+		return false;
+	}
+
+	return true;
+}
 
 void UI::handleSigStatusChanged(const std::string &network,
                                 const sig::UserData &data) {

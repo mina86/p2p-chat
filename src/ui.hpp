@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.14 2008/01/17 11:31:36 mina86 Exp $
+ * $Id: ui.hpp,v 1.15 2008/01/21 20:03:54 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -74,6 +74,11 @@ private:
 	/* FIXME: fix documentation */
 	int findUsers(const std::string &uri, std::multimap< std::string, User* > &map);
 
+	/*
+	 * Checks wheter specified user exists in specified network
+	 */
+	bool userExists(const User::ID &user, const std::string &network);
+
 	/**
 	 * Handles every single character received from user
 	 * \param c character received
@@ -132,6 +137,14 @@ private:
 
 	/** message window identifier */
 	OutputWindow *messageW;
+
+	/**
+	 * ID and network of a user we are chatting with (set with /chat command).
+	 * Messages will be sent to this user without need for
+	 * typing /msg username
+	 */
+	User::ID chatUser;
+	std::string chatNetwork;
 
 	struct Window {
 

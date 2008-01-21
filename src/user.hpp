@@ -1,6 +1,6 @@
 /** \file
  * User structures definitions.
- * $Id: user.hpp,v 1.9 2008/01/13 21:55:54 mina86 Exp $
+ * $Id: user.hpp,v 1.10 2008/01/21 20:03:55 mco Exp $
  */
 
 #ifndef H_USER_HPP
@@ -64,6 +64,27 @@ struct User {
 		 * \param st object to copy.
 		 */
 		Status(const Status &st) : state(st.state), message(st.message) { }
+
+		/**
+		 * Returns user's state and message as string in format:
+		 * <status>: <message> (if message is set)
+		 * <status> (if message is not set)
+		 */
+		std::string toString() {
+			std::string result;
+			switch(state) {
+				case OFFLINE: result += "offline"; break;
+				case ONLINE: result += "online"; break;
+				case AWAY: result += "away"; break;
+				case XAWAY: result += "extended away"; break;
+				case BUSY: result += "busy"; break;
+			}
+			if(message.size()) {
+				result += ": ";
+				result += message;
+			}
+			return result;
+		}
 
 		/** Returns user's state. */
 		operator enum State() const { return state; }
