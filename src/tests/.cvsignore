@@ -8,3 +8,4 @@ netio-tcp
 netio-udp
 netio-multicast
 vector-queue
+write-utf8
