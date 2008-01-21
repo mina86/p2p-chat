@@ -1,6 +1,6 @@
 /** \file
  * Signal definitions.
- * $Id: signal.hpp,v 1.19 2008/01/06 15:25:59 mina86 Exp $
+ * $Id: signal.hpp,v 1.20 2008/01/21 17:36:03 mina86 Exp $
  */
 
 #ifndef H_SIGNAL_HPP
@@ -314,11 +314,13 @@ struct MessageData : public StringData {
 
 	/** Possible message's flags. */
 	enum {
-		ACTION    = 1,  /**< This is an action. */
-		MESSAGE   = 2,  /**< This is a message. */
-		ALLOW_UDP = 4,  /**< Message may be sent through UDP socket. */
-		RAW       = 8   /**< \a data is a raw XML data to send, ACTION
+		ACTION    =  1, /**< This is an action. */
+		MESSAGE   =  2, /**< This is a message. */
+		ALLOW_UDP =  4, /**< Message may be sent through UDP socket. */
+		RAW       =  8, /**< \a data is a raw XML data to send, ACTION
 		                      and MESSAGE flags are ignored. */
+		VALIDATE = 16   /**< Message is sent onlt if user specified by
+		                     \a id exists. */
 	};
 
 	/** Combination fo \c ACTION and \c MESSAGE flags. */
@@ -362,16 +364,14 @@ struct UsersListData : public Signal::Data {
 
 	/** Deletes all users in users map. */
 	virtual ~UsersListData() {
-		if (users.empty()) {
-			return;
+		if (!users.empty()) {
+			std::map<User::ID, User *>::iterator it = users.begin();
+			std::map<User::ID, User *>::iterator end = users.end();
+			do {
+				delete it->second;
+			} while (++it != end);
+			users.clear();
 		}
-
-		std::map<User::ID, User *>::iterator it = users.begin();
-		std::map<User::ID, User *>::iterator end = users.end();
-		for (; it != end; ++it) {
-			delete it->second;
-		}
-		users.clear();
 	}
 };
 
