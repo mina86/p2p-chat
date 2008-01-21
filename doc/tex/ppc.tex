@@ -1,6 +1,6 @@
 %%
 %% Application documentation.
-%% $Id: ppc.tex,v 1.1 2008/01/21 03:17:46 mina86 Exp $
+%% $Id: ppc.tex,v 1.2 2008/01/21 03:42:48 mina86 Exp $
 %%
 
 \documentclass[a4paper,10pt,oneside]{report}
@@ -327,6 +327,57 @@ sieæ odbierze wiadomo¶æ wysy³a sygna³ do wszystkich modu³ów
 z~przestrzeni nazw {\tt /ui/}.  W~danej chwili napisana zosta³a jedna
 klasa modu³u sieci oraz jedna klasa interfejsu u¿ytkownika.
 
+\subsection{Pliki}
+
+Oto opis poszczególnych plików ¼ród³owych programu:
+
+\begin{description}
+\item[{\it application.cpp}, {\it application.hpp}] definicja
+  abstrakcyjnej klasy reprezentuj±cej modu³--{\tt Module} oraz klasy
+  {\tt Core} bêd±cej modu³em g³ównym.  Oto w³a¶nie {\it serce} ca³ego
+  programu pompuj±ce sygna³y pomiêdzy modu³ami. :P
+\item[{\it config.cpp}, {\it config.hpp}] definicja klas u³atwiaj±cych
+  traktowanie drzewa XML jako pliku konfiguracyjnego.  Udostêpnia
+  metody do odczytu i~ustawiania warto¶ci liczbowych, a~nie tylko
+  ci±gów znaków..
+\item[{\it exception.hpp}] abstrakcyjna klasa wyj±tku, z~której racz±
+  dziedziczyæ wszystkie inne wyj±tki rzucane przez któr±kolwiek
+  z~funkcji programu.
+\item[{\it io.hpp}] abstrakcyjna klasa deskryptora plików oraz metody
+  ustawiaj±ce deskryptory w~stan nieblokuj±cy.
+\item[{\it main.cpp}] funkcja {\tt main()} programu.  Tworzy kilka
+  modu³ów i~uruchamia rdzeñ.
+\item[{\it netio.cpp}, {\it netio.hpp}] implementacja warstwy
+  komunikacji sieciowej.  Pliki definiuj± klasy s³u¿±ce do odbierania
+  i~wysy³ania datagramów UDP, nas³uchiwania na gnie¼dzie TCP oraz
+  obs³ugi po³±czeñ TCP.
+\item[{\it network.cpp}, {\it network.hpp}] modu³ obs³uguj±cy sieæ.
+  Tutaj w³a¶nie odbierane i~interpretowane s± wszystkie pakiety ze
+  ¶wiata, a~tak¿e wysy³ane komunikaty w~¶wiat.
+\item[{\it ppcp-packets.cpp}, {\it ppcp-packets.hpp}] kilka prostych
+  funkcji do generowania pakietów PPCP.
+\item[{\it ppcp-parser.cpp}, {\it ppcp-parser.hpp}] parser napisany
+  w~oparciu o~parser XML, s³u¿±cy do interpretacji przychodz±cych
+  komunikatów PPCP.
+\item[{\it shared-obj.hpp}] implementacja klasy zachowuj±cej siê jak
+  wska¼nik, która zlicza liczbê referencji do obiektu i~je¿eli
+  osi±gnie ona zero kasuje go.
+\item[{\it signal.hpp}] definicja sygna³u.
+\item[{\it ui.cpp}, {\it ui.hpp}] modu³ interfejsu u¿ytkownika.  Tutaj
+  w³a¶nie u¿ytkownik dowiaduje siê co w~eterze piszczy, a~tak¿e mo¿e
+  wydawaæ polecenia wys³ania jakich¶ wiadomo¶ci.
+\item[{\it unordered-vector.hpp}] klasa nadbudowuj±ca klasê {\tt
+  std::vector}, w~której kolejno¶æ elementów nie jest zachowywana,
+  je¿eli jaki¶ element zostanie skasowany.
+\item[{\it user.cpp}, {\it user.hpp}] definicja klasy przechowuj±cej
+  informacje o~u¿ytkowniku takie jak jego identyfikator czy status.
+\item[{\it vector-queue.hpp}] specjalizacja szablonu {\tt std::queue}
+  zaimplementowana na wektorze, który zachowuje siê jak bufor
+  cykliczny.
+\item[{\it xml-node.cpp}, {\it xml-node.hpp}] definicja struktur
+  umo¿liwiaj±cych przechowywanie ca³ego drzewa XML.
+\item[{\it xml-parser.cpp}, {\it xml-parser.hpp}] parser XML.
+\end{description}
 
 
 
