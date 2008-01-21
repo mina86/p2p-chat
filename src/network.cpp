@@ -1,6 +1,6 @@
 /** \file
  * Network module implementation.
- * $Id: network.cpp,v 1.29 2008/01/18 22:47:04 mina86 Exp $
+ * $Id: network.cpp,v 1.30 2008/01/21 17:36:43 mina86 Exp $
  */
 
 #include <assert.h>
@@ -327,20 +327,32 @@ private:
  */
 struct NetworkUsersList : sig::UsersListData {
 	/**
+	 * Constructor.
+	 * \param our our user.
+	 */
+	NetworkUsersList(const User &our) : sig::UsersListData(our) { }
+
+	/**
+	 * Constructor.
+	 * \param nick our user's nick name.
+	 * \param port our TCP listening port.
+	 */
+	NetworkUsersList(const std::string &nick, Port port)
+		: sig::UsersListData(nick, port) { }
+
+	/**
 	 * Deletes all users in users map knowing that they are really
 	 * NetworkUser objects not User objects.
 	 */
 	virtual ~NetworkUsersList() {
-		if (users.empty()) {
-			return;
+		if (!users.empty()) {
+			std::map<User::ID, User *>::iterator it = users.begin();
+			std::map<User::ID, User *>::iterator end = users.end();
+			do {
+				delete static_cast<NetworkUser*>(it->second);
+			} while (++it != end);
+			users.clear();
 		}
-
-		std::map<User::ID, User *>::iterator it = users.begin();
-		std::map<User::ID, User *>::iterator end = users.end();
-		for (; it != end; ++it) {
-			delete static_cast<NetworkUser*>(it->second);
-		}
-		users.clear();
 	}
 };
 
@@ -361,7 +373,7 @@ Network::Network(Core &c, Address addr, const std::string &nick)
 	  missedTicks(0),
 #endif
 	  lastStatus(Core::getTicks()),
-	  users(new sig::UsersListData(nick, tcpListeningSocket->address.port)),
+	  users(new NetworkUsersList(nick, tcpListeningSocket->address.port)),
 	  ourUser(users->ourUser) {
 	sendSignal("/net/conn/connected", "/ui/", users.get());
 }
@@ -602,6 +614,14 @@ void Network::recievedSignal(const Signal &sig) {
 
 	} else if (sig.getType() == "/net/msg/send") {
 		const sig::MessageData &data = *sig.getData<sig::MessageData>();
+		if (data.flags & sig::MessageData::VALIDATE &&
+		    users->users.find(data.id) == users->users.end()) {
+			sendSignal("/ui/msg/info", sig.getSender(), 
+			           data.id.toString() + 
+			           " not connected, message not sent.");
+			return;
+		}
+
 		send(data.id,
 		     data.flags & sig::MessageData::RAW ? data.data : ppcp::m(data),
 		     data.flags & sig::MessageData::ALLOW_UDP);
