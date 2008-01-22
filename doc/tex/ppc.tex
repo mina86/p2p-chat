@@ -1,6 +1,6 @@
 %%
 %% Application documentation.
-%% $Id: ppc.tex,v 1.2 2008/01/21 03:42:48 mina86 Exp $
+%% $Id: ppc.tex,v 1.3 2008/01/22 20:20:41 mina86 Exp $
 %%
 
 \documentclass[a4paper,10pt,oneside]{report}
@@ -329,7 +329,8 @@ klasa modu³u sieci oraz jedna klasa interfejsu u¿ytkownika.
 
 \subsection{Pliki}
 
-Oto opis poszczególnych plików ¼ród³owych programu:
+Oto opis poszczególnych plików ¼ród³owych programu znajduj±cych siê
+w~katalogu {\tt src}:
 
 \begin{description}
 \item[{\it application.cpp}, {\it application.hpp}] definicja
@@ -379,6 +380,96 @@ Oto opis poszczególnych plików ¼ród³owych programu:
 \item[{\it xml-parser.cpp}, {\it xml-parser.hpp}] parser XML.
 \end{description}
 
+
+\section{Testowanie}
+
+
+\subsection{Komponenty sk³adowe}
+
+Programy u¿ywane do~testowania przeró¿nych komponentów aplikacji
+znajduj± siê w~katalogu {\tt src/tests}.  S± to, w~kolejno¶ci
+alfabetycznej:
+
+\paragraph{\tt multicst.c}
+
+Program, który korzystaj±c z~funkcji systemowych tworzy gniazdo UDP
+i~rejestruje je~w~grupie multicastowej podanej jako argument.
+Dzia³anie programu sprowadza siê do~odczytywania danych
+ze~standardowego wej¶cia i~wysy³anie ich do~grupy multicastowej.
+Podanie programowani prze³±cznika {\tt -l} powoduje wyzerowanie
+atrybutu IP\_MULTICAST\_LOOP gniazda.  Po~uruchomieniu kilku takich
+programów mo¿na testowaæ czy dane s± poprawnie transmitowane pomiêdzy
+nas³uchuj±cymi gniazdami oraz co~tak naprawdê powoduje flaga
+IP\_MULTICAST\_LOOP.
+
+\paragraph{\tt netio-multicast.cpp}
+
+Jest programem analogicznym do~{\tt multicast.c}, ale zamiast
+korzystaæ bezpo¶rednio z~funkcji systemowych s³u¿±cych do~tworzenia
+gniazda korzysta z~biblioteki netio stworzonej na~potrzeby projektu.
+
+\paragraph{\tt netio-tcp.cpp}
+
+Program s³u¿±cy do~testowania poprawno¶ci implementacji komunikacji TCP
+w~bibliotece netio.  Mo¿e dzia³aæ albo jako serwer albo jako klient.
+Serwer rozsy³a dane odczytane ze~standardowego wej¶cia do~wszystkich
+po³±czonych klientów, a~klienci wysy³aj± dane odczytane
+ze~standardowego wej¶cia do~serwera.
+
+\paragraph{\tt netio-udp.cpp}
+
+Program s³u¿±cy do~testowania poprawno¶ci implementacji komunikacji
+UDP w~bibliotece netio.  Mo¿e dzia³aæ albo jako serwer (i wówczas
+nas³uchuje na~przychodz±ce datagramy UDP) albo jako klient (i wówczas
+odczytuje dane ze~standardowego wej¶cia i~wysy³a je~do~serwera).
+
+\paragraph{\tt select-test.c}
+
+Jest {\it poligonem do¶wiadczalnym} do~testowania zachowania funkcji
+{\tt select()} oraz {\tt pselect()}.  Nie robi zbyt wiele
+po¿ytecznych rzeczy---jedynie wypisuje dane wczytane ze~standardowego
+wej¶cia, co~piêæ sekund wypisuje {\tt tick} oraz wypisuje ¶mieszne
+komunikaty, gdy do~programu zostanie dostarczony sygna³.
+Do¶wiadczenia zebrane w~trakcie testowania tych funkcji pos³u¿y³y
+pó¼niej do~zaimplementowania metody {\tt Core::run()} odpowiedzialnej
+za~odpytywanie deskryptorów plików i~przechwytywanie sygna³ów.
+
+\paragraph{{\tt shared-obj.cpp} oraz {\tt vector-queue.cpp}}
+
+Programy testuj±ce dzia³anie klas {\tt shared\_obj} (zliczaj±cej
+referencjê do~wskazywanego obiektu) oraz {\tt std::vector<T,
+  std::vector<T>>} zaimplementowanych na~potrzeby projektu.
+
+\paragraph{\tt write-utf8.cpp}
+
+Prosty program, który wczytan± liczbê 32-bitow± zapisuje zgodnie
+z~zasadami definiowanymi przez kodowanie UTF-8.  (Program nie
+sprawdza, czy podany kod jest prawid³owym znakiem unicode, wiêc na
+wyj¶ciu mog± pojawiæ siê niew³a¶ciwe sekwencjê bajtów.)  Analiza
+wyników dzia³ania tego programu pozwala sprawdzaæ, czy funkcja
+konwertuj±ca encje numeryczne na znak wykorzystywana w~programie
+dzia³a poprawnie.
+
+\paragraph{\tt xml-parser.cpp}
+
+Program, który odczytuje ze standardowego wej¶cia ci±g znaków,
+a~nastêpnie {\it karmi} nim parser XML, którego wyj¶cie wykorzystywane
+jest jako wej¶cie dla obiektowego parsera oraz parsera pakietów PPCP.
+Analiza tokenów czy {\it zdarzeñ} generowanych przez te trzy parsery
+umo¿liwia wyszukiwanie b³êdów w~którymkolwiek z~nich.
+
+\subsection{Klient}
+
+W~pierwszej fazie, klient by³ testowany na jednym komputerze.  Etap
+ten pozwoli³ wykryæ kilka (do¶æ ma³o istotnych, ale jednak) dziur przy
+obs³udze po³±czeñ TCP, a~tak¿e parserze XML.  Rêczne testowanie na
+pojedynczej maszynie okaza³o siê idealnym rozwi±zaniem do dodawania
+nowych funkcji programu i~ulepszaniu istniej±cych.
+
+Dopiero, gdy program uzyska³ stabilno¶æ (a sta³o siê to zadziwiaj±co
+szybko!) zosta³y przeprowadzone testy na dwóch ró¿nych komputerach.
+Program zachowywa³ siê zgodnie z~oczekiwaniami, tzn. umo¿liwia³ zmianê
+statusu oraz prowadzenie rozmów.
 
 
 \end{document}
