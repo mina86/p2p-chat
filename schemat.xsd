@@ -3,16 +3,11 @@
 xmlns="http://waw.er.pl/ppcp/default">
 
   <xsd:element name="ppcp">
-    <xsd:complexType>
+    <xsd:complexType mixed="true">
 
-      <xsd:attribute name="n" type="xsd:string" use="required"/>
-      <xsd:attribute name="ton" type="xsd:string" use="optional"/>
-      <xsd:attribute name="toneg" type="xsd:boolean" use="optional"/>
-      <xsd:attribute name="p" type="xsd:integer" use="required"/>
+      <xsd:sequence minOccurs="0" maxOccurs="unbounded">
 
-      <xsd:sequence>
-
-        <xsd:element name="st" minOccurs="0" maxOccurs="1">
+        <xsd:element name="st" minOccurs="0">
           <xsd:complexType>
             <xsd:simpleContent>
               <xsd:extension base="xsd:string">
@@ -33,7 +28,7 @@ xmlns="http://waw.er.pl/ppcp/default">
           </xsd:complexType>
         </xsd:element>
 
-        <xsd:element name="st" minOccurs="0" maxOccurs="1">
+        <xsd:element name="rq" minOccurs="0">
           <xsd:complexType>
             <xsd:simpleContent>
               <xsd:extension base="xsd:string">
@@ -49,7 +44,7 @@ xmlns="http://waw.er.pl/ppcp/default">
           </xsd:complexType>
         </xsd:element>
 
-        <xsd:element name="m" minOccurs="0" maxOccurs="1">
+        <xsd:element name="m" minOccurs="0">
           <xsd:complexType>
             <xsd:simpleContent>
               <xsd:extension base="xsd:string">
@@ -60,6 +55,11 @@ xmlns="http://waw.er.pl/ppcp/default">
           </xsd:complexType>
         </xsd:element>
       </xsd:sequence>
+
+      <xsd:attribute name="n" type="xsd:string" use="required"/>
+      <xsd:attribute name="ton" type="xsd:string" use="optional"/>
+      <xsd:attribute name="toneg" type="xsd:boolean" use="optional"/>
+      <xsd:attribute name="p" type="xsd:integer" use="required"/>
 
     </xsd:complexType>
   </xsd:element>
