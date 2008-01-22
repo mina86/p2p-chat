@@ -13,7 +13,7 @@ st element:
   it's data is status message
 
 rq element:
-  no attribtues, no elements, no text
+  rq      optional, only possible value is "st"
 
 m element:
   ac      optional, bool attribute, if true it's an action
