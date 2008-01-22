@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.28 2008/01/22 09:45:49 mina86 Exp $
+ * $Id: ui.cpp,v 1.29 2008/01/22 10:37:22 mco Exp $
  */
 
 #include <errno.h>
@@ -63,12 +63,6 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	   signals */
 	sendSignal("/net/conn/are-you-connected", "/net/");
 	messageW->printf("Hello from User Interface on fd=%d\n", infd);
-	messageW->printf("Enter: %d, %d, %d\n", '\n', '\r', KEY_ENTER);
-	messageW->printf("backspace, delchar, erasechar: %d, %d, %d, \n",
-	                 KEY_BACKSPACE, KEY_DC, erasechar());
-	messageW->printf("UP, DOWN, LEFT, RIGHT: %d %d %d %d\n",
-	                 KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
-	wprintw(statusW, "W trakcie tworzenia");
 	wnoutrefresh(stdscr);
 	messageW->refresh();
 	wnoutrefresh(statusW);
@@ -206,11 +200,6 @@ bool UI::isActiveUI() const {
 void UI::handleCharacter(int c) {
 	std::list<std::string>::iterator tmpHistoryIterator;
 
-	mvwprintw(statusW, 0, 0, "Entered character: [O:%o] [D:%d] [H:%x]", c, c, c);
-	wclrtoeol(statusW);
-	wnoutrefresh(statusW);
-	doupdate();
-
 	switch(c) {
 		/* tab key */
 	case '\t':
@@ -309,13 +298,6 @@ void UI::handleCharacter(int c) {
 		break;
 
 	default:
-		if(commandCurPos == maxX) {
-			mvwprintw(statusW, 0, 0, "No ziomal, krutsze som te polecenia Yo");
-			wclrtoeol(statusW);
-			wnoutrefresh(statusW);
-			doupdate();
-			break;
-		}
 		if(historyIterator != history.begin()) {
 			*history.begin() = *historyIterator;
 			historyIterator = history.begin();
@@ -343,8 +325,14 @@ void UI::handleCommand(const std::string &command) {
 	}
 
 	std::string data(command, pos.first, len);
+
+	if (len == 1 && data == "/") {
+		pos.first += 2;
+		goto chatmsg;
+	}
+
 	if (command[pos.first] != '/') {
-		pos.second = pos.first;
+	chatmsg:
 		if (! chatNetwork.length()) {
 			messageW->printf("Message not sent, use /chat or /msg command\n");
 			messageW->refresh();
@@ -438,7 +426,7 @@ void UI::handleCommand(const std::string &command) {
 		}
 	}
 
-	if (len == 1 || (len == 4 && data == "/msg") ||
+	if ((len == 4 && data == "/msg") ||
 	    (len == 3 && data == "/me")) {
 		/* if len == 0 then data == "/" */
 
@@ -674,19 +662,40 @@ void UI::handleSigStatusChanged(const std::string &network,
  * --------------------------------------------------------------------------
  */
 
-void UI::Window::redraw() {
-	mvwaddstr(wp, cY, 0, ui->historyIterator->c_str());
-	wclrtoeol(wp);
-	wmove(wp, cY, ui->commandCurPos);
-	wnoutrefresh(wp);
-	doupdate();
-}
-
 void UI::Window::refresh(int update) {
 	wnoutrefresh(wp);
 	if (update) {
 		doupdate();
 	}
+}
+
+/*
+ * --------------------------------------------------------------------------
+ *  UI::CommandWindow
+ * --------------------------------------------------------------------------
+ */
+
+void UI::CommandWindow::redraw() {
+	int spacer = 0;
+	int extraChars = 0;
+	if(ui->commandCurPos >= ui->maxX) {
+		spacer = (ui->maxX >> 2) + 1;
+		extraChars = ui->commandCurPos - ui->maxX + 1;
+		displayOffset = (extraChars/spacer);
+		if(extraChars % spacer) {
+			++displayOffset;
+		}
+		displayOffset *= spacer;
+	} else {
+		displayOffset = 0;
+	}
+	mvwaddnstr(wp, cY, 0,
+	           ui->historyIterator->substr(displayOffset).c_str(),
+			   ui->maxX - 1);
+	wclrtoeol(wp);
+	wmove(wp, cY, ui->commandCurPos - displayOffset);
+	wnoutrefresh(wp);
+	doupdate();
 }
 
 /*

@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.16 2008/01/22 09:45:49 mina86 Exp $
+ * $Id: ui.hpp,v 1.17 2008/01/22 10:37:22 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -113,7 +113,6 @@ private:
 	static std::pair<std::string::size_type, std::string::size_type>
 	nextToken(const std::string &str, std::string::size_type pos = 0);
 
-
 	/**
 	 * Commands history buffer.
 	 * First entry is current command buffer.
@@ -122,7 +121,7 @@ private:
 	/** Iterator to edited command. */
 	std::list<std::string>::iterator historyIterator;
 
-	/** Command position. */
+	/** Command cursor position. */
 	unsigned int commandCurPos;
 
 	/** Screen height. */
@@ -131,7 +130,7 @@ private:
 	unsigned maxX;
 
 	/** command window identifier */
-	Window *commandW;
+	CommandWindow *commandW;
 
 	/** status window identifier */
 	WINDOW *statusW;
@@ -155,12 +154,9 @@ private:
 			wp = newwin(nlines, ncols, starty, startx);
 		}
 
-		~Window() {
+		virtual ~Window() {
 			delwin(wp);
 		}
-
-		/** clears the window and writes (part of) command buffer */
-		void redraw();
 
 		/** refreshes window */
 		void refresh(int update = 0);
@@ -189,6 +185,13 @@ private:
 		CommandWindow(UI *assocUI, unsigned lines, unsigned cols,
 		              unsigned starty, unsigned startx)
 			: Window(assocUI, lines, cols, starty, startx) { }
+
+		/** clears the window and writes (part of) command buffer */
+		virtual void redraw();
+
+	private:
+		unsigned int displayOffset;
+
 	};
 
 	struct OutputWindow : Window {
