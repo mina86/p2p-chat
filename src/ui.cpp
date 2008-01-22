@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.29 2008/01/22 10:37:22 mco Exp $
+ * $Id: ui.cpp,v 1.30 2008/01/22 12:22:31 mco Exp $
  */
 
 #include <errno.h>
@@ -47,7 +47,7 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	/* create windows */
 	getmaxyx(stdscr, maxY, maxX);
 	messageW = new OutputWindow( this, maxY-2, maxX,       0, 0);
-	statusW =                  newwin(      1, maxX, maxY- 2, 0);
+	statusW =  new OutputWindow( this,      2, maxX, maxY- 2, 0);
 	commandW = new CommandWindow(this,      1, maxX, maxY- 1, 0);
 
 	keypad(stdscr, true);
@@ -65,16 +65,15 @@ UI::UI(Core &c, int infd /* some more arguments */)
 	messageW->printf("Hello from User Interface on fd=%d\n", infd);
 	wnoutrefresh(stdscr);
 	messageW->refresh();
-	wnoutrefresh(statusW);
-	commandW->refresh();
-	doupdate();
+	statusW->refresh();
+	commandW->refresh(1);
 }
 
 
 UI::~UI() {
 	/* destroy windows */
 	delete messageW;
-	delwin(statusW);
+	delete statusW;
 	delete commandW;
 
 	/* whatever needed */
@@ -110,7 +109,11 @@ int UI::doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 		return -1;
 	}
 
-	handleCharacter(c);
+	if(completionModeActive) {
+		handleCompletionCharacter(c);
+	} else {
+		handleCharacter(c);
+	}
 	return 1;
 }
 
@@ -122,7 +125,7 @@ void UI::recievedSignal(const Signal &sig) {
 
 	} else if (sig.getType() == "/net/status/changed") {
 		/* a user have changed status or display name or have just
-		   connected ot it have jsut disconnected, it's all in data.
+		   connected ot it have just disconnected, it's all in data.
 		   You may (shoul) identify network which sent information by
 		   sig.getSender(). */
 		handleSigStatusChanged(sig.getSender(),
@@ -201,13 +204,6 @@ void UI::handleCharacter(int c) {
 	std::list<std::string>::iterator tmpHistoryIterator;
 
 	switch(c) {
-		/* tab key */
-	case '\t':
-		mvwprintw(statusW, 0, 0, "TAB-completion not supported, donations welcome");
-		wclrtoeol(statusW);
-		wnoutrefresh(statusW);
-		doupdate();
-		break;
 		/* enter key */
 	case '\n':
 	case '\r':
@@ -310,15 +306,98 @@ void UI::handleCharacter(int c) {
 	commandW->redraw();
 }
 
+void UI::handleCompletionCharacter(int c) {
+	std::list<std::string>::iterator tmpHistoryIterator;
+
+	switch(c) {
+		/* enter key */
+	case '\n':
+	case '\r':
+	case KEY_ENTER:
+		handleCompletionCommand(*history.begin());
+		messageW->refresh();
+		history.begin()->clear();
+		historyIterator = history.begin();
+		commandCurPos = 0;
+		break;
+
+		/* backspace key */
+	case 0x07:
+	case 0x08:
+	case KEY_BACKSPACE:
+		if(historyIterator != history.begin()) {
+			*history.begin() = *historyIterator;
+			historyIterator = history.begin();
+		}
+		if(commandCurPos > 0 && commandCurPos <= historyIterator->length()) {
+			historyIterator->erase(commandCurPos-1, 1);
+			--commandCurPos;
+		}
+		break;
+
+		/* delete key */
+	case 0x04:
+	case KEY_DC:
+		if(commandCurPos < historyIterator->length()) {
+			historyIterator->erase(commandCurPos, 1);
+		}
+		break;
+
+	case 0x02:
+	case KEY_LEFT:
+		if(commandCurPos>0) {
+			--commandCurPos;
+		}
+		break;
+
+	case 0x06:
+	case KEY_RIGHT:
+		if(commandCurPos < historyIterator->size()) {
+			++commandCurPos;
+		}
+		break;
+
+	case 0x01:
+	case KEY_HOME:
+		commandCurPos = 0;
+		break;
+
+	case 0x05:
+	case KEY_END:
+		commandCurPos = historyIterator->size();
+		break;
+
+	case '#':
+		completionModeLeave(false);
+		break;
+
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		if(historyIterator != history.begin()) {
+			*history.begin() = *historyIterator;
+			historyIterator = history.begin();
+		}
+		historyIterator->insert(commandCurPos, 1, c);
+		++commandCurPos;
+		break;
+	}
+
+	commandW->redraw();
+}
+
 void UI::handleCommand(const std::string &command) {
 
 	std::pair<std::string::size_type, std::string::size_type> pos
 		= nextToken(command);
 	std::string::size_type len = pos.second - pos.first;
-
-	/*
-	messageW->printf("UI::handleCommand(%s)\n", command.data());
-	*/
 
 	if (!len) {
 		return;
@@ -326,7 +405,7 @@ void UI::handleCommand(const std::string &command) {
 
 	std::string data(command, pos.first, len);
 
-	if (len == 1 && data == "/") {
+	if (len == 1 && data == "/" && command.length() > 2) {
 		pos.first += 2;
 		goto chatmsg;
 	}
@@ -395,35 +474,40 @@ void UI::handleCommand(const std::string &command) {
 			                chatUser.toString().c_str(),
 							chatNetwork.c_str());
 			chatNetwork.clear();
-			messageW->refresh();
+			statusW->printf("\n");
+			statusW->refresh();
 			return;
 		}
 
 		std::string userString(command, pos.first, pos.second-pos.first);
 
-		std::multimap< std::string, User* > usersfound;
 		std::multimap< std::string, User* >::iterator it;
-		findUsers(userString, usersfound);
+		findUsers(userString);
 
-		if(usersfound.size() == 0) {
+		if(usersFound.size() == 0) {
 			messageW->printf("No users match to '%s', try /names command.\n", userString.c_str());
-		} else if(usersfound.size() > 1) {
+		} else if(usersFound.size() > 1) {
 			int iii;
 			messageW->printf("Ambiguous user '%s', possible matches:\n",
 			                 userString.c_str());
-			for(iii=0, it=usersfound.begin(); it!=usersfound.end(); ++iii, ++it) {
+			for(iii=1, it=usersFound.begin(); it!=usersFound.end(); ++iii, ++it) {
 				messageW->printf("[#%d] %s\n", iii, it->second->id.toString().c_str());
 			}
+			completionModeEnter();
 		} else {
 
-			it = usersfound.begin();
+			it = usersFound.begin();
 			chatUser = it->second->id;
 			chatNetwork = it->first;
 			messageW->printf("Chatting with %s (network %s)\n",
 			                 chatUser.toString().c_str(),
 							 chatNetwork.c_str());
-			messageW->refresh();
+			statusW->printf("Chatting with %s (network %s)\n",
+			                 chatUser.toString().c_str(),
+							 chatNetwork.c_str());
+			statusW->refresh();
 		}
+		messageW->refresh();
 	}
 
 	if ((len == 4 && data == "/msg") ||
@@ -445,22 +529,22 @@ void UI::handleCommand(const std::string &command) {
 		}
 		std::string msgString(command, pos.first, pos.second-pos.first);
 
-		std::multimap< std::string, User* > usersfound;
 		std::multimap< std::string, User* >::iterator it;
-		findUsers(userString, usersfound);
+		findUsers(userString);
 
-		if(usersfound.size() == 0) {
+		if(usersFound.size() == 0) {
 			messageW->printf("No users match to '%s', try /names command.\n", userString.c_str());
-		} else if(usersfound.size() > 1) {
+		} else if(usersFound.size() > 1) {
 			int iii;
 			messageW->printf("Ambiguous user '%s', possible matches:\n",
 			                 userString.c_str());
-			for(iii=0, it=usersfound.begin(); it!=usersfound.end(); ++iii, ++it) {
+			for(iii=1, it=usersFound.begin(); it!=usersFound.end(); ++iii, ++it) {
 				messageW->printf("[#%d] %s\n", iii, it->second->id.toString().c_str());
 			}
+			completionModeEnter();
 		} else {
 
-			it = usersfound.begin();
+			it = usersFound.begin();
 			std::string net = it->first;
 			sendSignal("/net/msg/send", net,
 			           new sig::MessageData(it->second->id,
@@ -529,6 +613,30 @@ void UI::handleCommand(const std::string &command) {
 	}
 }
 
+void UI::handleCompletionCommand(const std::string &command) {
+	int i;
+	int num;
+
+	num = atoi(command.c_str());
+
+	if(num < 1 || num > usersFound.size()) {
+		messageW->printf("Wrong number chosen, try again or type '#' "
+		                 "to leave completion list mode\n");
+		messageW->refresh();
+		return;
+	}
+
+	for(i=1, ufit=usersFound.begin(); ufit!=usersFound.end(); ++i, ++ufit) {
+		if(i == num) {
+			completionModeLeave(true);
+			return;
+		}
+	}
+	messageW->printf("Unable to find user!\n");
+	messageW->refresh();
+	completionModeLeave(false);
+}
+
 std::pair<std::string::size_type, std::string::size_type>
 UI::nextToken(const std::string &str, std::string::size_type pos) {
 	std::string::size_type start, end = std::string::npos;
@@ -584,22 +692,26 @@ std::string UI::ourUserName(const std::string &network) {
 
 
 
-int UI::findUsers(const std::string &uri, std::multimap< std::string, User* > &map) {
+int UI::findUsers(const std::string &uri) {
 
 	std::string::size_type len = uri.length();
+	/* iterator over networks in networkUsers map */
 	std::map<std::string,shared_obj<sig::UsersListData> >::iterator nuit;
+	/* iterator over users in particular network */
 	std::map<User::ID, User *>::iterator uit;
+
+	usersFound.clear();
 	for(nuit=networkUsers.begin(); nuit!=networkUsers.end(); ++nuit) {
 		for(uit=nuit->second->users.begin();
 			uit!=nuit->second->users.end();
 			++uit) {
 			if(uit->first.toString().compare(0, len, uri) == 0) {
-				map.insert(std::make_pair(nuit->first, uit->second));
+				usersFound.insert(std::make_pair(nuit->first, uit->second));
 			}
 		}
 	}
 
-	return map.size();
+	return usersFound.size();
 }
 
 bool UI::userExists(const User::ID &user, const std::string &network) {

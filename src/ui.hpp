@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.17 2008/01/22 10:37:22 mco Exp $
+ * $Id: ui.hpp,v 1.18 2008/01/22 12:22:31 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -68,12 +68,10 @@ private:
 	/**
 	 * Finds user by given URI
 	 * \param uri user uri (or starting part of it)
-	 * \param up array of pointers to User
-	 * \param n find at most that many users
 	 * \return number of users found (it could be more than n)
 	 */
 	/* FIXME: fix documentation */
-	int findUsers(const std::string &uri, std::multimap< std::string, User* > &map);
+	int findUsers(const std::string &uri);
 
 	/*
 	 * Checks wheter specified user exists in specified network
@@ -87,10 +85,24 @@ private:
 	void handleCharacter(int c);
 
 	/**
+	 * Handles every single character received from user
+	 * Used in completion list mode
+	 * \param c character received
+	 */
+	void handleCompletionCharacter(int c);
+
+	/**
 	 * Handles a command user enterd.
 	 * \param command command user entered.
 	 */
 	void handleCommand(const std::string &command);
+
+	/**
+	 * Handles a command user enterd.
+	 * Used in completion list mode
+	 * \param command command user entered.
+	 */
+	void handleCompletionCommand(const std::string &command);
 
 	/**
 	 * Handles \c /net/status/changed signal.
@@ -100,6 +112,31 @@ private:
 	void handleSigStatusChanged(const std::string &network,
 	                            const sig::UserData &data);
 
+
+	/** Enters completion list mode */
+	void completionModeEnter() {
+		completionModeActive = true;
+	}
+
+	/**
+	 * Leaves completion mode
+	 * \param success was the completion successful or not?
+	 */
+	void completionModeLeave(bool success) {
+		completionModeActive = false;
+		if(success) {
+			/* replay last command with supplied user */
+			/* our history iterator */
+			std::list<std::string>::iterator hit = history.begin();
+			std::string newcommand(*(++hit));
+			std::pair<std::string::size_type, std::string::size_type> pos;
+			pos = nextToken(newcommand);
+			pos = nextToken(newcommand, pos.second);
+			newcommand.replace(pos.first, pos.second-pos.first,
+			                   ufit->second->id.toString());
+			handleCommand(newcommand);
+		}
+	}
 
 	/**
 	 * Returns a next string token from given string at given
@@ -133,10 +170,23 @@ private:
 	CommandWindow *commandW;
 
 	/** status window identifier */
-	WINDOW *statusW;
+	OutputWindow *statusW;
 
 	/** message window identifier */
 	OutputWindow *messageW;
+
+    /**
+     * Map which contains found users in last findUsers run
+     */
+    std::multimap< std::string, User* > usersFound;
+    /**
+     * Iterator over map containing found users in last findUsers run,
+	 * pointing to user selection (completion list feature)
+     */
+	std::multimap< std::string, User* >::iterator ufit;
+
+	/** are we in completion list mode */
+	bool completionModeActive;
 
 	/**
 	 * ID and network of a user we are chatting with (set with /chat command).
