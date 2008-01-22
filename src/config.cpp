@@ -1,6 +1,6 @@
 /** \file
  * Config structure implementation.
- * $Id: config.cpp,v 1.7 2008/01/21 02:18:25 mina86 Exp $
+ * $Id: config.cpp,v 1.8 2008/01/22 20:56:34 jwawer Exp $
  */
 
 #include <errno.h>
@@ -20,7 +20,7 @@ namespace ppc {
 
 const std::string& Config::getString(const std::string &path,
                                      const std::string &def) const {
-	std::string::size_type index = path.find('#');
+	std::string::size_type index = path.find('@');
 	xml::ElementNode *node =
 		root.findNode(index == std::string::npos
 		              ? path : std::string(path, 0, index));
@@ -80,7 +80,7 @@ double  Config::getReal(const std::string &path, double def) const {
 /* Methods to set config values */
 
 void Config::setString(const std::string &path, const std::string &val) {
-	size_t index = path.find_first_of("#");
+	size_t index = path.find_first_of("@");
 	std::string nodePath = path.substr(0, index);
 	std::string attr;
 	if(index != std::string::npos){

@@ -1,6 +1,6 @@
 /** \file
  * Config structure definition.
- * $Id: config.hpp,v 1.8 2008/01/21 02:18:25 mina86 Exp $
+ * $Id: config.hpp,v 1.9 2008/01/22 20:56:35 jwawer Exp $
  */
 
 #ifndef H_CONFIG_HPP
@@ -103,7 +103,7 @@ struct Config {
 	 * Sets value (CData) or attribute of element from string.
 	 * Creates element if it doesn't exist before.
 	 * \param path path to element we want to get (e.g. /foo/bar to
-	 *        set bar cdata and /foo/bar#atr to set attribute atr
+	 *        set bar cdata and /foo/bar@atr to set attribute atr
 	 *        value).
 	 * \param val value to set.
 	 */
@@ -133,7 +133,7 @@ struct Config {
 	 * Sets value (CData) or attribute of element from double.
 	 * Creates element if it doesn't exist before.
 	 * \param path path to element we want to get (e.g. /foo/bar to
-	 *        set bar cdata and /foo/bar#atr to set attribute atr
+	 *        set bar cdata and /foo/bar@atr to set attribute atr
 	 *        value).
 	 * \param val value to set.
 	 */
@@ -163,7 +163,7 @@ private:
 struct ConfigFile : public Config {
 
 	/** Constructor. */
-	ConfigFile() : autoSave(false) {}
+	ConfigFile() {}
 
 	/**
 	 * Constructor which set configuration file name.  It
@@ -172,7 +172,7 @@ struct ConfigFile : public Config {
 	 * \param fileName name of file with configuration
 	 */
 	ConfigFile(const std::string& fileName)
-		: configFile(fileName), autoSave(autoSave) {
+		: configFile(fileName) {
 		loadConfig();
 	}
 
@@ -214,32 +214,9 @@ struct ConfigFile : public Config {
 	 */
 	int saveConfig(const std::string& fileName);
 
-	/**
-	 * Changes value of automating configuration option.
-	 * If it's true configuration is saved to file after
-	 * every change of configuration parametr.
-	 * \param value to set
-	 */
-	void setAutoSave(bool set) {
-		autoSave = set;
-	}
-
-	/**
-	 * Checks value of automating configuration option.
-	 * If it's true configuration is saved to file after
-	 * every change of configuration parametr.
-	 * \return present value
-	 */
-	bool getAutoSave() const {
-		return autoSave;
-	}
-
-
 private:
 	/** Name of configuragtion file loaded the last time. */
 	std::string configFile;
-	/** Variable to turn on and off autosaving. */
-	bool autoSave;
 };
 
 }

@@ -197,14 +197,14 @@ struct ElementNode : public Node {
 
 	/**
 	 * Finds node in tree.
-	 * \param path path to node (e.g. /foo/bar ).
+	 * \param path path to node (e.g. /foo/bar or foo/bar ).
 	 * \return pointer to founded node or 0.
 	 */
 	ElementNode* findNode(const std::string &path);
 
 	/**
 	 * Finds node in tree.  Creates it when if it doesn't exist.
-	 * \param path path to node (e.g. /foo/bar ).
+	 * \param path path to node (e.g. /foo/bar or foo/bar ).
 	 * \return pointer to founded node.
 	 */
 	ElementNode* modifyNode(const std::string &path);
