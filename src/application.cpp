@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.27 2008/01/17 11:31:36 mina86 Exp $
+ * $Id: application.cpp,v 1.28 2008/01/22 09:45:49 mina86 Exp $
  */
 
 #include <assert.h>
@@ -15,6 +15,12 @@
 #define PPC_CORE_DEBUG_SIGNALS 0
 
 namespace ppc {
+
+
+bool Module::isActiveUI() const {
+	return false;
+}
+
 
 
 char sharedBuffer[1024];
@@ -295,9 +301,7 @@ bool Core::addModule(Module &module) {
 	std::pair<Modules::iterator, bool> ret =
 		modules.insert(std::make_pair(module.moduleName, &module));
 	if (ret.second) {
-		ui_modules += module.moduleName.length() > 4 &&
-			!memcmp(module.moduleName.data(), "/ui/", 4);
-
+		ui_modules += module.isActiveUI();
 		module.dieDueTime = std::numeric_limits<unsigned long>::max();
 		module.prevToKill = module.nextToKill = 0;
 
@@ -378,11 +382,12 @@ void Core::removeModule(const std::string &name) {
 		it->second->nextToKill->prevToKill = it->second->prevToKill;
 	}
 
+	const bool active = it->second->isActiveUI();
 	delete it->second;
 	modules.erase(it);
 	sendSignal("/core/module/removed", "/", name);
 
-	if (name.length()>4 && !memcmp(name.data(), "/ui/", 4) && !--ui_modules) {
+	if (active && !--ui_modules) {
 		killModules("/");
 	}
 }

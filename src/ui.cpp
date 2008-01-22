@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.27 2008/01/21 23:37:12 mina86 Exp $
+ * $Id: ui.cpp,v 1.28 2008/01/22 09:45:49 mina86 Exp $
  */
 
 #include <errno.h>
@@ -197,6 +197,11 @@ void UI::recievedSignal(const Signal &sig) {
 
 	}
 }
+
+bool UI::isActiveUI() const {
+	return true;
+}
+
 
 void UI::handleCharacter(int c) {
 	std::list<std::string>::iterator tmpHistoryIterator;

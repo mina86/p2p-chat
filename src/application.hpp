@@ -1,6 +1,6 @@
 /** \file
  * Basic modules definitions.
- * $Id: application.hpp,v 1.17 2008/01/13 13:31:09 mina86 Exp $
+ * $Id: application.hpp,v 1.18 2008/01/22 09:45:49 mina86 Exp $
  */
 
 #ifndef H_APPLICATION_HPP
@@ -104,6 +104,14 @@ struct Module {
 	 * \param sig delivered signal.
 	 */
 	virtual void recievedSignal(const Signal &sig) = 0;
+
+
+	/**
+	 * Returns \c true iff this module is to be considered an
+	 * "active" user interface module.  If all active user
+	 * interfaces exit whole application will stop.
+	 */
+	virtual bool isActiveUI() const;
 
 
 	/**

@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.15 2008/01/21 20:03:54 mco Exp $
+ * $Id: ui.hpp,v 1.16 2008/01/22 09:45:49 mina86 Exp $
  */
 
 #ifndef H_UI_HPP
@@ -33,6 +33,7 @@ struct UI : public Module {
 	virtual int doFDs(int nfds, const fd_set *rd, const fd_set *wr,
 	                  const fd_set *ex);
 	virtual void recievedSignal(const Signal &sig);
+	virtual bool isActiveUI() const;
 
 
 private:
