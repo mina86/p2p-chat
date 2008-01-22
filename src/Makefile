@@ -1,10 +1,10 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.11 2008/01/20 16:53:54 mina86 Exp $
+## $Id: Makefile,v 1.12 2008/01/22 09:21:15 mina86 Exp $
 ##
 
 #CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
-CXXFLAGS	+= -fno-enforce-eh-specs -fno-threadsafe-statics
+#CXXFLAGS	+= -fno-enforce-eh-specs -fno-threadsafe-statics
 CXXFLAGS	+= -g
 
 LDFLAGS		:= -lncurses

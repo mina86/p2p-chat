@@ -1,6 +1,6 @@
 /** \file
  * Main file.
- * $Id: main.cpp,v 1.5 2008/01/17 11:31:36 mina86 Exp $
+ * $Id: main.cpp,v 1.6 2008/01/22 09:21:15 mina86 Exp $
  */
 
 #include <errno.h>
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	ppc::Address address(ppc::IP(argv[1]), 0);
+	ppc::Address address = ppc::Address(ppc::IP(argv[1]), 0);
 	if (!address.ip.isMulticast()) {
 		fprintf(stderr, "%s: %s: invalid multicast IP address\n",
 		        argv[0], argv[1]);
