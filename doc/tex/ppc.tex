@@ -1,6 +1,6 @@
 %%
 %% Application documentation.
-%% $Id: ppc.tex,v 1.3 2008/01/22 20:20:41 mina86 Exp $
+%% $Id: ppc.tex,v 1.4 2008/01/23 02:13:43 mco Exp $
 %%
 
 \documentclass[a4paper,10pt,oneside]{report}
@@ -69,6 +69,7 @@
 
 \centerline{\Huge \bf Komunikator internetowy}
 
+\paragraph{Prowadz±cy} mgr in¿. £ukasz Kobyliñski
 \paragraph{Wykonawcy} Micha³ Nazarewicz, Krzysztof Rogala, Maciej
 ¦wiêtochowski, Jaros³aw Wawer; grupa H1I3.
 
@@ -313,7 +314,7 @@ z~szeroko pojêtym u¿ytkownikiem\footnote{Interfejs u¿ytkownika mo¿e
 utrzymywania po³±czenia z~sieci±.  Modu³ów ka¿dego rodzaju mo¿e byæ
 wiele -- identyfikowane s± przez nazwê przypominaj±c± ¶cie¿kê do
 pliku.  Te pierwsze maj± nazwy wewn±trz przestrzeni nazw {\tt /ui/}
-(np. {\tt /ui/mco/00}), a~te drugie wewn±trz przestrzeni nazw {\tt
+(np. {\tt /ui/ncurses/00}), a~te drugie wewn±trz przestrzeni nazw {\tt
   /net/} (np. {\tt /net/ppc/00}); modu³ g³ówny ma nazwê {\tt /core}.
 
 Komunikacja miêdzy modu³ami odbywa siê poprzez rozsy³anie sygna³ów,
@@ -336,7 +337,7 @@ w~katalogu {\tt src}:
 \item[{\it application.cpp}, {\it application.hpp}] definicja
   abstrakcyjnej klasy reprezentuj±cej modu³--{\tt Module} oraz klasy
   {\tt Core} bêd±cej modu³em g³ównym.  Oto w³a¶nie {\it serce} ca³ego
-  programu pompuj±ce sygna³y pomiêdzy modu³ami. :P
+  programu pompuj±ce sygna³y pomiêdzy modu³ami.
 \item[{\it config.cpp}, {\it config.hpp}] definicja klas u³atwiaj±cych
   traktowanie drzewa XML jako pliku konfiguracyjnego.  Udostêpnia
   metody do odczytu i~ustawiania warto¶ci liczbowych, a~nie tylko
@@ -364,7 +365,8 @@ w~katalogu {\tt src}:
   wska¼nik, która zlicza liczbê referencji do obiektu i~je¿eli
   osi±gnie ona zero kasuje go.
 \item[{\it signal.hpp}] definicja sygna³u.
-\item[{\it ui.cpp}, {\it ui.hpp}] modu³ interfejsu u¿ytkownika.  Tutaj
+\item[{\it ui.cpp}, {\it ui.hpp}] modu³ interfejsu u¿ytkownika
+  zrealizowanego przy pomocy biblioteki {\it ncurses}.  Tutaj
   w³a¶nie u¿ytkownik dowiaduje siê co w~eterze piszczy, a~tak¿e mo¿e
   wydawaæ polecenia wys³ania jakich¶ wiadomo¶ci.
 \item[{\it unordered-vector.hpp}] klasa nadbudowuj±ca klasê {\tt
@@ -380,6 +382,26 @@ w~katalogu {\tt src}:
 \item[{\it xml-parser.cpp}, {\it xml-parser.hpp}] parser XML.
 \end{description}
 
+\subsection{Mo¿liwo¶ci rozwoju}
+
+Ze wzglêdu na zastosowan± formê wewnêtrznej komunikacji oraz
+rejestrowania modu³ów mo¿liwe jest pod³±czenie do~rdzenia komponentów
+typu {\it interfejs u¿ytkownika}, pe³ni±cych funkcje rejestrowania
+statystyk, bramki do innego interfejsu graficznego. Kieruj±c~siê
+fantazj± mo¿na wyobraziæ sobie interfejs u¿ytkownika w~postaci
+aplikacji webowej z~baz± danych komunikuj±cy~siê z~rdzeniem np.
+za~pomoc± gniazd Unix, czy tworzenie tzw. transportów do~innych
+komunikatorów. A to wszystko w trakcie dzia³ania
+programu!\footnote{Implementacja obs³ugi tzw. wtyczek w~postaci
+bibliotek ³adowanych dynamicznie daje absolutnie nieograniczone
+mo¿liwo¶ci w dziedzinie interakcji ze wszystkim, co widzia³o komputer}
+
+Równie¿ od strony sieciowej mamy mo¿liwo¶æ kontaktu z~dowoln±
+sieci± za po¶rednictwem dowolnego protoko³u sieciowego (GG, Jabber,
+MSN, Skype - czego dusza zapragnie). Wystarczy {\it jedynie}
+zaimplementowaæ ich obs³ugê w postaci modu³ów naszego programu
+(w praktyce mo¿na opakowaæ obiektowo odpowiedni± bilbiotekê
+wolnodostêpn±) i za³adowaæ taki komponent.
 
 \section{Testowanie}
 
@@ -390,7 +412,7 @@ Programy u¿ywane do~testowania przeró¿nych komponentów aplikacji
 znajduj± siê w~katalogu {\tt src/tests}.  S± to, w~kolejno¶ci
 alfabetycznej:
 
-\paragraph{\tt multicst.c}
+\paragraph{\tt multicast.c}
 
 Program, który korzystaj±c z~funkcji systemowych tworzy gniazdo UDP
 i~rejestruje je~w~grupie multicastowej podanej jako argument.

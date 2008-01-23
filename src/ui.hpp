@@ -1,6 +1,6 @@
 /** \file
  * User interface header file.
- * $Id: ui.hpp,v 1.18 2008/01/22 12:22:31 mco Exp $
+ * $Id: ui.hpp,v 1.19 2008/01/23 02:13:44 mco Exp $
  */
 
 #ifndef H_UI_HPP
@@ -18,7 +18,7 @@ namespace ppc {
 struct UI : public Module {
 	/**
 	 * Craetes new user interface module.  UI modules are named \c
-	 * /ui/mco/number where number is a sequence number starting from
+	 * /ui/ncurses/number where number is a sequence number starting from
 	 * zero.
 	 *
 	 * \param core core module.

@@ -1,6 +1,6 @@
 /** \file
  * User interface implementation.
- * $Id: ui.cpp,v 1.30 2008/01/22 12:22:31 mco Exp $
+ * $Id: ui.cpp,v 1.31 2008/01/23 02:13:43 mco Exp $
  */
 
 #include <errno.h>
@@ -32,7 +32,7 @@ static unsigned long seq = 0;
 
 
 UI::UI(Core &c, int infd /* some more arguments */)
-	: Module(c, "/ui/mco/", seq++), stdin_fd(infd),
+	: Module(c, "/ui/ncurses/", seq++), stdin_fd(infd),
 	chatUser(std::string(), Address()) {
 
 	FileDescriptor::setNonBlocking(infd);
