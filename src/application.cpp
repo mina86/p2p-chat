@@ -1,6 +1,6 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.29 2008/01/23 03:01:09 mina86 Exp $
+ * $Id: application.cpp,v 1.30 2008/01/23 03:16:18 mina86 Exp $
  */
 
 #include <assert.h>
@@ -158,6 +158,7 @@ int Core::run() {
 
 		deliverSignals();
 	}
+	alarm(0);
 
 
 	for (unsigned i=0; i < sizeof signalNumbers/sizeof *signalNumbers; ++i) {
