@@ -1,6 +1,6 @@
 /** \file
  * XML Tree structures implementation.
- * $Id: xml-node.cpp,v 1.6 2008/01/22 20:56:34 jwawer Exp $
+ * $Id: xml-node.cpp,v 1.7 2008/01/23 03:12:54 mina86 Exp $
  */
 
 #include "xml-node.hpp"
@@ -114,9 +114,9 @@ ElementNode* ElementNode::findNode(const std::string& path){
 	ElementNode* node = this;
 	std::string nodeName, tempPath;
 	size_t index;
-	
-	index = path.find_first_of("/"); 
-	if (index = 0){
+
+	index = path.find_first_of("/");
+	if (index == 0){
 		tempPath = path.substr(1);
 		while( node->getParent() ){
 			node = node->getParent();
@@ -124,7 +124,7 @@ ElementNode* ElementNode::findNode(const std::string& path){
 	}
 	else {
 		tempPath = path;
-	}	
+	}
 	while(1){
 		index = tempPath.find_first_of("/");
 		nodeName = tempPath.substr(0, index);
@@ -157,8 +157,8 @@ ElementNode* ElementNode::modifyNode(const std::string& path){
 	ElementNode* node = this;
 	size_t index;
 
-	index = path.find_first_of("/"); 
-	if (index = 0){
+	index = path.find_first_of("/");
+	if (index == 0){
 		tempPath = path.substr(1);
 		while( node->getParent() ){
 			node = node->getParent();
