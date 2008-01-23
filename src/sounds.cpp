@@ -1,6 +1,6 @@
 /** \file
  * An "User interface" module playing sounds.
- * $Id: sounds.cpp,v 1.1 2008/01/23 03:02:45 mina86 Exp $
+ * $Id: sounds.cpp,v 1.2 2008/01/23 03:09:17 mina86 Exp $
  */
 
 #include <sys/types.h>
@@ -35,14 +35,14 @@ void SoundsUI::recievedSignal(const Signal &sig) {
 		const sig::UserData &data = *sig.getData<sig::UserData>();
 		if (!(data.flags & (sig::UserData::CONNECTED | sig::UserData::DISCONNECTED)) &&
 		    data.user.id.address.ip) {
-			playSound(getConfig().getString("sounds/directory", "sounds"),
-			          getConfig().getString("sounds/files/status-changed",
+			playSound(getConfig().getString("config/sounds/directory", "sounds"),
+			          getConfig().getString("config/sounds/files/status-changed",
 			                                "status-changed.wav"));
 		}
 
 	} else if (sig.getType() == "/net/msg/got") {
-		playSound(getConfig().getString("sounds/directory", "sounds"),
-		          getConfig().getString("sounds/files/got-message",
+		playSound(getConfig().getString("config/sounds/directory", "sounds"),
+		          getConfig().getString("config/sounds/files/got-message",
 		                                "got-message.wav"));
 
 	} else if (sig.getType() == "/core/module/quit") {
@@ -57,8 +57,6 @@ void playSound(const std::string &dir, const std::string &file) {
 	std::string path;
 	int fd;
 
-	fprintf(stderr, "%s %s\n", dir.c_str(), file.c_str());
-
 	if (file.empty()) {
 		return;
 	}
@@ -70,8 +68,6 @@ void playSound(const std::string &dir, const std::string &file) {
 		path += '/';
 		path.append(file);
 	}
-
-	fprintf(stderr, "%s\n", path.c_str());
 
 	if (stat(path.c_str(), &buf)<0 || fork()) {
 		return;
