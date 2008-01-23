@@ -1,10 +1,12 @@
 /** \file
  * Core module implementation.
- * $Id: application.cpp,v 1.28 2008/01/22 09:45:49 mina86 Exp $
+ * $Id: application.cpp,v 1.29 2008/01/23 03:01:09 mina86 Exp $
  */
 
 #include <assert.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -266,6 +268,13 @@ void Core::handleUnixSignals() {
 
 	if (sigarr[SIGTERM]) {
 		killModules("/");
+	}
+
+	if (sigarr[SIGCHLD]) {
+		do {
+			::wait(0);
+			--sigarr[0];
+		} while (--sigarr[SIGCHLD]);
 	}
 
 	while (sigarr[0] > 0) {
