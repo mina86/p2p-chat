@@ -1,6 +1,6 @@
 /** \file
  * Main file.
- * $Id: main.cpp,v 1.6 2008/01/22 09:21:15 mina86 Exp $
+ * $Id: main.cpp,v 1.7 2008/01/23 03:02:44 mina86 Exp $
  */
 
 #include <errno.h>
@@ -11,6 +11,7 @@
 #include "config.hpp"
 #include "network.hpp"
 #include "ui.hpp"
+#include "sounds.hpp"
 
 
 /**
@@ -19,6 +20,7 @@
  * \param argv arguments array.
  */
 int main(int argc, char **argv) {
+	int ret;
 
 	if (argc != 4) {
 		fprintf(stderr, "usage: %s <ip-address> <port> <nick>\n", *argv);
@@ -51,9 +53,14 @@ int main(int argc, char **argv) {
 			return 1;
 	}
 
-	struct ppc::Config c;
-	struct ppc::Core core(c);
+	struct ppc::ConfigFile config("ppcrc");;
+	struct ppc::Core core(config);
+
 	core.addModule(*new ppc::Network(core, address, nick));
 	core.addModule(*new ppc::UI(core));
-	return core.run();
+	core.addModule(*new ppc::SoundsUI(core));
+	ret = core.run();
+
+	config.saveConfig();
+	return ret;
 }
