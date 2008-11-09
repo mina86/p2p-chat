@@ -1,6 +1,5 @@
 <ppcp n="mina86" p="12345">
   <comment>XML parser test file.</comment>
-  <id>$Id: data.xml,v 1.3 2008/01/13 21:51:52 mina86 Exp $</id>
   <st st="on">I'm online</st>
   <rq />
   <st/>

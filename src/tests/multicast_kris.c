@@ -23,9 +23,9 @@ int main(int argc, char **argv) {
 	unsigned short group_port; /* this is is network byte order */
 	unsigned long group_ip;    /* this is is network byte order */
 	int fd_send, fd_recv, ret = 1;
-	
+
 	argv0 = argv[0];
-	
+
 	if (argc != 3) {
 		fprintf(stderr, "usage: %s [ -l ] <ip-address> <port>\n", argv0);
 		return 1;
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
 		}
 		group_port = htons(tmp);
 	}
-	
+
 	if ((fd_send = socket(PF_INET, SOCK_DGRAM, 0)) < 0) {
 		return 1;
 	}
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 	if (bind(fd_send, (struct sockaddr *)&addr, sizeof addr) < 0) {
 		return 1;
 	}
-	
+
 	memset(&addr, 0, sizeof addr);
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = INADDR_ANY;
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 /*	if (setsockopt(fd_recv, IPPROTO_IP, IP_MULTICAST_LOOP, &ret, sizeof ret) < 0) {
 		return 1;
 	}*/
-	
+
 	struct ip_mreq mreq;
 	mreq.imr_multiaddr.s_addr = group_ip;
 	mreq.imr_interface.s_addr = inet_addr("10.0.0.1");

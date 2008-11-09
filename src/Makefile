@@ -1,6 +1,5 @@
 ##
 ## Makefile
-## $Id: Makefile,v 1.12 2008/01/22 09:21:15 mina86 Exp $
 ##
 
 #CXXFLAGS	+= -fno-rtti -fno-enforce-eh-specs -fno-threadsafe-statics
