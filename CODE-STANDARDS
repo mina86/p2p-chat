@@ -17,7 +17,8 @@
 
 ** Deklaracji po s³owie namespace nie wcinamy.
 
-* Linie nie powinny mieæ wiêcej ni¿ 78 znaków.
+* Linie nie powinny mieæ wiêcej ni¿ 78 znaków przy za³ó¿eniu, ¿e
+  znak tabulacji ma szeroko¶æ 8 znaków.
 
 * Przy ka¿dej instrukcji z³o¿onej (if, for, while, do) stosujemy
   klamry nawet je¿eli w jej wnêtrzu jest pojedyncza instrukcja, np.:
@@ -50,6 +51,9 @@
 
   i je¿eli zosta³y wygenerowane jakie¶ ostrze¿enia to poprawiamy kod.
 
+  W niektórych przypadkach (szczególnie kod C++) mo¿na pomin±æ
+  -Winline.
+
 * Je¿eli w instrukcji switch przechodzimy z jednego case'a do drugiego
   stosujemy komentarz "FALL THROUGH", np.:
 
@@ -64,6 +68,7 @@
 
     Brak takiego komentarza oraz brak instrukcji break nale¿y
     traktowaæ jak b³±d.
+
 * Staramy siê nie u¿ywaæ s³ówka using.  Wszystkie identyfikatory
   podajemy z pe³nymi modyfikatorami zasiêgu (czy jak to siê tam zwie),
   np. std::string.
