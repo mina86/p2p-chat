@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _POSIX_SOURCE 1
+#define _POSIX_C_SOURCE 199309L
 #define _XOPEN_SOURCE 600
 
 #include <errno.h>

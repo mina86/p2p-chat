@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include <string>
@@ -76,7 +77,7 @@ struct nonint_data {
 
 static void check_size(struct nonint_data &data) {
 	if (data.queue.size() != data.count) {
-		fprintf(stderr, "%lu.%9lu: size %6u, expected %6u\n",
+		fprintf(stderr, "%lu.%9lu: size %6zu, expected %6u\n",
 		        data.outer,data.inner, data.queue.size(), data.count);
 		data.ret = 1;
 	}
